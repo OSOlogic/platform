@@ -517,7 +517,21 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
   color: var(--contact-color);
 }
 
-/* ===== PLC CONNECTION STATUS (toolbar) ===== */
+/* ===== PLC STATUS DOT (reutilizable) ===== */
+.plc-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.plc-dot--disconnected { background: var(--text-dim); }
+.plc-dot--connecting   { background: #ffd740; animation: plc-blink .7s ease-in-out infinite; }
+.plc-dot--connected    { background: #81c784; }
+.plc-dot--error        { background: var(--danger); }
+@keyframes plc-blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* ===== PLC STATUS — TOOLBAR ===== */
 .plc-status {
   display: flex;
   align-items: center;
@@ -531,21 +545,59 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
   cursor: default;
   user-select: none;
 }
-.plc-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
+
+/* ===== SETTINGS MODAL — PESTAÑAS ===== */
+.modal-box { width: 460px; overflow: hidden; display: flex; flex-direction: column; }
+
+.set-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
   flex-shrink: 0;
-  transition: background .3s;
 }
-.plc-dot--disconnected { background: var(--text-dim); }
-.plc-dot--connecting   { background: #ffd740; animation: plc-blink .7s ease-in-out infinite; }
-.plc-dot--connected    { background: #81c784; }
-.plc-dot--error        { background: var(--danger); }
-@keyframes plc-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+.set-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  padding: 9px 18px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.set-tab:hover { color: var(--text-primary); }
+.set-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
 
-/* ===== PLC SETTINGS FORM ===== */
-#plc-settings-block { margin-top: 4px; }
+.set-tab-panel {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(80vh - 100px);
+}
+.set-tab-panel--hidden { display: none; }
 
+/* Input de texto/password en set-row (además de select) */
+.set-row input[type=text],
+.set-row input[type=password],
+.set-row input[type=number] {
+  background: var(--bg-cell);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  flex: 1;
+  font-family: inherit;
+}
+.set-row input:focus { border-color: var(--accent); }
+
+/* ===== PLC SETTINGS — FORMULARIO ===== */
 .plc-fields { display: none; }
 
 .plc-note {
@@ -554,23 +606,19 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
   padding: 6px 10px;
   margin: 4px 0 8px;
   border-radius: 0 4px 4px 0;
-}
-.plc-note--bridge {
   color: var(--text-secondary);
   background: var(--bg-cell);
-  border-left: 3px solid var(--accent);
 }
-.plc-note--info {
-  color: var(--text-secondary);
-  background: var(--bg-cell);
-  border-left: 3px solid #ffd740;
-}
+.plc-note--bridge { border-left: 3px solid var(--accent); }
+.plc-note--info   { border-left: 3px solid #ffd740; }
 
-.set-plc-actions {
+.plc-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
 .plc-btn-connect    { color: #81c784 !important; border-color: #81c784 !important; }
@@ -580,6 +628,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
   font-size: 11px;
   color: var(--text-dim);
   transition: color .3s;
+  flex: 1;
+  text-align: right;
 }
 .set-plc-status.plc-ok   { color: #81c784; }
 .set-plc-status.plc-err  { color: var(--danger); }

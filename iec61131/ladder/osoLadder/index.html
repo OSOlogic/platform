@@ -194,7 +194,18 @@
       <span>⚙ Ajustes</span>
       <button id="set-close" class="modal-close">&#10005;</button>
     </div>
-    <div class="modal-body">
+
+    <!-- PESTAÑAS -->
+    <div class="set-tabs">
+      <button class="set-tab set-tab--active" data-tab="general">General</button>
+      <button class="set-tab" data-tab="plc">
+        <span id="set-tab-plc-dot" class="plc-dot plc-dot--disconnected"></span>
+        Conexión PLC
+      </button>
+    </div>
+
+    <!-- ── Pestaña: General ─────────────────────────────────── -->
+    <div class="set-tab-panel" id="set-tab-general">
 
       <div class="set-section">Idioma / Language</div>
       <div class="set-row">
@@ -237,6 +248,162 @@
         Click derecho — Menú contextual
       </div>
     </div>
+
+    <!-- ── Pestaña: Conexión PLC ────────────────────────────── -->
+    <div class="set-tab-panel set-tab-panel--hidden" id="set-tab-plc">
+
+      <div class="set-section">Protocolo de conexión</div>
+      <div class="set-row">
+        <label>Protocolo</label>
+        <select id="set-plc-proto">
+          <option value="none">Sin conexión</option>
+          <option value="db">Base de datos (MySQL / MariaDB / PgSQL)</option>
+          <option value="redis">Redis</option>
+          <option value="rest">REST API / JSON</option>
+          <option value="mqtt">MQTT (WebSocket)</option>
+        </select>
+      </div>
+
+      <!-- ── Base de datos ──────────────────────────────────── -->
+      <div class="plc-fields" id="plc-fields-db">
+        <div class="plc-note plc-note--bridge">
+          Requiere bridge backend — no accesible directamente desde el navegador.
+        </div>
+        <div class="set-section">Base de datos</div>
+        <div class="set-row">
+          <label>Motor</label>
+          <select id="set-plc-db-type">
+            <option value="mysql">MySQL / MariaDB</option>
+            <option value="pgsql">PostgreSQL</option>
+          </select>
+        </div>
+        <div class="set-row">
+          <label>Host</label>
+          <input id="set-plc-db-host" type="text" placeholder="192.168.1.10" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Puerto</label>
+          <input id="set-plc-db-port" type="number" placeholder="3306" min="1" max="65535">
+        </div>
+        <div class="set-row">
+          <label>Base de datos</label>
+          <input id="set-plc-db-name" type="text" placeholder="osologic" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Tabla de variables</label>
+          <input id="set-plc-db-table" type="text" placeholder="plc_vars" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Usuario</label>
+          <input id="set-plc-db-user" type="text" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Contraseña</label>
+          <input id="set-plc-db-pass" type="password" autocomplete="new-password">
+        </div>
+      </div>
+
+      <!-- ── Redis ─────────────────────────────────────────── -->
+      <div class="plc-fields" id="plc-fields-redis">
+        <div class="plc-note plc-note--bridge">
+          Requiere bridge backend — no accesible directamente desde el navegador.
+        </div>
+        <div class="set-section">Redis</div>
+        <div class="set-row">
+          <label>Host</label>
+          <input id="set-plc-redis-host" type="text" placeholder="192.168.1.10" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Puerto</label>
+          <input id="set-plc-redis-port" type="number" placeholder="6379" min="1" max="65535">
+        </div>
+        <div class="set-row">
+          <label>Contraseña</label>
+          <input id="set-plc-redis-pass" type="password" autocomplete="new-password">
+        </div>
+        <div class="set-row">
+          <label>Prefijo de clave</label>
+          <input id="set-plc-redis-prefix" type="text" placeholder="plc:">
+        </div>
+      </div>
+
+      <!-- ── REST API ───────────────────────────────────────── -->
+      <div class="plc-fields" id="plc-fields-rest">
+        <div class="set-section">REST API</div>
+        <div class="set-row">
+          <label>URL base</label>
+          <input id="set-plc-rest-url" type="text" placeholder="http://192.168.1.10:8080" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Autenticación</label>
+          <select id="set-plc-rest-auth">
+            <option value="none">Ninguna</option>
+            <option value="bearer">Bearer token</option>
+            <option value="basic">Basic (usuario/contraseña)</option>
+          </select>
+        </div>
+        <div class="set-row plc-rest-bearer">
+          <label>Token</label>
+          <input id="set-plc-rest-token" type="password" autocomplete="new-password">
+        </div>
+        <div class="set-row plc-rest-basic">
+          <label>Usuario</label>
+          <input id="set-plc-rest-user" type="text" autocomplete="off">
+        </div>
+        <div class="set-row plc-rest-basic">
+          <label>Contraseña</label>
+          <input id="set-plc-rest-pass" type="password" autocomplete="new-password">
+        </div>
+        <div class="set-row">
+          <label>Polling (ms)</label>
+          <input id="set-plc-rest-poll" type="number" min="100" max="60000" placeholder="500">
+        </div>
+      </div>
+
+      <!-- ── MQTT ──────────────────────────────────────────── -->
+      <div class="plc-fields" id="plc-fields-mqtt">
+        <div class="plc-note plc-note--info">
+          El broker MQTT debe soportar WebSocket (puerto típico 9001).
+        </div>
+        <div class="set-section">MQTT</div>
+        <div class="set-row">
+          <label>Broker WebSocket</label>
+          <input id="set-plc-mqtt-url" type="text" placeholder="ws://192.168.1.10:9001" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Client ID</label>
+          <input id="set-plc-mqtt-clientid" type="text" placeholder="osoLadder" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Usuario</label>
+          <input id="set-plc-mqtt-user" type="text" autocomplete="off">
+        </div>
+        <div class="set-row">
+          <label>Contraseña</label>
+          <input id="set-plc-mqtt-pass" type="password" autocomplete="new-password">
+        </div>
+        <div class="set-row">
+          <label>Prefijo de topic</label>
+          <input id="set-plc-mqtt-prefix" type="text" placeholder="plc/">
+        </div>
+        <div class="set-row">
+          <label>QoS</label>
+          <select id="set-plc-mqtt-qos">
+            <option value="0">0 — At most once</option>
+            <option value="1">1 — At least once</option>
+            <option value="2">2 — Exactly once</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Acciones ───────────────────────────────────────── -->
+      <div class="plc-actions">
+        <button class="tb-btn plc-btn-connect"    id="set-plc-connect">Conectar</button>
+        <button class="tb-btn plc-btn-disconnect" id="set-plc-disconnect">Desconectar</button>
+        <span class="set-plc-status" id="set-plc-status">Desconectado</span>
+      </div>
+
+    </div><!-- /set-tab-plc -->
   </div>
 </div>
 
