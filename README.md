@@ -1,4 +1,4 @@
-# Borrell Automation® OsoLogic - Open Industrial Automation Platform - CE
+# OsoLogic® - Open Industrial Automation Platform - CE
 
 ![OSOLOGIC logo](logos/osologic_logo.png)
 
