@@ -1,76 +1,79 @@
-# osoST Runtime — P-code Virtual Machine
+<div align="center">
+  <img src="../../../../logos/osologic_logo.png" width="120" alt="OSOlogic logo">
+  <h1>osoST Runtime</h1>
+  <p><strong>P-code virtual machine for IEC 61131-3 ST — portable C99, no dependencies</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/IEC_61131--3-ST_Runtime-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/license-AGPL--3.0-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/(C)_A.M._Zúñiga_·_J._Roig_Borrell-Roig_Borrell_S.L._·_Ibercomp_S.L.-111111?style=flat-square">
+  </p>
+</div>
 
-The osoST runtime executes IEC 61131-3 ST programs compiled to P-code Intel HEX.
-It is written in portable C99 with no dependencies beyond libc.
-
-El runtime osoST ejecuta programas IEC 61131-3 ST compilados a P-code Intel HEX.
-Está escrito en C99 portátil sin más dependencias que libc.
+---
 
 ## Files / Archivos
 
 | File                | Purpose                                                     |
 |---------------------|-------------------------------------------------------------|
-| `pcodevm.h`         | VM struct, opcode enum, public API                          |
-| `pcodevm.c`         | Stack-machine interpreter (~1500 lines)                     |
-| `osoruntime.c`      | `main()`, HEX loader, scan-cycle loop                       |
+| `pcodevm.h`         | VM struct, opcode enum, public API / Struct VM, opcodes, API pública |
+| `pcodevm.c`         | Stack-machine interpreter / Intérprete de máquina de pila   |
+| `osoruntime.c`      | `main()`, HEX loader, scan-cycle loop / main(), carga HEX, bucle de scan |
 | `hardware_linux.c`  | HAL for Linux: GPIO (libgpiod), Modbus TCP (libmodbus)      |
 | `hardware_bare.c`   | HAL template: STM32 / RP2040 / ESP32                        |
-| `hardware_demo.c`   | Demo HAL: Mandelbrot, BACnet stub (no real hardware needed) |
-| `Makefile`          | Build targets for Linux and cross-compilation notes         |
+| `hardware_demo.c`   | Demo HAL — no real hardware required / sin hardware real    |
+| `Makefile`          | Build targets + cross-compilation notes                     |
+
+---
 
 ## Build / Compilación
 
 ```bash
-# Demo build (no hardware drivers)
-make osoruntime_demo
+make osoruntime_demo          # no hardware drivers
+make gpiod                    # Linux GPIO (needs libgpiod-dev)
+make modbus                   # Linux Modbus TCP (needs libmodbus-dev)
 
-# Linux GPIO + Modbus build
-make gpiod        # needs libgpiod-dev
-make modbus       # needs libmodbus-dev
-
-# Run / Ejecutar
 ./osoruntime program.hex
 ./osoruntime program.hex --scan=10 --debug --metrics
 ```
 
+---
+
 ## Scan cycle options / Opciones del ciclo de scan
 
-| Flag         | Default | Description                                          |
-|--------------|---------|------------------------------------------------------|
-| `--scan=N`   | 0 (free-run) | Cycle period in milliseconds                   |
-| `--ram=N`    | from HEX header | RAM allocation override in bytes            |
-| `--debug`    | off     | Enable `VM_MODE_DEBUG` (debug() output)              |
-| `--trace`    | off     | Enable `VM_MODE_TRACE` (instruction trace)           |
-| `--metrics`  | off     | Print instruction count and timing after each cycle  |
-| `--once`     | off     | Run exactly one scan cycle then exit                 |
-| `--mode=N`   | 0       | Set `vm_mode` directly (bitmask)                     |
-
-## HAL interface / Interfaz HAL
-
-Implement `hardware_linux.c` or `hardware_bare.c` and provide:
-
-```c
-void hardware(VM *vm, uint8_t trap_id);
-void hardware_read_inputs(VM *vm);   // called before each scan
-void hardware_write_outputs(VM *vm); // called after each scan
-```
-
-Standard trap IDs / IDs de trap estándar:
-
-| ID  | ST symbol      | Description                        |
-|-----|----------------|------------------------------------|
-| 10  | `gpio_write`   | Write GPIO output                  |
-| 11  | `gpio_read`    | Read GPIO input → I32              |
-| 12  | `millis`       | Milliseconds since start → I32     |
-| 17  | `mandelbrot`   | Demo: Mandelbrot iteration count   |
-| 18  | `cpu`          | Demo: CPU usage placeholder        |
-| 20  | `modbus_write_coil` | Write Modbus coil             |
-| 21  | `modbus_read_coil`  | Read Modbus coil → I32        |
+| Flag         | Default      | Description                                          |
+|--------------|--------------|------------------------------------------------------|
+| `--scan=N`   | 0 (free-run) | Cycle period in milliseconds / Período en ms         |
+| `--ram=N`    | from header  | RAM allocation override in bytes                     |
+| `--debug`    | off          | Enable `VM_MODE_DEBUG` (debug() output)              |
+| `--trace`    | off          | Enable `VM_MODE_TRACE` (instruction trace)           |
+| `--metrics`  | off          | Print instruction count and timing per cycle         |
+| `--once`     | off          | Run exactly one scan cycle then exit                 |
+| `--mode=N`   | 0            | Set `vm_mode` bitmask directly                       |
 
 ---
 
-Copyright (C) 2026 Angel Miguel Zúñiga Schmemund \<miguel@ibercomp.com\>  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Jose Roig Borrell, Roig Borrell SL, Ibercomp SL  
-Part of **OsoLogic®** — [osologic.org](https://osologic.org)  
-SPDX-License-Identifier: AGPL-3.0-or-later
+## HAL trap IDs / IDs de trap HAL
+
+| ID  | ST symbol           | Description                              |
+|-----|---------------------|------------------------------------------|
+| 10  | `gpio_write`        | Write GPIO output / Escribir salida GPIO |
+| 11  | `gpio_read`         | Read GPIO input → I32                    |
+| 12  | `millis`            | Milliseconds since start → I32           |
+| 17  | `mandelbrot`        | Demo: Mandelbrot iteration count         |
+| 18  | `cpu`               | Demo: CPU usage placeholder              |
+| 20  | `modbus_write_coil` | Write Modbus TCP coil                    |
+| 21  | `modbus_read_coil`  | Read Modbus TCP coil → I32               |
+
+---
+
+## Related / Relacionado
+
+- [`../`](../) — osoST project root
+- [`../compiler-python/`](../compiler-python/) — Python compiler (ostc)
+- [`../compiler-java/`](../compiler-java/) — Java compiler REST wrapper
+
+---
+
+<div align="center">
+  <sub>(C) Angel Miguel Zúñiga Schmemund &lt;miguel@ibercomp.com&gt; · Jose Roig Borrell · Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0</sub>
+</div>

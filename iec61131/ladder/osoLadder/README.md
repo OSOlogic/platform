@@ -1,28 +1,38 @@
-# OSOLadder — IEC 61131-3 Ladder Logic Editor
-
-> Part of the **OsoLogic® Open Industrial Automation Platform** — [osologic.org](https://osologic.org)
-
-**OSOLadder** is a browser-based Ladder Logic (LD) editor for IEC 61131-3 PLC programming.
-It runs as a single HTML file — no build step, no server required to edit diagrams.
-Connect it to an osoLogic PLC over REST, MQTT, Redis, or database for live I/O.
-
-**OSOLadder** es un editor de Diagrama de Escalera (LD) IEC 61131-3 basado en navegador.
-Funciona como un único archivo HTML — sin paso de compilación, sin servidor necesario para editar.
-Conéctelo a un PLC osoLogic via REST, MQTT, Redis o base de datos para I/O en tiempo real.
+<div align="center">
+  <img src="../../../logos/osologic_logo.png" width="120" alt="OSOlogic logo">
+  <h1>osoLadder</h1>
+  <p><strong>IEC 61131-3 Ladder Diagram visual editor — browser-based, no build step</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/IEC_61131--3-Ladder_Diagram-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/license-AGPL--3.0-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/(C)_Roig_Borrell_S.L.-Ibercomp_S.L.-111111?style=flat-square">
+  </p>
+</div>
 
 ---
 
 ## Files / Archivos
 
-| File             | Purpose                                                          |
-|------------------|------------------------------------------------------------------|
-| `index.html`     | Single-page app — open directly in browser / Abrir en navegador |
-| `osological.js`  | Ladder editor logic (canvas rendering, element drag & drop)      |
-| `osological.css` | Design system styles (dark theme, CSS variables)                 |
-| `osoplc.js`      | PLC connection layer (REST, MQTT, Redis, DB bridge)              |
-| `LICENSE`        | AGPL-3.0                                                         |
-| `publish.sh`     | Deploy to GitHub repository / Desplegar al repositorio GitHub    |
-| `osoST/`         | Structured Text toolchain — see [osoST/README.md](osoST/README.md) |
+```
+iec61131/ladder/osoLadder/
+├── index.html       ← visual editor entry point / punto de entrada del editor visual
+├── osological.js    ← editor engine (canvas, rungs, contacts, coils)
+├── osological.css   ← design system styles (dark theme, CSS variables)
+├── osoplc.js        ← PLC connection layer (REST, MQTT, Redis, DB bridge)
+└── LICENSE
+```
+
+> **osoLadder** is maintained as a standalone project and synchronised into this repository via `publish.sh`. Do not edit files here directly — submit changes upstream at `OSOLadder/`.
+
+---
+
+## Features / Características
+
+- **Visual Ladder editor** — drag-and-drop NO/NC contacts, output coils, function blocks, math blocks
+- **IEC 61131-3 LD elements** — SR/RS latches, TON/TOF timers, CTU/CTD counters
+- **Variable table** — declare and manage PLC variables with types
+- **PLC connection** — prototype live I/O via REST API, MQTT (WebSocket), Redis bridge, DB bridge
+- **Single-file app** — open `index.html` directly in any modern browser, no server required
 
 ---
 
@@ -38,88 +48,51 @@ python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
-No installation required. All functionality runs in the browser.
-Sin instalación. Toda la funcionalidad corre en el navegador.
-
----
-
-## Features / Características
-
-- **Visual Ladder editor** — drag-and-drop contacts, coils, function blocks, math blocks
-- **IEC 61131-3 LD** — NO, NC contacts; output coils; SR/RS latches; TON/TOF timers; CTU/CTD counters
-- **Variable table** — declare and manage PLC variables with types
-- **PLC connection** — prototype live connection via:
-  - REST API/JSON (direct `fetch()`)
-  - MQTT over WebSocket
-  - Database bridge (MySQL/MariaDB/PostgreSQL)
-  - Redis bridge
-- **Export** — save project to JSON, export ladder diagram
-
-- **Editor Ladder visual** — contactos, bobinas, bloques de función arrastrables
-- **IEC 61131-3 LD** — contactos NA/NC; bobinas; Latches SR/RS; temporizadores TON/TOF; contadores CTU/CTD
-- **Tabla de variables** — declarar y gestionar variables PLC con tipos
-- **Conexión PLC** — prototipado de conexión en vivo via REST, MQTT, base de datos, Redis
-- **Exportar** — guardar proyecto en JSON, exportar diagrama
-
 ---
 
 ## PLC connection / Conexión PLC
 
-Open **Settings → Conexión PLC** (gear icon in toolbar) and configure:
+Open **Settings → Conexión PLC** (⚙ in toolbar). Connection config persists in `localStorage`.
 
 | Protocol | Transport              | Notes                                    |
 |----------|------------------------|------------------------------------------|
 | REST     | HTTP/HTTPS `fetch()`   | Direct — no bridge needed                |
-| MQTT     | WebSocket (port 9001)  | Direct — broker must support WS          |
+| MQTT     | WebSocket (port 9001)  | Broker must support WebSocket            |
 | Redis    | Bridge required        | Use `osoplc-bridge` service              |
-| Database | Bridge required        | MySQL/MariaDB/PostgreSQL via bridge      |
-
-Connection state is persisted in `localStorage` (key `osol_plc_cfg`).
-El estado de conexión se persiste en `localStorage` (clave `osol_plc_cfg`).
+| Database | Bridge required        | MySQL / MariaDB / PostgreSQL via bridge  |
 
 ---
 
 ## Architecture / Arquitectura
 
 ```
- OSOLadder (browser)
-     │  REST/MQTT/WebSocket
-     ▼
- osoLogic PLC runtime (osoruntime + pcodevm)
-     │
-     ├── GPIO  (hardware_linux.c / hardware_bare.c)
-     ├── Modbus TCP
-     └── osodb process tag database
+┌──────────────────────────────────────────────────────────┐
+│  Browser                                                 │
+│                                                          │
+│  osoLadder (index.html)     ← this folder               │
+│    └── talks to ──────────────────────────────────┐     │
+│                                                    ▼     │
+│              api/rest  +  api/websocket            │     │
+│                (OSOlogic REST/WS API)              │     │
+│                                                    │     │
+│    └── runs on ───────────────────────────────┐   │     │
+│                                                ▼   │     │
+│              core/osoruntime                   │   │     │
+│                (real-time scan cycle)          │   │     │
+└──────────────────────────────────────────────────────────┘
 ```
 
-For Structured Text programs compiled to run on the same VM,
-see the [osoST toolchain](osoST/README.md).
+---
 
-Para programas ST compilados para ejecutarse en el mismo VM,
-ver el [toolchain osoST](osoST/README.md).
+## Related / Relacionado
+
+- [`iec61131/st/osoST/`](../st/osoST/) — Structured Text toolchain (osoST)
+- [`ui/ladder-editor/`](../../../ui/ladder-editor/) — webmin-oso integration layer
+- [`core/osoruntime/`](../../../core/osoruntime/) — real-time scan cycle engine
+- [`api/openapi/osologic-admin-api.yaml`](../../../api/openapi/osologic-admin-api.yaml) — REST API contract
 
 ---
 
-## Publish / Publicar
-
-```bash
-./publish.sh
-```
-
-Deploys to `iec61131/ladder/osoLadder/` in the
-[OSOlogic-OpenSourceOsPLC-CE](https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE)
-repository.
-
----
-
-## License / Licencia
-
-[AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.html)
-
----
-
-## Copyright / Derechos de autor
-
-Copyright (C) 2026 Jose Roig Borrell, Roig Borrell SL, Ibercomp SL
-
-Part of the **OsoLogic®** open-source PLC project — [osologic.org](https://osologic.org)
+<div align="center">
+  <sub>(C) Jose Roig Borrell · Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0</sub>
+</div>

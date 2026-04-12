@@ -1,79 +1,80 @@
-# osoST Python Compiler (ostc)
+<div align="center">
+  <img src="../../../../logos/osologic_logo.png" width="120" alt="OSOlogic logo">
+  <h1>ostc — osoST Python Compiler</h1>
+  <p><strong>Pure-Python IEC 61131-3 ST compiler — no Java, no third-party dependencies</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/IEC_61131--3-Structured_Text-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/Python-3.10+-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/license-AGPL--3.0-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/(C)_A.M._Zúñiga_·_J._Roig_Borrell-Roig_Borrell_S.L._·_Ibercomp_S.L.-111111?style=flat-square">
+  </p>
+</div>
 
-Pure-Python IEC 61131-3 ST compiler — no Java, no third-party dependencies.
-Compilador IEC 61131-3 ST en Python puro — sin Java, sin dependencias externas.
-
-Targets the same P-code VM as the Java STLite backend (pcodevm.c).
-Apunta al mismo VM P-code que el backend Java STLite (pcodevm.c).
-
-## Installation / Instalación
-
-```bash
-# No install needed — run directly from source
-# Sin instalación — ejecutar directamente desde el fuente
-cd osoST/compiler-python/
-python -m ostc --help
-```
-
-Optional development dependencies:
-
-```bash
-pip install pytest
-```
+---
 
 ## Usage / Uso
 
 ```bash
 python -m ostc <file.st>               # compile → <file.hex>
-python -m ostc <file.st> -o out.hex    # specify output path
+python -m ostc <file.st> -o out.hex    # specify output
 python -m ostc <file.st> --lex         # print token list and exit
 python -m ostc <file.st> --ast         # print AST and exit
 python -m ostc <file.st> --asm         # print P-code disassembly
 python -m ostc <file.st> -v            # verbose output
 ```
 
+No installation required — runs directly from source. Python 3.10+, stdlib only.
+
+---
+
 ## Module structure / Estructura del módulo
 
 ```
 ostc/
-├── __init__.py   — Public package exports
-├── tokens.py     — Keyword table and token name list
-├── lexer.py      — Tokenizer: source → list[Token]
-│                   TokenStream class for parser use
-├── parser.py     — Recursive-descent parser: tokens → Program AST
-├── ast_nodes.py  — Frozen dataclass AST node definitions
-├── codegen.py    — AST → P-code bytes via HexWriter
-│                   disassemble() for --asm output
-└── hex_writer.py — Intel HEX emitter with STLite 24-byte header
+├── __init__.py    ← package exports
+├── __main__.py    ← enables  python -m ostc
+├── tokens.py      ← keyword table and token name list
+├── lexer.py       ← tokenizer: source → list[Token]  +  TokenStream
+├── parser.py      ← recursive-descent parser: tokens → Program AST
+├── ast_nodes.py   ← frozen dataclass AST node definitions
+├── codegen.py     ← AST → P-code bytes via HexWriter + disassemble()
+└── hex_writer.py  ← Intel HEX emitter with STLite 24-byte header
 ```
-
-## Implementation status / Estado de implementación
-
-| Component       | Status       | Notes                                        |
-|-----------------|--------------|----------------------------------------------|
-| Lexer           | ✅ Complete  | Full ST token set, bilingual error messages  |
-| Parser          | ✅ Complete  | Recursive descent, full ST grammar           |
-| AST nodes       | ✅ Complete  | Frozen dataclasses, all ST constructs        |
-| Code generator  | ✅ Scaffold  | Core ops implemented; array indexing partial |
-| HEX writer      | ✅ Complete  | STLite-compatible header + Intel HEX records |
-| CLI             | ✅ Complete  | All flags wired to pipeline stages           |
-
-Array multi-dimension indexing and full type checking are planned for v0.2.
-
-## ST language features supported / Características del lenguaje ST soportadas
-
-- Data types: BOOL, SINT, INT, DINT, LONG, REAL, LREAL, FLOAT, STRING, arrays
-- Declarations: VAR, VAR_GLOBAL, VAR_INPUT, VAR_OUTPUT, VAR_IN_OUT
-- Control flow: IF/ELSIF/ELSE, CASE, WHILE, REPEAT, FOR (TO/DOWNTO/BY)
-- Statements: assignment `:=`, RETURN, EXIT
-- Operators: arithmetic, logical (AND OR NOT XOR MOD), comparison, ternary `?:`
-- Calls: functions (return value), procedures, TRAP (hardware dispatch)
-- STLite extensions: TRAP declaration, DEBUG(), ternary operator
 
 ---
 
-Copyright (C) 2026 Angel Miguel Zúñiga Schmemund \<miguel@ibercomp.com\>  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Jose Roig Borrell, Roig Borrell SL, Ibercomp SL  
-Part of **OsoLogic®** — [osologic.org](https://osologic.org)  
-SPDX-License-Identifier: AGPL-3.0-or-later
+## Implementation status / Estado de implementación
+
+| Component    | Status        | Notes                                          |
+|--------------|---------------|------------------------------------------------|
+| Lexer        | ✅ Complete   | Full ST token set, bilingual error messages    |
+| Parser       | ✅ Complete   | Recursive descent, full ST + STLite grammar    |
+| AST nodes    | ✅ Complete   | Frozen dataclasses, all ST constructs          |
+| Code gen     | ✅ Scaffold   | Core ops implemented; multi-dim arrays pending |
+| HEX writer   | ✅ Complete   | STLite-compatible header + Intel HEX records   |
+| CLI          | ✅ Complete   | All pipeline stages wired                      |
+
+---
+
+## ST language features / Características del lenguaje ST
+
+- **Types** — BOOL, SINT/USINT, INT/UINT, DINT/UDINT, LONG/ULONG, REAL/LREAL, FLOAT, STRING, arrays
+- **Declarations** — VAR, VAR_GLOBAL, VAR_INPUT, VAR_OUTPUT, VAR_IN_OUT
+- **Control flow** — IF/ELSIF/ELSE, CASE, WHILE, REPEAT, FOR (TO/DOWNTO/BY)
+- **Operators** — arithmetic, logical (AND OR NOT XOR MOD), comparison, ternary `?:`
+- **Calls** — functions (return value), procedures, TRAP (hardware dispatch)
+- **STLite extensions** — TRAP declaration, DEBUG(), ternary operator `?:`
+
+---
+
+## Related / Relacionado
+
+- [`../`](../) — osoST project root
+- [`../runtime/`](../runtime/) — P-code VM (pcodevm.c)
+- [`../compiler-java/`](../compiler-java/) — Java backend REST wrapper
+
+---
+
+<div align="center">
+  <sub>(C) Angel Miguel Zúñiga Schmemund &lt;miguel@ibercomp.com&gt; · Jose Roig Borrell · Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0</sub>
+</div>

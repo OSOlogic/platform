@@ -1,45 +1,56 @@
-# osoST Java Compiler Backend
+<div align="center">
+  <img src="../../../../logos/osologic_logo.png" width="120" alt="OSOlogic logo">
+  <h1>osoST Java Compiler Backend</h1>
+  <p><strong>Flask REST wrapper around STLite.jar — reference ST compiler for OsoLogic®</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/IEC_61131--3-Structured_Text-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/license-AGPL--3.0-800000?style=flat-square">
+    <img src="https://img.shields.io/badge/(C)_A.M._Zúñiga_·_J._Roig_Borrell-Roig_Borrell_S.L._·_Ibercomp_S.L.-111111?style=flat-square">
+  </p>
+</div>
 
-Flask REST wrapper around STLite.jar — the reference Java-based ST compiler.
-Wrapper Flask REST sobre STLite.jar — el compilador ST de referencia basado en Java.
+---
 
 ## Requirements / Requisitos
 
-- Java 11 or later / Java 11 o superior
-- Python 3.8+ with Flask / Python 3.8+ con Flask
-- STLite.jar (copy to this directory) / STLite.jar (copiar en este directorio)
+- Java 11+
+- Python 3.8+ with Flask (`pip install flask`)
+- `STLite.jar` — copy to this directory
+
+---
 
 ## Setup / Configuración
 
 ```bash
-cd osoST/compiler-java/
+cd compiler-java/
 pip install flask
 cp /path/to/STLite.jar .
-python server.py
+python server.py --port 8090
 # API at http://localhost:8090
 ```
 
+---
+
 ## REST API
 
-| Method | Endpoint        | Description                                      |
-|--------|-----------------|--------------------------------------------------|
-| POST   | `/compile`      | Compile ST source → Intel HEX                    |
-| POST   | `/compile/file` | Upload .st/.prj file and compile                 |
-| POST   | `/lex`          | Tokenize ST source (Python lexer, no Java)       |
-| POST   | `/parse`        | Parse ST source to AST JSON (Python parser)      |
-| GET    | `/health`       | Health check                                     |
-| GET    | `/version`      | Java and JAR version info                        |
+| Method | Endpoint        | Backend | Description                                  |
+|--------|-----------------|---------|----------------------------------------------|
+| POST   | `/compile`      | Java    | Compile ST source → Intel HEX                |
+| POST   | `/compile/file` | Java    | Upload .st/.prj file and compile             |
+| POST   | `/lex`          | Python  | Tokenize ST source (no Java required)        |
+| POST   | `/parse`        | Python  | Parse ST source → AST JSON (no Java)         |
+| GET    | `/health`       | —       | Health check                                 |
+| GET    | `/version`      | —       | Java and JAR version info                    |
 
 ### Compile example / Ejemplo de compilación
 
 ```bash
 curl -X POST http://localhost:8090/compile \
      -H "Content-Type: application/json" \
-     -d '{"source": "procedure main()\n  debug(42);\nend_procedure"}'
+     -d '{"source": "PROCEDURE main()\n  debug(42);\nEND_PROCEDURE"}'
 ```
 
-Response (success):
-
+**Success / Éxito:**
 ```json
 {
   "ok": true,
@@ -51,8 +62,7 @@ Response (success):
 }
 ```
 
-Response (error):
-
+**Error / Error:**
 ```json
 {
   "ok": false,
@@ -61,19 +71,19 @@ Response (error):
 }
 ```
 
-### Lex / Parse endpoints (Python, no Java required)
+### Lex / Parse (Python, no Java)
 
 ```bash
-# Tokenize / Tokenizar
 curl -X POST http://localhost:8090/lex \
      -H "Content-Type: application/json" \
      -d '{"source": "IF x > 0 THEN x := x - 1; END_IF;"}'
 
-# Parse to AST / Parsear a AST
 curl -X POST http://localhost:8090/parse \
      -H "Content-Type: application/json" \
      -d '{"source": "PROCEDURE main()\n  debug(1);\nEND_PROCEDURE"}'
 ```
+
+---
 
 ## CLI wrapper / Wrapper CLI
 
@@ -84,8 +94,14 @@ curl -X POST http://localhost:8090/parse \
 
 ---
 
-Copyright (C) 2026 Angel Miguel Zúñiga Schmemund \<miguel@ibercomp.com\>  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Jose Roig Borrell, Roig Borrell SL, Ibercomp SL  
-Part of **OsoLogic®** — [osologic.org](https://osologic.org)  
-SPDX-License-Identifier: AGPL-3.0-or-later
+## Related / Relacionado
+
+- [`../`](../) — osoST project root
+- [`../compiler-python/`](../compiler-python/) — Python compiler (ostc)
+- [`../runtime/`](../runtime/) — P-code VM (pcodevm.c)
+
+---
+
+<div align="center">
+  <sub>(C) Angel Miguel Zúñiga Schmemund &lt;miguel@ibercomp.com&gt; · Jose Roig Borrell · Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0</sub>
+</div>
