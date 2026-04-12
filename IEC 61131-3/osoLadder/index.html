@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<!--
+  OSOLadder — IEC 61131-3 Ladder Logic Editor
+  Part of the OSOlogic project
+
+  Copyright (C) 2026 Jose Roig Borrell, Roig Borrell SL, Ibercomp SL
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSOLadder — IEC 61131-3</title>
+  <link rel="stylesheet" href="osological.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- TOOLBAR -->
+  <header id="toolbar">
+    <div class="toolbar-left">
+      <span class="logo">OSO<span class="logo-accent">Ladder</span></span>
+      <div class="toolbar-sep"></div>
+      <button class="tb-btn" id="btn-new">Nuevo</button>
+      <button class="tb-btn" id="btn-import">Importar</button>
+      <button class="tb-btn" id="btn-export">Exportar</button>
+      <input type="file" id="file-input" accept=".osol,.json" style="display:none">
+      <div class="toolbar-sep"></div>
+      <button class="tb-btn" id="btn-undo">Deshacer</button>
+      <button class="tb-btn" id="btn-redo">Rehacer</button>
+    </div>
+    <div class="toolbar-center">
+      <input type="text" id="project-name" value="Proyecto Sin Nombre" autocomplete="off">
+    </div>
+    <div class="toolbar-right">
+      <span class="version">IEC 61131-3</span>
+      <button class="tb-btn" id="btn-settings">⚙ Ajustes</button>
+    </div>
+  </header>
+
+  <!-- PALETTE -->
+  <aside id="palette">
+    <div class="palette-title">Elementos</div>
+
+    <div class="palette-group">
+      <div class="palette-group-header">Contactos</div>
+      <div class="palette-group-body">
+        <div class="palette-item" draggable="true" data-type="NO_CONTACT" title="Normalmente Abierto">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="14" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="18" x2="60" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="14" y1="6" x2="14" y2="30" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="6" x2="46" y2="30" stroke="#4fc3f7" stroke-width="2"/></svg>
+          <span>NA / NO</span>
+        </div>
+        <div class="palette-item" draggable="true" data-type="NC_CONTACT" title="Normalmente Cerrado">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="14" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="18" x2="60" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="14" y1="6" x2="14" y2="30" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="6" x2="46" y2="30" stroke="#4fc3f7" stroke-width="2"/><line x1="14" y1="28" x2="46" y2="8" stroke="#4fc3f7" stroke-width="2"/></svg>
+          <span>NC</span>
+        </div>
+        <div class="palette-item" draggable="true" data-type="POS_TRANSITION" title="Flanco de subida">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="14" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="18" x2="60" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="14" y1="6" x2="14" y2="30" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="6" x2="46" y2="30" stroke="#4fc3f7" stroke-width="2"/><text x="30" y="22" text-anchor="middle" fill="#4fc3f7" font-size="12" font-family="monospace">P</text></svg>
+          <span>P (↑)</span>
+        </div>
+        <div class="palette-item" draggable="true" data-type="NEG_TRANSITION" title="Flanco de bajada">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="14" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="18" x2="60" y2="18" stroke="#4fc3f7" stroke-width="2"/><line x1="14" y1="6" x2="14" y2="30" stroke="#4fc3f7" stroke-width="2"/><line x1="46" y1="6" x2="46" y2="30" stroke="#4fc3f7" stroke-width="2"/><text x="30" y="22" text-anchor="middle" fill="#4fc3f7" font-size="12" font-family="monospace">N</text></svg>
+          <span>N (↓)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <div class="palette-group-header">Bobinas</div>
+      <div class="palette-group-body">
+        <div class="palette-item" draggable="true" data-type="COIL_NORMAL" title="Bobina normal">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="12" y2="18" stroke="#81c784" stroke-width="2"/><line x1="48" y1="18" x2="60" y2="18" stroke="#81c784" stroke-width="2"/><circle cx="30" cy="18" r="14" stroke="#81c784" stroke-width="2" fill="none"/></svg>
+          <span>( )</span>
+        </div>
+        <div class="palette-item" draggable="true" data-type="COIL_NEGATED" title="Bobina negada">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="12" y2="18" stroke="#81c784" stroke-width="2"/><line x1="48" y1="18" x2="60" y2="18" stroke="#81c784" stroke-width="2"/><circle cx="30" cy="18" r="14" stroke="#81c784" stroke-width="2" fill="none"/><line x1="21" y1="27" x2="39" y2="9" stroke="#81c784" stroke-width="2"/></svg>
+          <span>(/)</span>
+        </div>
+        <div class="palette-item" draggable="true" data-type="COIL_SET" title="Bobina Set">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="12" y2="18" stroke="#81c784" stroke-width="2"/><line x1="48" y1="18" x2="60" y2="18" stroke="#81c784" stroke-width="2"/><circle cx="30" cy="18" r="14" stroke="#81c784" stroke-width="2" fill="none"/><text x="30" y="22" text-anchor="middle" fill="#81c784" font-size="13" font-family="monospace">S</text></svg>
+          <span>(S)</span>
+        </div>
+        <div class="palette-item" draggable="true" data-type="COIL_RESET" title="Bobina Reset">
+          <svg class="palette-svg" viewBox="0 0 60 36"><line x1="0" y1="18" x2="12" y2="18" stroke="#81c784" stroke-width="2"/><line x1="48" y1="18" x2="60" y2="18" stroke="#81c784" stroke-width="2"/><circle cx="30" cy="18" r="14" stroke="#81c784" stroke-width="2" fill="none"/><text x="30" y="22" text-anchor="middle" fill="#81c784" font-size="13" font-family="monospace">R</text></svg>
+          <span>(R)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <div class="palette-group-header">Temporizadores</div>
+      <div class="palette-group-body">
+        <div class="palette-item" draggable="true" data-type="FB_TON"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffb74d" stroke-width="2" fill="none" rx="2"/><rect x="4" y="2" width="52" height="13" fill="#1a3a5c" rx="2"/><rect x="4" y="11" width="52" height="4" fill="#1a3a5c"/><text x="30" y="12" text-anchor="middle" fill="#ffb74d" font-size="10" font-family="monospace" font-weight="bold">TON</text></svg><span>TON</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_TOF"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffb74d" stroke-width="2" fill="none" rx="2"/><rect x="4" y="2" width="52" height="13" fill="#1a3a5c" rx="2"/><rect x="4" y="11" width="52" height="4" fill="#1a3a5c"/><text x="30" y="12" text-anchor="middle" fill="#ffb74d" font-size="10" font-family="monospace" font-weight="bold">TOF</text></svg><span>TOF</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_TP"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffb74d" stroke-width="2" fill="none" rx="2"/><rect x="4" y="2" width="52" height="13" fill="#1a3a5c" rx="2"/><rect x="4" y="11" width="52" height="4" fill="#1a3a5c"/><text x="30" y="12" text-anchor="middle" fill="#ffb74d" font-size="10" font-family="monospace" font-weight="bold">TP</text></svg><span>TP</span></div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <div class="palette-group-header">Contadores</div>
+      <div class="palette-group-body">
+        <div class="palette-item" draggable="true" data-type="FB_CTU"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffb74d" stroke-width="2" fill="none" rx="2"/><rect x="4" y="2" width="52" height="13" fill="#1a3a5c" rx="2"/><rect x="4" y="11" width="52" height="4" fill="#1a3a5c"/><text x="30" y="12" text-anchor="middle" fill="#ffb74d" font-size="10" font-family="monospace" font-weight="bold">CTU</text></svg><span>CTU</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_CTD"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffb74d" stroke-width="2" fill="none" rx="2"/><rect x="4" y="2" width="52" height="13" fill="#1a3a5c" rx="2"/><rect x="4" y="11" width="52" height="4" fill="#1a3a5c"/><text x="30" y="12" text-anchor="middle" fill="#ffb74d" font-size="10" font-family="monospace" font-weight="bold">CTD</text></svg><span>CTD</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_CTUD"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffb74d" stroke-width="2" fill="none" rx="2"/><rect x="4" y="2" width="52" height="13" fill="#1a3a5c" rx="2"/><rect x="4" y="11" width="52" height="4" fill="#1a3a5c"/><text x="30" y="12" text-anchor="middle" fill="#ffb74d" font-size="8" font-family="monospace" font-weight="bold">CTUD</text></svg><span>CTUD</span></div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <div class="palette-group-header">Matemáticas</div>
+      <div class="palette-group-body">
+        <div class="palette-item" draggable="true" data-type="FB_ADD"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ce93d8" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#ce93d8" font-size="18" font-family="monospace">+</text></svg><span>ADD</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_SUB"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ce93d8" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#ce93d8" font-size="18" font-family="monospace">−</text></svg><span>SUB</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_MUL"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ce93d8" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#ce93d8" font-size="18" font-family="monospace">×</text></svg><span>MUL</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_DIV"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ce93d8" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#ce93d8" font-size="18" font-family="monospace">÷</text></svg><span>DIV</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_MOV"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ce93d8" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#ce93d8" font-size="11" font-family="monospace">MOV</text></svg><span>MOV</span></div>
+      </div>
+    </div>
+
+    <div class="palette-group">
+      <div class="palette-group-header">Comparación</div>
+      <div class="palette-group-body">
+        <div class="palette-item" draggable="true" data-type="FB_GT"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#80deea" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#80deea" font-size="16" font-family="monospace">&gt;</text></svg><span>GT</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_LT"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#80deea" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#80deea" font-size="16" font-family="monospace">&lt;</text></svg><span>LT</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_GE"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#80deea" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#80deea" font-size="12" font-family="monospace">≥</text></svg><span>GE</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_LE"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#80deea" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#80deea" font-size="12" font-family="monospace">≤</text></svg><span>LE</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_EQ"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#80deea" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#80deea" font-size="16" font-family="monospace">=</text></svg><span>EQ</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_NE"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#80deea" stroke-width="2" fill="none" rx="2"/><text x="30" y="22" text-anchor="middle" fill="#80deea" font-size="12" font-family="monospace">≠</text></svg><span>NE</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- EDITOR -->
+  <main id="editor">
+    <div id="rung-list"></div>
+    <div id="add-rung-bar">
+      <button id="btn-add-rung">+ Agregar Escalón</button>
+    </div>
+  </main>
+
+  <!-- PROPERTIES -->
+  <aside id="properties">
+    <div class="panel-title" id="panel-props-title">Propiedades</div>
+    <div id="props-content">
+      <div class="props-empty">Selecciona un elemento para editar sus propiedades.</div>
+    </div>
+  </aside>
+
+  <!-- TAG TABLE -->
+  <aside id="tag-table">
+    <div class="panel-title">
+      <span id="panel-vars-title">Variables</span>
+      <button class="btn-small" id="btn-add-var">+ Nueva</button>
+      <input type="text" id="var-filter" placeholder="Filtrar..." autocomplete="off">
+    </div>
+    <div id="tag-table-body">
+      <table id="var-table">
+        <thead>
+          <tr>
+            <th>Nombre</th><th>Tipo</th><th>Alcance</th>
+            <th>Dirección</th><th>Comentario</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="var-table-body"></tbody>
+      </table>
+    </div>
+  </aside>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="context-menu" class="hidden">
+  <div class="ctx-item" data-action="delete">Eliminar elemento</div>
+  <div class="ctx-item" data-action="clear">Limpiar celda</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-action="branch-here">Rama desde aquí</div>
+  <div class="ctx-item" data-action="remove-branch">Eliminar esta rama</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-action="insert-before">Insertar escalón antes</div>
+  <div class="ctx-item" data-action="insert-after">Insertar escalón después</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-action="copy">Copiar celda</div>
+  <div class="ctx-item" data-action="paste">Pegar celda</div>
+</div>
+
+<!-- AUTOCOMPLETE -->
+<ul id="var-autocomplete" class="hidden"></ul>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" class="modal-backdrop hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>⚙ Ajustes</span>
+      <button id="set-close" class="modal-close">&#10005;</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="set-section">Idioma / Language</div>
+      <div class="set-row">
+        <label>Idioma</label>
+        <select id="set-lang">
+          <option value="es">Español</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <div class="set-section">Apariencia</div>
+      <div class="set-row">
+        <label>Tema</label>
+        <select id="set-theme">
+          <option value="light">Claro</option>
+          <option value="dark" selected>Oscuro (default)</option>
+          <option value="blue">Azul industrial</option>
+          <option value="green">Verde terminal</option>
+          <option value="hc">Alto contraste</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <label>Tamaño de celda</label>
+        <select id="set-cellsize">
+          <option value="72">Pequeño (72px)</option>
+          <option value="90" selected>Mediano (90px)</option>
+          <option value="110">Grande (110px)</option>
+        </select>
+      </div>
+
+      <div class="set-section">Información</div>
+      <div class="set-info">
+        <b>OSOLadder</b> — Editor IEC 61131-3 Ladder Logic<br>
+        Estándar: IEC 61131-3 (LD)<br>
+        Formato: <code>.osol</code> (JSON)<br>
+        <br>
+        <b>Atajos de teclado:</b><br>
+        Ctrl+Z — Deshacer &nbsp; Ctrl+Y — Rehacer<br>
+        Ctrl+S — Exportar &nbsp; Delete — Eliminar elemento<br>
+        Click derecho — Menú contextual
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="osological.js"></script>
+</body>
+</html>
