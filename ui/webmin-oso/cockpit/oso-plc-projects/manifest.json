@@ -1,0 +1,14 @@
+{
+  "version": 0,
+  "name": "oso-plc-projects",
+  "description": "OSOlogic PLC Project Manager",
+  "menu": {
+    "display": "PLC Projects",
+    "keyword": ["project", "plc", "upload", "iec", "program", "deploy"],
+    "order": 53
+  },
+  "requires": {
+    "cockpit": "195"
+  },
+  "enter-page": "index.html"
+}

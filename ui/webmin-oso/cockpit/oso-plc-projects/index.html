@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OSOlogic — PLC Projects</title>
+<script src="../base/cockpit.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5/patternfly.min.css" crossorigin>
+<style>
+  :root {
+    --oso-red:  #800000;
+    --oso-red2: #a00000;
+    --oso-red3: #600000;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .oso-header {
+    background: #1c1c1c;
+    border-bottom: 3px solid var(--oso-red3);
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .oso-header h1 { font-size:17px; font-weight:700; color:#e0e0e0; margin:0 }
+  .oso-header .sub { font-size:11px; color:#666; margin-top:2px }
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  .page { display:flex; flex-direction:column; gap:0; background:#f0f0f0; min-height:calc(100vh - 54px) }
+
+  /* ── Upload zone ─────────────────────────────────────────── */
+  .upload-section {
+    background:#fff;
+    border-bottom:1px solid #e0e0e0;
+    padding:20px 24px;
+  }
+  .upload-zone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 32px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--oso-red); background:#fff8f8 }
+  .upload-zone.drag { background:#fff0f0 }
+  .upload-zone input[type=file] {
+    position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+  }
+  .upload-icon { font-size:32px; margin-bottom:8px; color:#ccc }
+  .upload-zone:hover .upload-icon { color: var(--oso-red) }
+  .upload-label { font-size:14px; color:#555; margin-bottom:4px }
+  .upload-hint  { font-size:11px; color:#aaa }
+  .upload-ext   {
+    display:inline-block; background:#f5f5f5; border:1px solid #e0e0e0;
+    border-radius:4px; padding:2px 8px; font-family:monospace; font-size:11px; color:#666;
+  }
+
+  /* Upload progress bar */
+  .upload-progress {
+    display:none;
+    margin-top:14px;
+    background:#f5f5f5;
+    border:1px solid #e0e0e0;
+    border-radius:6px;
+    padding:12px 16px;
+  }
+  .upload-progress.show { display:block }
+  .prog-name { font-size:13px; font-weight:600; color:#333; margin-bottom:8px }
+  .prog-bar-track { height:6px; background:#e0e0e0; border-radius:3px; overflow:hidden }
+  .prog-bar-fill  { height:100%; background:var(--oso-red); border-radius:3px; width:0%; transition:width .2s }
+  .prog-status { font-size:11px; color:#888; margin-top:6px }
+
+  /* ── Activate warning banner ─────────────────────────────── */
+  .activate-warning {
+    display:none;
+    margin: 0 24px;
+    padding:10px 16px;
+    background:#fff7ed;
+    border:1px solid #fed7aa;
+    border-radius:6px;
+    font-size:13px;
+    color:#9a3412;
+    margin-top:16px;
+  }
+  .activate-warning.show { display:flex; align-items:center; gap:10px }
+  .activate-warning strong { flex:1 }
+  .btn-confirm-activate {
+    background:var(--oso-red); color:#fff; border:none;
+    border-radius:4px; padding:6px 16px; font-size:13px; cursor:pointer; flex-shrink:0;
+  }
+  .btn-confirm-activate:hover { background:var(--oso-red2) }
+  .btn-dismiss {
+    background:transparent; border:none; color:#9a3412;
+    padding:4px 8px; cursor:pointer; font-size:18px; line-height:1;
+  }
+
+  /* ── Project list ─────────────────────────────────────────── */
+  .list-section { padding:20px 24px; flex:1 }
+  .list-header {
+    display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .list-header h2 { font-size:15px; font-weight:600; margin:0; flex:1 }
+  .btn-refresh {
+    background:#fff; color:#555; border:1px solid #ccc;
+    border-radius:4px; padding:6px 12px; font-size:12px; cursor:pointer;
+  }
+  .btn-refresh:hover { background:#f5f5f5 }
+
+  /* Project cards */
+  .proj-list { display:flex; flex-direction:column; gap:10px }
+
+  .proj-card {
+    background:#fff;
+    border:1px solid #e0e0e0;
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+    transition:box-shadow .2s;
+  }
+  .proj-card:hover { box-shadow:0 3px 10px rgba(0,0,0,.1) }
+  .proj-card.active-proj { border-left:4px solid #22c55e }
+  .proj-card.active-proj .proj-status { color:#16a34a }
+
+  .proj-body {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 18px;
+  }
+  .proj-icon {
+    width:40px; height:40px; border-radius:6px;
+    background:#f5f5f5; display:flex; align-items:center; justify-content:center;
+    font-size:20px; flex-shrink:0;
+  }
+  .proj-card.active-proj .proj-icon { background:#f0fdf4 }
+
+  .proj-meta { flex:1; min-width:0 }
+  .proj-name {
+    font-size:14px; font-weight:600; color:#111;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .proj-detail {
+    font-size:11px; color:#999; margin-top:3px;
+    display:flex; gap:12px; flex-wrap:wrap;
+  }
+  .proj-detail span { white-space:nowrap }
+  .proj-status {
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.05em; color:#aaa;
+  }
+  .active-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:#dcfce7; color:#166534;
+    font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.05em; padding:3px 8px; border-radius:10px; flex-shrink:0;
+  }
+  .active-dot { width:6px; height:6px; border-radius:50%; background:#22c55e }
+
+  .proj-actions { display:flex; gap:8px; flex-shrink:0 }
+  .btn-activate {
+    background:var(--oso-red); color:#fff; border:none;
+    border-radius:4px; padding:7px 16px; font-size:13px; cursor:pointer;
+  }
+  .btn-activate:hover { background:var(--oso-red2) }
+  .btn-activate:disabled { background:#ccc; cursor:default }
+  .btn-delete {
+    background:#fff; color:#dc2626; border:1px solid #fca5a5;
+    border-radius:4px; padding:7px 12px; font-size:13px; cursor:pointer;
+  }
+  .btn-delete:hover { background:#fff5f5 }
+
+  /* Checksum row */
+  .proj-checksum {
+    padding:0 18px 12px;
+    font-size:11px; color:#bbb; font-family:monospace;
+  }
+
+  /* ── Empty state ─────────────────────────────────────────── */
+  .empty-state {
+    text-align:center; padding:48px 24px; color:#aaa; background:#fff;
+    border:1px solid #e0e0e0; border-radius:8px;
+  }
+  .empty-state .icon { font-size:44px; margin-bottom:10px }
+  .empty-state p { font-size:14px }
+
+  /* ── Confirm delete modal ─────────────────────────────────── */
+  .modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.45); z-index:100;
+    align-items:center; justify-content:center;
+  }
+  .modal-bg.open { display:flex }
+  .modal {
+    background:#fff; border-radius:8px; padding:24px;
+    max-width:400px; width:100%;
+    box-shadow:0 8px 32px rgba(0,0,0,.2);
+    display:flex; flex-direction:column; gap:16px;
+  }
+  .modal h3 { font-size:16px; font-weight:600; margin:0 }
+  .modal p  { font-size:13px; color:#555; margin:0 }
+  .modal-btns { display:flex; gap:8px; justify-content:flex-end }
+  .btn-cancel { background:#fff; color:#555; border:1px solid #ccc; border-radius:4px; padding:7px 16px; font-size:13px; cursor:pointer }
+  .btn-del-confirm { background:#dc2626; color:#fff; border:none; border-radius:4px; padding:7px 16px; font-size:13px; cursor:pointer }
+  .btn-del-confirm:hover { background:#b91c1c }
+
+  /* ── Toast ───────────────────────────────────────────────── */
+  #toast {
+    position:fixed; bottom:20px; right:24px; z-index:200;
+    background:#1c1c1c; color:#e0e0e0; border-radius:6px;
+    padding:10px 18px; font-size:13px; display:none;
+    box-shadow:0 4px 16px rgba(0,0,0,.3);
+    max-width:320px;
+  }
+  #toast.show { display:block }
+  #toast.ok  { border-left:4px solid #22c55e }
+  #toast.err { border-left:4px solid #ef4444 }
+  #toast.warn{ border-left:4px solid #eab308 }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="oso-header">
+  <svg width="28" height="40" viewBox="30 15 120 100" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#800000" d="M 80.537878,89.583585 C 62.322275,83.223862 50.690496,76.152956 47.23871,69.341183 46.19335,67.278255 45.75168,64.460396 45.992998,61.393492 46.591824,53.783041 49.541792,44.017945 53.199917,37.536865 l 1.522907,-2.698124 -0.610839,-0.650708 c -1.921929,-2.047348 -2.446211,-6.090462 -1.150557,-8.872767 1.315134,-2.824131 3.77209,-4.436102 7.089526,-4.651316 1.861741,-0.120783 2.413977,-0.03072 3.8528,0.627936 0.923753,0.422916 2.213799,1.319445 2.866773,1.99229 l 1.187226,1.223356 2.114304,-0.587204 c 3.860531,-1.072185 10.315054,-1.25662 14.232875,-0.406692 0.727224,0.157764 1.094841,-0.04211 2.47069,-1.343332 1.796222,-1.698787 2.822635,-2.034933 5.528469,-1.810548 4.21251,0.349333 6.876748,4.862838 5.086475,8.617062 -0.415874,0.872112 -0.447033,1.19635 -0.154588,1.608634 1.01616,1.432564 2.286324,4.295137 2.776932,6.258397 0.30234,1.209882 0.71126,2.501642 0.90871,2.87057 0.41804,0.781121 2.04966,1.675084 3.99362,2.188094 4.7797,1.261373 6.17095,4.429751 4.40282,10.026855 -1.87407,5.932491 -6.50368,10.475406 -12.888321,12.646966 -3.031912,1.031222 -3.916164,1.63091 -4.654883,3.156917 l -0.643758,1.329812 0.650213,3.858092 c 0.970825,5.760437 0.796596,8.085732 -0.858524,11.457474 -3.116484,5.149138 -5.161404,7.028678 -10.384909,5.204956 z M 98.890707,59.165747 c 1.569953,-0.768106 3.282873,-2.302789 3.282873,-2.941276 0,-0.138203 -0.65074,-0.04223 -1.44609,0.21335 -2.053621,0.659855 -7.300817,0.651582 -9.818153,-0.01542 -3.819902,-1.012202 -7.247047,-3.277228 -8.827202,-5.833986 -0.973829,-1.57568 -2.638718,-1.788812 -3.365494,-0.43082 -0.251931,0.470736 -0.13994,0.927504 0.53309,2.174125 1.200688,2.223994 3.551585,4.463061 6.0822,5.792862 2.994793,1.573712 5.11531,2.047429 8.77784,1.960935 2.630249,-0.06213 3.285777,-0.188221 4.780936,-0.919725 z m 7.139923,-9.78827 c 0.77937,-0.779359 1.03073,-1.270255 0.95898,-1.872843 l -0.0972,-0.816628 -2.89217,-0.05224 c -1.5907,-0.02865 -3.06342,0.07732 -3.27273,0.235707 -0.66247,0.501206 -0.41469,1.457867 0.65455,2.527095 0.84856,0.84857 1.2655,1.035099 2.31373,1.035099 1.05325,0 1.46484,-0.186195 2.33486,-1.056214 z M 77.824565,42.667352 c 2.70328,-1.397918 1.625261,-5.639942 -1.428766,-5.622199 -2.923995,0.01703 -4.136488,3.414326 -1.89245,5.302553 1.055466,0.888129 2.038868,0.982769 3.321216,0.319646 z m 17.251187,-2.028765 c 0.965406,-0.906954 0.94611,-2.473072 -0.04269,-3.461825 -1.005391,-1.00539 -2.135683,-0.955545 -3.233861,0.142645 -1.098177,1.098177 -1.148035,2.228469 -0.142644,3.23386 0.955614,0.955614 2.453005,0.992975 3.419159,0.08538 z m 23.880978,48.41307 c -2.2257,-0.640259 -3.99672,-2.894031 -3.99672,-5.086153 0,-0.920565 -0.23117,-1.13219 -3.69536,-3.382959 l -3.69537,-2.400962 -1.09504,0.586905 c -1.92583,1.032177 -4.26278,0.686331 -5.93646,-0.878545 -3.978905,-3.720245 -0.30401,-10.301097 4.91933,-8.809275 l 1.43528,0.409925 3.99483,-2.60246 c 3.96498,-2.583016 3.9965,-2.612656 4.21505,-3.9654 0.45155,-2.794824 3.93576,-5.090019 6.54167,-4.309267 3.18019,0.952806 4.79254,4.183226 3.56013,7.132822 -0.45761,1.095186 -2.4084,2.953738 -3.10033,2.953738 -0.37389,0 -0.44452,0.800486 -0.43645,4.947134 l 0.009,4.947133 1.34252,0.814397 c 3.11674,1.890654 3.45833,5.808671 0.72949,8.367155 -0.83498,0.782857 -2.93628,1.711478 -3.61345,1.596874 -0.0838,-0.01415 -0.61417,-0.158638 -1.17876,-0.321062 z m 3.11654,-3.32514 c 1.55888,-1.22622 0.86203,-3.907787 -1.14651,-4.411904 -1.64436,-0.412698 -3.52105,1.3935 -3.1177,3.000581 0.48077,1.915555 2.69256,2.647577 4.26421,1.411323 z m -5.02919,-6.017143 c 0.44446,-0.307646 1.04785,-0.645829 1.34087,-0.751549 0.47867,-0.172688 0.53109,-0.695525 0.51624,-5.148886 l -0.0166,-4.956695 -1.42955,-0.927067 -1.42956,-0.927067 -3.55505,2.36436 -3.55504,2.364348 0.30829,1.116542 c 0.16956,0.614094 0.22802,1.544406 0.12992,2.067347 -0.17445,0.929886 -0.1031,0.998878 3.24676,3.137471 1.88382,1.202667 3.47247,2.194285 3.53034,2.203605 0.0579,0.0092 0.46887,-0.234776 0.91332,-0.542409 z M 105.9929,75.868185 c 1.04745,-1.047446 0.9928,-2.40286 -0.14263,-3.538307 -1.10367,-1.103666 -2.12143,-1.134584 -3.34889,-0.101716 -1.85609,1.561792 -0.79278,4.387303 1.65106,4.387303 0.75477,0 1.32454,-0.231335 1.84046,-0.747257 z m 16.08773,-10.288658 c 1.71546,-1.543394 0.63237,-4.49047 -1.6503,-4.49047 -1.21218,0 -2.73037,1.438881 -2.73037,2.587733 0,1.132053 1.51858,2.587733 2.69956,2.587733 0.52528,0 1.2463,-0.293792 1.68111,-0.684996 z"/>
+  </svg>
+  <div>
+    <h1>PLC Projects</h1>
+    <div class="sub" id="projSummary">Loading…</div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Upload zone -->
+  <div class="upload-section">
+    <div class="upload-zone" id="dropZone"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <input type="file" id="fileInput" accept=".osoproj,.zip,.bin"
+             onchange="onFileSelected(event)">
+      <div class="upload-icon">⬆</div>
+      <div class="upload-label">Drop a PLC project here or click to browse</div>
+      <div class="upload-hint">
+        Accepted formats: <span class="upload-ext">.osoproj</span>
+        &nbsp;<span class="upload-ext">.zip</span>
+        &nbsp;<span class="upload-ext">.bin</span>
+      </div>
+    </div>
+    <div class="upload-progress" id="uploadProgress">
+      <div class="prog-name" id="progName">project.osoproj</div>
+      <div class="prog-bar-track"><div class="prog-bar-fill" id="progFill"></div></div>
+      <div class="prog-status" id="progStatus">Uploading…</div>
+    </div>
+  </div>
+
+  <!-- Activate warning -->
+  <div class="activate-warning" id="activateWarning">
+    <span>⚠</span>
+    <strong id="activateWarnMsg">Activating will stop the running scan cycle. Continue?</strong>
+    <button class="btn-confirm-activate" id="activateConfirmBtn">Activate</button>
+    <button class="btn-dismiss" onclick="dismissActivate()">✕</button>
+  </div>
+
+  <!-- Project list -->
+  <div class="list-section">
+    <div class="list-header">
+      <h2>Stored projects</h2>
+      <button class="btn-refresh" onclick="fetchProjects()">↺ Refresh</button>
+    </div>
+    <div class="proj-list" id="projList">
+      <div style="color:#aaa;text-align:center;padding:24px">Loading…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-bg" id="deleteModal" onclick="if(event.target===this)closeDeleteModal()">
+  <div class="modal">
+    <h3>Delete project</h3>
+    <p>Delete <strong id="deleteModalName"></strong>? This cannot be undone.</p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-del-confirm" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const BASE = '/api/v1';
+
+let projects     = [];
+let pendingActivateId  = null;
+let pendingDeleteId    = null;
+let runtimeRunning     = false;
+
+// ── Boot ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  fetchProjects();
+  fetchRuntimeState();
+});
+
+// ── REST ───────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(BASE + path, opts);
+  if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+  return r.json();
+}
+
+async function fetchRuntimeState() {
+  try {
+    const d = await api('GET', '/runtime/status');
+    runtimeRunning = (d.state === 'running');
+  } catch(_) {}
+}
+
+async function fetchProjects() {
+  try {
+    projects = await api('GET', '/projects');
+    renderList();
+    const active = projects.filter(p => p.active).length;
+    document.getElementById('projSummary').textContent =
+      `${projects.length} project${projects.length !== 1 ? 's' : ''}` +
+      (active ? ' · 1 active' : ' · none active');
+  } catch(e) {
+    document.getElementById('projSummary').textContent = 'Error: ' + e.message;
+    toast('Failed to load projects: ' + e.message, 'err');
+  }
+}
+
+// ── Upload ─────────────────────────────────────────────────
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('drag');
+}
+function onDragLeave() {
+  document.getElementById('dropZone').classList.remove('drag');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+}
+function onFileSelected(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+  e.target.value = '';
+}
+
+async function uploadFile(file) {
+  const prog   = document.getElementById('uploadProgress');
+  const fill   = document.getElementById('progFill');
+  const status = document.getElementById('progStatus');
+  document.getElementById('progName').textContent = file.name;
+  fill.style.width = '0%';
+  status.textContent = 'Uploading…';
+  prog.classList.add('show');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', BASE + '/projects');
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round(e.loaded / e.total * 90);
+        fill.style.width = pct + '%';
+        status.textContent = `Uploading… ${pct}%`;
+      }
+    };
+
+    xhr.onload = () => {
+      fill.style.width = '100%';
+      if (xhr.status === 201) {
+        status.textContent = 'Upload complete ✓';
+        toast('Project uploaded: ' + file.name, 'ok');
+        setTimeout(() => prog.classList.remove('show'), 2000);
+        fetchProjects();
+      } else {
+        status.textContent = 'Upload failed: ' + xhr.status;
+        toast('Upload failed (' + xhr.status + ')', 'err');
+        setTimeout(() => prog.classList.remove('show'), 3000);
+      }
+      resolve();
+    };
+
+    xhr.onerror = () => {
+      status.textContent = 'Network error';
+      toast('Upload failed: network error', 'err');
+      setTimeout(() => prog.classList.remove('show'), 3000);
+      resolve();
+    };
+
+    xhr.send(formData);
+  });
+}
+
+// ── Activate ───────────────────────────────────────────────
+function requestActivate(id) {
+  const proj = projects.find(p => p.id === id);
+  if (!proj) return;
+  pendingActivateId = id;
+
+  if (runtimeRunning) {
+    const warn = document.getElementById('activateWarning');
+    document.getElementById('activateWarnMsg').textContent =
+      `Activating "${proj.name}" will stop the running scan cycle. Continue?`;
+    document.getElementById('activateConfirmBtn').onclick = () => doActivate(id);
+    warn.classList.add('show');
+    warn.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } else {
+    doActivate(id);
+  }
+}
+
+function dismissActivate() {
+  pendingActivateId = null;
+  document.getElementById('activateWarning').classList.remove('show');
+}
+
+async function doActivate(id) {
+  dismissActivate();
+  try {
+    await api('POST', `/projects/${id}/activate`);
+    toast('Project activated', 'ok');
+    await fetchRuntimeState();
+    fetchProjects();
+  } catch(e) {
+    toast('Activation failed: ' + e.message, 'err');
+  }
+}
+
+// ── Delete ─────────────────────────────────────────────────
+function requestDelete(id) {
+  const proj = projects.find(p => p.id === id);
+  if (!proj) return;
+  if (proj.active) {
+    toast('Cannot delete the active project', 'warn');
+    return;
+  }
+  pendingDeleteId = id;
+  document.getElementById('deleteModalName').textContent = proj.name;
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  pendingDeleteId = null;
+  document.getElementById('deleteModal').classList.remove('open');
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  const id = pendingDeleteId;
+  closeDeleteModal();
+  try {
+    await fetch(BASE + `/projects/${id}`, { method: 'DELETE' });
+    toast('Project deleted', 'ok');
+    fetchProjects();
+  } catch(e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────
+function renderList() {
+  const el = document.getElementById('projList');
+  if (!projects.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📂</div>
+        <p>No projects uploaded yet. Drop a <code>.osoproj</code> file above to get started.</p>
+      </div>`;
+    return;
+  }
+
+  // Sort: active first, then by upload date desc
+  const sorted = [...projects].sort((a, b) => {
+    if (a.active && !b.active) return -1;
+    if (!a.active && b.active) return 1;
+    return new Date(b.uploaded_at||0) - new Date(a.uploaded_at||0);
+  });
+
+  el.innerHTML = sorted.map(p => renderCard(p)).join('');
+}
+
+function renderCard(p) {
+  const activeClass = p.active ? ' active-proj' : '';
+  const activeBadge = p.active
+    ? `<span class="active-badge"><span class="active-dot"></span>Active</span>` : '';
+  const uploadedAt = p.uploaded_at
+    ? new Date(p.uploaded_at).toLocaleString(undefined, { dateStyle:'medium', timeStyle:'short' })
+    : '—';
+  const size = p.size_bytes != null ? fmtBytes(p.size_bytes) : '—';
+  const checksum = p.checksum
+    ? `<div class="proj-checksum">SHA: ${esc(p.checksum)}</div>` : '';
+
+  return `
+  <div class="proj-card${activeClass}">
+    <div class="proj-body">
+      <div class="proj-icon">${p.active ? '▶' : '📄'}</div>
+      <div class="proj-meta">
+        <div class="proj-name">${esc(p.name)}</div>
+        <div class="proj-detail">
+          <span>📅 ${uploadedAt}</span>
+          <span>💾 ${size}</span>
+          <span style="font-family:monospace">id: ${esc(p.id)}</span>
+        </div>
+      </div>
+      ${activeBadge}
+      <div class="proj-actions">
+        <button class="btn-activate"
+          onclick="requestActivate('${esc(p.id)}')"
+          ${p.active ? 'disabled title="Already active"' : ''}>
+          ${p.active ? '✓ Active' : '▶ Activate'}
+        </button>
+        <button class="btn-delete"
+          onclick="requestDelete('${esc(p.id)}')"
+          ${p.active ? 'disabled title="Cannot delete active project"' : ''}>
+          🗑
+        </button>
+      </div>
+    </div>
+    ${checksum}
+  </div>`;
+}
+
+// ── Utils ──────────────────────────────────────────────────
+function fmtBytes(b) {
+  if (b < 1024)        return b + ' B';
+  if (b < 1024*1024)   return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(2) + ' MB';
+}
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + (type||'');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = '' }, 3500);
+}
+</script>
+</body>
+</html>
