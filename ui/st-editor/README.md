@@ -13,14 +13,30 @@
 
 ## Where is the editor code?
 
-The Structured Text editor core lives in:
+The Structured Text stack lives in:
 
 ```
-iec61131/st/osoST/          ← (sync pending)
-├── index.html              ← editor entry point
-├── osoST.js                ← ST parser, compiler and editor engine
-├── osoplc-st.js            ← IEC 61131-3 ST runtime
-└── osoST.css               ← editor styles
+iec61131/st/osoST/
+├── editor/
+│   ├── index.html              ← web editor entry point
+│   ├── osost.js                ← editor engine (CodeMirror-based, syntax highlight, autocomplete)
+│   └── osost.css               ← editor styles
+├── compiler-python/ostc/       ← Python compiler (lexer → parser → AST → codegen → hex)
+│   ├── lexer.py / tokens.py
+│   ├── parser.py / ast_nodes.py
+│   ├── codegen.py              ← pcode bytecode emitter
+│   └── hex_writer.py           ← .osoproj output
+├── compiler-java/              ← alternative Java compiler + REST server (server.py)
+├── runtime/
+│   ├── pcodevm.c / pcodevm.h   ← pcode virtual machine (C, bare metal + Linux)
+│   ├── osoruntime.c            ← scan cycle integration
+│   ├── hardware_bare.c         ← RP2040 / STM32 HAL
+│   ├── hardware_linux.c        ← Linux HAL
+│   └── hardware_demo.c         ← simulation / CI
+└── examples/
+    ├── blink.st
+    ├── counter.st
+    └── pid.st
 ```
 
 > **osoST** is maintained as a standalone project and synchronised into this repository automatically. Do not edit files there directly — submit changes upstream.
@@ -33,10 +49,10 @@ This folder (`ui/st-editor/`) is the **integration layer** that embeds osoST ins
 
 | Component | Description |
 |-----------|-------------|
-| `src/embed.js` | Wrapper that loads osoST into webmin-oso |
-| `src/project-api.js` | Save / load ST programs via `POST /api/v1/projects` |
-| `src/runtime-bridge.js` | Connects compiled ST output to `osoruntime` over WebSocket |
-| `src/lsp-proxy.js` | Language Server Protocol proxy for autocompletion and diagnostics |
+| `src/embed.js` | Wrapper that loads `iec61131/st/osoST/editor/` into webmin-oso |
+| `src/project-api.js` | Save / load `.osoproj` files via `POST /api/v1/projects` |
+| `src/compiler-proxy.js` | Calls the Python or Java compiler (`ostc`) and returns bytecode |
+| `src/runtime-bridge.js` | Sends compiled pcode to `osoruntime` over WebSocket |
 | `public/` | Static assets specific to the integration |
 
 ---
@@ -68,26 +84,26 @@ This folder (`ui/st-editor/`) is the **integration layer** that embeds osoST ins
 ### ST-specific: compilation pipeline
 
 ```
-osoST editor
+osoST editor  (iec61131/st/osoST/editor/)
     │  writes
     ▼
 ST source (.st)
-    │  compiled by osoST.js  (browser-side)
+    │  compiled by  ostc  (compiler-python or compiler-java)
     ▼
-Bytecode / IR
+pcode bytecode (.osoproj)
     │  uploaded via  POST /api/v1/projects
     ▼
-core/osoruntime
-    │  executed in
+pcodevm  (iec61131/st/osoST/runtime/pcodevm.c)
+    │  executed inside
     ▼
-scan cycle  ←→  core/osodb  (process tags)
+osoruntime scan cycle  ←→  osodb  (process tags)
 ```
 
 ---
 
 ## Related
 
-- [`iec61131/st/`](../../iec61131/st/) — ST engine (osoST, sync pending)
+- [`iec61131/st/osoST/`](../../iec61131/st/osoST/) — full ST stack: editor, compilers, pcodevm runtime, examples
 - [`iec61131/ladder/osoLadder/`](../../iec61131/ladder/osoLadder/) — Ladder editor (reference implementation)
 - [`iec61131/runtime-bridge/`](../../iec61131/runtime-bridge/) — IEC runtime ↔ osodb bridge
 - [`core/osoruntime/`](../../core/osoruntime/) — real-time scan cycle engine
