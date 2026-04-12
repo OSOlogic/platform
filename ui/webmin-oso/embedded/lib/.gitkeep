@@ -1,0 +1,2 @@
+# mongoose.ws goes here as a git submodule
+# git submodule add https://github.com/cesanta/mongoose lib/mongoose

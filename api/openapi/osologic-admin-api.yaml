@@ -1,0 +1,635 @@
+openapi: 3.1.0
+
+info:
+  title: OSOlogic Admin API
+  version: "1.0"
+  description: |
+    Shared REST + WebSocket contract consumed by both frontends:
+      - **webmin-oso/cockpit**   → Cockpit modules (Linux: RPi4, CM4, x86_64)
+      - **webmin-oso/embedded**  → Embedded web UI (RP2040, STM32 over lwIP)
+
+    Endpoints are tagged [CORE] or [LINUX].
+      - [CORE]  must be implemented on all targets including baremetal.
+      - [LINUX] only required on Linux targets (Cockpit modules).
+
+    Base URL: http://{host}/api/v1
+
+servers:
+  - url: http://{host}/api/v1
+    variables:
+      host:
+        default: localhost:9090
+
+# ---------------------------------------------------------------------------
+# TAGS
+# ---------------------------------------------------------------------------
+tags:
+  - name: system
+    description: "[CORE] Device identity, firmware version, uptime, resources"
+  - name: runtime
+    description: "[CORE] IEC 61131-3 scan cycle control and task status"
+  - name: tags
+    description: "[CORE] Read and write process data tags (osodb)"
+  - name: gateways
+    description: "[LINUX] Protocol gateway status and configuration"
+  - name: projects
+    description: "[LINUX] PLC project upload and management"
+  - name: diag
+    description: "[LINUX] Real-time diagnostics: jitter, latency, RT benchmarks"
+
+# ---------------------------------------------------------------------------
+# PATHS
+# ---------------------------------------------------------------------------
+paths:
+
+  # ── SYSTEM ──────────────────────────────────────────────────────────────
+
+  /system/info:
+    get:
+      tags: [system]
+      summary: "[CORE] Device info and firmware version"
+      operationId: getSystemInfo
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInfo"
+
+  /system/resources:
+    get:
+      tags: [system]
+      summary: "[CORE] CPU, memory, uptime"
+      operationId: getSystemResources
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemResources"
+
+  # ── RUNTIME ─────────────────────────────────────────────────────────────
+
+  /runtime/status:
+    get:
+      tags: [runtime]
+      summary: "[CORE] Scan cycle status and task list"
+      operationId: getRuntimeStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeStatus"
+
+  /runtime/start:
+    post:
+      tags: [runtime]
+      summary: "[CORE] Start the scan cycle"
+      operationId: startRuntime
+      responses:
+        "200":
+          description: Scan cycle started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeStatus"
+        "409":
+          description: Already running
+
+  /runtime/stop:
+    post:
+      tags: [runtime]
+      summary: "[CORE] Stop the scan cycle"
+      operationId: stopRuntime
+      responses:
+        "200":
+          description: Scan cycle stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeStatus"
+        "409":
+          description: Already stopped
+
+  /runtime/reset:
+    post:
+      tags: [runtime]
+      summary: "[CORE] Reset runtime (stop + clear outputs + restart)"
+      operationId: resetRuntime
+      responses:
+        "200":
+          description: Runtime reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeStatus"
+
+  # ── TAGS ────────────────────────────────────────────────────────────────
+
+  /tags:
+    get:
+      tags: [tags]
+      summary: "[CORE] List all tags"
+      operationId: listTags
+      parameters:
+        - name: group
+          in: query
+          schema:
+            type: string
+          description: Filter by tag group/namespace
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/TagType"
+          description: Filter by data type
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tag"
+
+  /tags/{id}:
+    get:
+      tags: [tags]
+      summary: "[CORE] Read a single tag value"
+      operationId: getTag
+      parameters:
+        - $ref: "#/components/parameters/TagId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "404":
+          description: Tag not found
+
+    put:
+      tags: [tags]
+      summary: "[CORE] Write a tag value (forced write)"
+      operationId: writeTag
+      parameters:
+        - $ref: "#/components/parameters/TagId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagWrite"
+      responses:
+        "200":
+          description: Tag written
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "400":
+          description: Type mismatch or value out of range
+        "404":
+          description: Tag not found
+        "423":
+          description: Tag is read-only
+
+  # ── GATEWAYS ────────────────────────────────────────────────────────────
+
+  /gateways:
+    get:
+      tags: [gateways]
+      summary: "[LINUX] List all configured gateways"
+      operationId: listGateways
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Gateway"
+
+  /gateways/{id}:
+    get:
+      tags: [gateways]
+      summary: "[LINUX] Get gateway status and config"
+      operationId: getGateway
+      parameters:
+        - $ref: "#/components/parameters/GatewayId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gateway"
+        "404":
+          description: Not found
+
+    put:
+      tags: [gateways]
+      summary: "[LINUX] Update gateway configuration"
+      operationId: updateGateway
+      parameters:
+        - $ref: "#/components/parameters/GatewayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GatewayConfig"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gateway"
+
+  /gateways/{id}/restart:
+    post:
+      tags: [gateways]
+      summary: "[LINUX] Restart a gateway"
+      operationId: restartGateway
+      parameters:
+        - $ref: "#/components/parameters/GatewayId"
+      responses:
+        "200":
+          description: Restarted
+
+  # ── PROJECTS ────────────────────────────────────────────────────────────
+
+  /projects:
+    get:
+      tags: [projects]
+      summary: "[LINUX] List PLC projects"
+      operationId: listProjects
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlcProject"
+
+    post:
+      tags: [projects]
+      summary: "[LINUX] Upload a new PLC project"
+      operationId: uploadProject
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Compiled IEC 61131-3 project (.osoproj)
+                activate:
+                  type: boolean
+                  default: false
+                  description: Activate immediately after upload
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlcProject"
+        "400":
+          description: Invalid project file
+
+  /projects/{id}/activate:
+    post:
+      tags: [projects]
+      summary: "[LINUX] Activate a project (stops runtime, loads, restarts)"
+      operationId: activateProject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Activated
+
+  # ── DIAG ────────────────────────────────────────────────────────────────
+
+  /diag/rt:
+    get:
+      tags: [diag]
+      summary: "[LINUX] Real-time statistics: jitter, cycle time, latency"
+      operationId: getRtDiag
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RtDiag"
+
+  /diag/rt/reset:
+    post:
+      tags: [diag]
+      summary: "[LINUX] Reset RT statistics counters"
+      operationId: resetRtDiag
+      responses:
+        "200":
+          description: Reset OK
+
+# ---------------------------------------------------------------------------
+# COMPONENTS
+# ---------------------------------------------------------------------------
+components:
+
+  parameters:
+    TagId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Tag name or numeric ID (e.g. "PLC.Q0.0" or "42")
+
+    GatewayId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Gateway identifier (e.g. "modbus-1", "opcua-main")
+
+  schemas:
+
+    # ── SYSTEM ──────────────────────────────────────────────────────────
+
+    SystemInfo:
+      type: object
+      required: [device, firmware, platform, uptime_s]
+      properties:
+        device:
+          type: string
+          example: "BorrellPLC-v2"
+        firmware:
+          type: string
+          example: "1.0.0-alpha"
+        platform:
+          type: string
+          enum: [rp2040, stm32, linux-arm64, linux-armv7, linux-x86_64]
+          example: "rp2040"
+        uptime_s:
+          type: integer
+          example: 3601
+        mac:
+          type: string
+          example: "AA:BB:CC:DD:EE:FF"
+        ip:
+          type: string
+          example: "192.168.1.50"
+
+    SystemResources:
+      type: object
+      required: [cpu_pct, mem_used_kb, mem_total_kb]
+      properties:
+        cpu_pct:
+          type: number
+          format: float
+          example: 12.5
+        mem_used_kb:
+          type: integer
+          example: 128
+        mem_total_kb:
+          type: integer
+          example: 264
+        temp_c:
+          type: number
+          format: float
+          description: Core temperature if sensor available
+          example: 42.1
+
+    # ── RUNTIME ─────────────────────────────────────────────────────────
+
+    RuntimeStatus:
+      type: object
+      required: [state, cycle_ms, tasks]
+      properties:
+        state:
+          type: string
+          enum: [stopped, running, error, halted]
+          example: "running"
+        cycle_ms:
+          type: integer
+          description: Configured scan cycle period in ms
+          example: 10
+        last_cycle_us:
+          type: integer
+          description: Actual last cycle execution time in µs
+          example: 3421
+        cycle_count:
+          type: integer
+          example: 360100
+        error_msg:
+          type: string
+          description: Present only when state=error
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RtTask"
+
+    RtTask:
+      type: object
+      required: [name, state, priority]
+      properties:
+        name:
+          type: string
+          example: "MAIN"
+        state:
+          type: string
+          enum: [active, idle, error]
+        priority:
+          type: integer
+          example: 1
+        period_ms:
+          type: integer
+          example: 10
+        last_exec_us:
+          type: integer
+          example: 1200
+
+    # ── TAGS ────────────────────────────────────────────────────────────
+
+    TagType:
+      type: string
+      enum: [BOOL, BYTE, WORD, DWORD, LWORD, SINT, INT, DINT, LINT, REAL, LREAL, STRING, TIME]
+
+    Tag:
+      type: object
+      required: [id, name, type, value, ts_us]
+      properties:
+        id:
+          type: integer
+          example: 42
+        name:
+          type: string
+          example: "PLC.Q0.0"
+        group:
+          type: string
+          example: "outputs"
+        type:
+          $ref: "#/components/schemas/TagType"
+        value:
+          description: Scalar value. BOOL→boolean, INT/DINT→integer, REAL→number, STRING→string
+          example: true
+        unit:
+          type: string
+          example: "°C"
+        read_only:
+          type: boolean
+          default: false
+        ts_us:
+          type: integer
+          format: int64
+          description: Last write timestamp in µs since boot (or Unix µs on Linux)
+          example: 1234567890
+
+    TagWrite:
+      type: object
+      required: [value]
+      properties:
+        value:
+          description: New value. Must match the tag's type.
+          example: true
+
+    # ── GATEWAYS ────────────────────────────────────────────────────────
+
+    GatewayProtocol:
+      type: string
+      enum: [modbus-tcp, modbus-rtu, opc-ua, mqtt, profinet, ethernetip, canopen]
+
+    GatewayState:
+      type: string
+      enum: [connected, disconnected, error, disabled]
+
+    Gateway:
+      type: object
+      required: [id, protocol, state]
+      properties:
+        id:
+          type: string
+          example: "modbus-1"
+        protocol:
+          $ref: "#/components/schemas/GatewayProtocol"
+        state:
+          $ref: "#/components/schemas/GatewayState"
+        error_msg:
+          type: string
+        config:
+          $ref: "#/components/schemas/GatewayConfig"
+        stats:
+          $ref: "#/components/schemas/GatewayStats"
+
+    GatewayConfig:
+      type: object
+      description: Protocol-specific config. Keys depend on protocol.
+      properties:
+        host:
+          type: string
+          example: "192.168.1.100"
+        port:
+          type: integer
+          example: 502
+        slave_id:
+          type: integer
+          example: 1
+        poll_ms:
+          type: integer
+          example: 100
+        endpoint_url:
+          type: string
+          description: OPC-UA endpoint
+          example: "opc.tcp://192.168.1.200:4840"
+      additionalProperties: true
+
+    GatewayStats:
+      type: object
+      properties:
+        tx_count:
+          type: integer
+        rx_count:
+          type: integer
+        error_count:
+          type: integer
+        last_ok_ts:
+          type: integer
+          format: int64
+
+    # ── PROJECTS ────────────────────────────────────────────────────────
+
+    PlcProject:
+      type: object
+      required: [id, name, active]
+      properties:
+        id:
+          type: string
+          example: "proj-001"
+        name:
+          type: string
+          example: "conveyor-v3"
+        active:
+          type: boolean
+        uploaded_at:
+          type: string
+          format: date-time
+        size_bytes:
+          type: integer
+        checksum:
+          type: string
+
+    # ── DIAG ────────────────────────────────────────────────────────────
+
+    RtDiag:
+      type: object
+      required: [jitter_us, cycle_min_us, cycle_max_us, cycle_avg_us, overruns]
+      properties:
+        jitter_us:
+          type: integer
+          description: Max jitter observed since last reset
+          example: 45
+        cycle_min_us:
+          type: integer
+          example: 9850
+        cycle_max_us:
+          type: integer
+          example: 10210
+        cycle_avg_us:
+          type: integer
+          example: 10012
+        overruns:
+          type: integer
+          description: Cycles that exceeded the configured period
+          example: 0
+        sample_count:
+          type: integer
+          example: 360100
+
+  # ── SECURITY (placeholder — Basic for embedded, Bearer for Linux) ──────
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    BearerToken:
+      type: http
+      scheme: bearer

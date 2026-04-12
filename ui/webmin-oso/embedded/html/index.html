@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSOlogic</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────── */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --red:    #800000;
+    --red2:   #a00000;
+    --red3:   #600000;
+    --bg:     #111111;
+    --bg2:    #1c1c1c;
+    --bg3:    #252525;
+    --border: #333333;
+    --text:   #e0e0e0;
+    --muted:  #888888;
+    --green:  #22c55e;
+    --yellow: #eab308;
+    --blue:   #3b82f6;
+    --font:   'Segoe UI',system-ui,sans-serif;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px}
+  a{color:var(--red2)}
+  button{cursor:pointer;border:none;border-radius:4px;padding:6px 14px;font-size:13px;font-family:var(--font);transition:background .15s}
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  header{background:var(--bg2);border-bottom:2px solid var(--red3);padding:10px 20px;display:flex;align-items:center;gap:16px}
+  header svg{flex-shrink:0}
+  .hdr-info{flex:1}
+  .hdr-info .dev-name{font-size:16px;font-weight:700;letter-spacing:.03em}
+  .hdr-info .dev-meta{color:var(--muted);font-size:11px;margin-top:2px}
+  .ws-dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+  .ws-dot.ok{background:var(--green)}
+  .ws-dot.err{background:#ef4444}
+
+  main{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto 1fr;gap:12px;padding:14px;height:calc(100vh - 64px);overflow:hidden}
+  @media(max-width:640px){main{grid-template-columns:1fr;grid-template-rows:auto auto auto 1fr}}
+
+  /* ── Cards ────────────────────────────────────────────────── */
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;overflow:hidden;display:flex;flex-direction:column;gap:10px}
+  .card-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .card.span2{grid-column:span 2}
+  @media(max-width:640px){.card.span2{grid-column:span 1}}
+
+  /* ── Runtime card ─────────────────────────────────────────── */
+  .rt-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .state-badge{padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700;letter-spacing:.04em}
+  .state-running {background:#14532d;color:var(--green)}
+  .state-stopped {background:#333;color:var(--muted)}
+  .state-error   {background:#7f1d1d;color:#fca5a5}
+  .state-halted  {background:#451a03;color:var(--yellow)}
+  .rt-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .btn-start{background:var(--red);color:#fff} .btn-start:hover{background:var(--red2)}
+  .btn-stop {background:var(--bg3);color:var(--text);border:1px solid var(--border)} .btn-stop:hover{background:#333}
+  .btn-reset{background:var(--bg3);color:var(--yellow);border:1px solid #713f12} .btn-reset:hover{background:#451a03}
+  .rt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+  .rt-stat{background:var(--bg3);border-radius:4px;padding:8px;text-align:center}
+  .rt-stat .val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+  .rt-stat .lbl{font-size:10px;color:var(--muted);margin-top:2px}
+
+  /* ── Resources card ───────────────────────────────────────── */
+  .res-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .res-item .res-lbl{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between}
+  .res-bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+  .res-fill{height:100%;background:var(--red);border-radius:3px;transition:width .5s}
+  .res-fill.warn{background:var(--yellow)}
+  .res-fill.crit{background:#ef4444}
+
+  /* ── Tags card ────────────────────────────────────────────── */
+  .tags-card{grid-column:span 2;overflow:hidden}
+  @media(max-width:640px){.tags-card{grid-column:span 1}}
+  .tags-toolbar{display:flex;gap:8px;align-items:center}
+  .tags-toolbar input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 10px;font-size:13px;font-family:var(--font)}
+  .tags-toolbar input:focus{outline:none;border-color:var(--red)}
+  .tags-count{color:var(--muted);font-size:11px;white-space:nowrap}
+  .tags-table-wrap{overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{background:var(--bg3);padding:7px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);position:sticky;top:0;z-index:1}
+  tbody tr{border-bottom:1px solid var(--border)}
+  tbody tr:hover{background:var(--bg3)}
+  tbody td{padding:6px 10px;vertical-align:middle}
+  .td-name{font-family:monospace;font-size:12px;color:#93c5fd}
+  .td-type{font-size:10px;background:var(--bg3);border-radius:3px;padding:1px 5px;color:var(--muted);font-family:monospace}
+  .td-val{font-family:monospace;font-size:13px;font-variant-numeric:tabular-nums}
+  .td-val.bool-true {color:var(--green)}
+  .td-val.bool-false{color:var(--muted)}
+  .td-val.updated   {color:#fde68a;transition:color 1.5s}
+  .td-age{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .btn-write{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 8px;font-size:11px;border-radius:3px}
+  .btn-write:hover{border-color:var(--red);color:var(--text)}
+
+  /* ── Write modal ──────────────────────────────────────────── */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;min-width:280px;display:flex;flex-direction:column;gap:14px}
+  .modal h3{font-size:14px}
+  .modal input{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:4px;font-size:14px;font-family:monospace;width:100%}
+  .modal input:focus{outline:none;border-color:var(--red)}
+  .modal-btns{display:flex;gap:8px;justify-content:flex-end}
+  .btn-cancel{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
+  .btn-confirm{background:var(--red);color:#fff} .btn-confirm:hover{background:var(--red2)}
+
+  /* ── Toast ────────────────────────────────────────────────── */
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:13px;display:none;z-index:200;max-width:280px}
+  #toast.show{display:block}
+  #toast.ok  {border-color:var(--green);color:var(--green)}
+  #toast.err {border-color:#ef4444;color:#fca5a5}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────── -->
+<header>
+  <!-- OSOlogic logo (inline SVG, stripped of Inkscape metadata) -->
+  <svg width="48" height="68" viewBox="30 15 120 100" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#800000" d="M 80.537878,89.583585 C 62.322275,83.223862 50.690496,76.152956 47.23871,69.341183 46.19335,67.278255 45.75168,64.460396 45.992998,61.393492 46.591824,53.783041 49.541792,44.017945 53.199917,37.536865 l 1.522907,-2.698124 -0.610839,-0.650708 c -1.921929,-2.047348 -2.446211,-6.090462 -1.150557,-8.872767 1.315134,-2.824131 3.77209,-4.436102 7.089526,-4.651316 1.861741,-0.120783 2.413977,-0.03072 3.8528,0.627936 0.923753,0.422916 2.213799,1.319445 2.866773,1.99229 l 1.187226,1.223356 2.114304,-0.587204 c 3.860531,-1.072185 10.315054,-1.25662 14.232875,-0.406692 0.727224,0.157764 1.094841,-0.04211 2.47069,-1.343332 1.796222,-1.698787 2.822635,-2.034933 5.528469,-1.810548 4.21251,0.349333 6.876748,4.862838 5.086475,8.617062 -0.415874,0.872112 -0.447033,1.19635 -0.154588,1.608634 1.01616,1.432564 2.286324,4.295137 2.776932,6.258397 0.30234,1.209882 0.71126,2.501642 0.90871,2.87057 0.41804,0.781121 2.04966,1.675084 3.99362,2.188094 4.7797,1.261373 6.17095,4.429751 4.40282,10.026855 -1.87407,5.932491 -6.50368,10.475406 -12.888321,12.646966 -3.031912,1.031222 -3.916164,1.63091 -4.654883,3.156917 l -0.643758,1.329812 0.650213,3.858092 c 0.970825,5.760437 0.796596,8.085732 -0.858524,11.457474 -3.116484,5.149138 -5.161404,7.028678 -10.384909,5.204956 z M 98.890707,59.165747 c 1.569953,-0.768106 3.282873,-2.302789 3.282873,-2.941276 0,-0.138203 -0.65074,-0.04223 -1.44609,0.21335 -2.053621,0.659855 -7.300817,0.651582 -9.818153,-0.01542 -3.819902,-1.012202 -7.247047,-3.277228 -8.827202,-5.833986 -0.973829,-1.57568 -2.638718,-1.788812 -3.365494,-0.43082 -0.251931,0.470736 -0.13994,0.927504 0.53309,2.174125 1.200688,2.223994 3.551585,4.463061 6.0822,5.792862 2.994793,1.573712 5.11531,2.047429 8.77784,1.960935 2.630249,-0.06213 3.285777,-0.188221 4.780936,-0.919725 z m 7.139923,-9.78827 c 0.77937,-0.779359 1.03073,-1.270255 0.95898,-1.872843 l -0.0972,-0.816628 -2.89217,-0.05224 c -1.5907,-0.02865 -3.06342,0.07732 -3.27273,0.235707 -0.66247,0.501206 -0.41469,1.457867 0.65455,2.527095 0.84856,0.84857 1.2655,1.035099 2.31373,1.035099 1.05325,0 1.46484,-0.186195 2.33486,-1.056214 z M 77.824565,42.667352 c 2.70328,-1.397918 1.625261,-5.639942 -1.428766,-5.622199 -2.923995,0.01703 -4.136488,3.414326 -1.89245,5.302553 1.055466,0.888129 2.038868,0.982769 3.321216,0.319646 z m 17.251187,-2.028765 c 0.965406,-0.906954 0.94611,-2.473072 -0.04269,-3.461825 -1.005391,-1.00539 -2.135683,-0.955545 -3.233861,0.142645 -1.098177,1.098177 -1.148035,2.228469 -0.142644,3.23386 0.955614,0.955614 2.453005,0.992975 3.419159,0.08538 z m 23.880978,48.41307 c -2.2257,-0.640259 -3.99672,-2.894031 -3.99672,-5.086153 0,-0.920565 -0.23117,-1.13219 -3.69536,-3.382959 l -3.69537,-2.400962 -1.09504,0.586905 c -1.92583,1.032177 -4.26278,0.686331 -5.93646,-0.878545 -3.978905,-3.720245 -0.30401,-10.301097 4.91933,-8.809275 l 1.43528,0.409925 3.99483,-2.60246 c 3.96498,-2.583016 3.9965,-2.612656 4.21505,-3.9654 0.45155,-2.794824 3.93576,-5.090019 6.54167,-4.309267 3.18019,0.952806 4.79254,4.183226 3.56013,7.132822 -0.45761,1.095186 -2.4084,2.953738 -3.10033,2.953738 -0.37389,0 -0.44452,0.800486 -0.43645,4.947134 l 0.009,4.947133 1.34252,0.814397 c 3.11674,1.890654 3.45833,5.808671 0.72949,8.367155 -0.83498,0.782857 -2.93628,1.711478 -3.61345,1.596874 -0.0838,-0.01415 -0.61417,-0.158638 -1.17876,-0.321062 z m 3.11654,-3.32514 c 1.55888,-1.22622 0.86203,-3.907787 -1.14651,-4.411904 -1.64436,-0.412698 -3.52105,1.3935 -3.1177,3.000581 0.48077,1.915555 2.69256,2.647577 4.26421,1.411323 z m -5.02919,-6.017143 c 0.44446,-0.307646 1.04785,-0.645829 1.34087,-0.751549 0.47867,-0.172688 0.53109,-0.695525 0.51624,-5.148886 l -0.0166,-4.956695 -1.42955,-0.927067 -1.42956,-0.927067 -3.55505,2.36436 -3.55504,2.364348 0.30829,1.116542 c 0.16956,0.614094 0.22802,1.544406 0.12992,2.067347 -0.17445,0.929886 -0.1031,0.998878 3.24676,3.137471 1.88382,1.202667 3.47247,2.194285 3.53034,2.203605 0.0579,0.0092 0.46887,-0.234776 0.91332,-0.542409 z M 105.9929,75.868185 c 1.04745,-1.047446 0.9928,-2.40286 -0.14263,-3.538307 -1.10367,-1.103666 -2.12143,-1.134584 -3.34889,-0.101716 -1.85609,1.561792 -0.79278,4.387303 1.65106,4.387303 0.75477,0 1.32454,-0.231335 1.84046,-0.747257 z m 16.08773,-10.288658 c 1.71546,-1.543394 0.63237,-4.49047 -1.6503,-4.49047 -1.21218,0 -2.73037,1.438881 -2.73037,2.587733 0,1.132053 1.51858,2.587733 2.69956,2.587733 0.52528,0 1.2463,-0.293792 1.68111,-0.684996 z"/>
+    <text x="33" y="106" style="font-weight:700;font-size:14px;font-family:'Segoe UI',sans-serif;fill:#000;letter-spacing:.5px">
+      <tspan fill="#111">OS</tspan><tspan fill="#4d4d4d">O</tspan><tspan fill="#111" font-weight="400">LOGIC</tspan><tspan font-size="7px" dy="-5">®</tspan>
+    </text>
+  </svg>
+
+  <div class="hdr-info">
+    <div class="dev-name" id="devName">OSOlogic Device</div>
+    <div class="dev-meta" id="devMeta">connecting…</div>
+  </div>
+  <div class="ws-dot" id="wsDot" title="WebSocket"></div>
+</header>
+
+<!-- ── MAIN GRID ───────────────────────────────────────────── -->
+<main>
+
+  <!-- Runtime card -->
+  <div class="card">
+    <div class="card-title">Runtime</div>
+    <div class="rt-row">
+      <span class="state-badge state-stopped" id="rtBadge">STOPPED</span>
+      <div class="rt-btns">
+        <button class="btn-start" onclick="rtCmd('start')">▶ Start</button>
+        <button class="btn-stop"  onclick="rtCmd('stop')">■ Stop</button>
+        <button class="btn-reset" onclick="rtCmd('reset')">↺ Reset</button>
+      </div>
+    </div>
+    <div class="rt-stats">
+      <div class="rt-stat"><div class="val" id="rtCycle">—</div><div class="lbl">cycle ms</div></div>
+      <div class="rt-stat"><div class="val" id="rtLast">—</div><div class="lbl">last µs</div></div>
+      <div class="rt-stat"><div class="val" id="rtCount">—</div><div class="lbl">cycles</div></div>
+    </div>
+  </div>
+
+  <!-- Resources card -->
+  <div class="card">
+    <div class="card-title">Resources</div>
+    <div class="res-grid">
+      <div class="res-item">
+        <div class="res-lbl"><span>CPU</span><span id="cpuPct">—%</span></div>
+        <div class="res-bar"><div class="res-fill" id="cpuBar" style="width:0%"></div></div>
+      </div>
+      <div class="res-item">
+        <div class="res-lbl"><span>RAM</span><span id="ramPct">—%</span></div>
+        <div class="res-bar"><div class="res-fill" id="ramBar" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div style="color:var(--muted);font-size:11px;margin-top:4px">
+      Uptime: <span id="uptime">—</span>
+      &nbsp;·&nbsp; Temp: <span id="temp">—</span>
+    </div>
+  </div>
+
+  <!-- Tags card (full width) -->
+  <div class="card tags-card">
+    <div class="card-title">Process Tags</div>
+    <div class="tags-toolbar">
+      <input type="text" id="tagFilter" placeholder="Filter tags…" oninput="renderTags()">
+      <span class="tags-count" id="tagsCount">0 tags</span>
+    </div>
+    <div class="tags-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Age</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tagsBody">
+          <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── WRITE MODAL ─────────────────────────────────────────── -->
+<div class="modal-bg" id="writeModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>Write tag: <span id="modalTagName" style="font-family:monospace;color:#93c5fd"></span></h3>
+    <input type="text" id="modalVal" placeholder="new value" onkeydown="if(event.key==='Enter')confirmWrite()">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmWrite()">Write</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ───────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────
+const BASE = '/api/v1';
+const WS_URL = `ws://${location.host}/ws`;
+const POLL_RESOURCES_MS = 5000;
+const PING_MS = 10000;
+
+// ── State ──────────────────────────────────────────────────
+let tags = {};           // id → tag object
+let ws = null;
+let pingTimer = null;
+let resourceTimer = null;
+let writeTarget = null;  // tag being edited
+
+// ── Boot ───────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  fetchSystemInfo();
+  fetchRuntime();
+  fetchTags();
+  connectWS();
+  resourceTimer = setInterval(fetchResources, POLL_RESOURCES_MS);
+  fetchResources();
+});
+
+// ── REST helpers ───────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(BASE + path, opts);
+    if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+    return r.json();
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+    throw e;
+  }
+}
+
+// ── System info ────────────────────────────────────────────
+async function fetchSystemInfo() {
+  try {
+    const d = await api('GET', '/system/info');
+    document.getElementById('devName').textContent = d.device || 'OSOlogic';
+    document.getElementById('devMeta').textContent =
+      `${d.platform} · fw ${d.firmware}` + (d.ip ? ` · ${d.ip}` : '');
+    document.title = 'OSOlogic — ' + d.device;
+  } catch(_) {}
+}
+
+async function fetchResources() {
+  try {
+    const d = await api('GET', '/system/resources');
+    const cpu = Math.round(d.cpu_pct || 0);
+    const ramPct = d.mem_total_kb ? Math.round(d.mem_used_kb / d.mem_total_kb * 100) : 0;
+    document.getElementById('cpuPct').textContent = cpu + '%';
+    document.getElementById('ramPct').textContent = ramPct + '%';
+    setBar('cpuBar', cpu);
+    setBar('ramBar', ramPct);
+    document.getElementById('uptime').textContent = fmtUptime(d.uptime_s);
+    document.getElementById('temp').textContent = d.temp_c != null ? d.temp_c.toFixed(1) + ' °C' : '—';
+  } catch(_) {}
+}
+
+function setBar(id, pct) {
+  const el = document.getElementById(id);
+  el.style.width = pct + '%';
+  el.className = 'res-fill' + (pct > 90 ? ' crit' : pct > 70 ? ' warn' : '');
+}
+
+// ── Runtime ─────────────────────────────────────────────────
+async function fetchRuntime() {
+  try {
+    const d = await api('GET', '/runtime/status');
+    applyRuntimeStatus(d);
+  } catch(_) {}
+}
+
+async function rtCmd(cmd) {
+  try {
+    const d = await api('POST', '/runtime/' + cmd);
+    applyRuntimeStatus(d);
+    toast(cmd.charAt(0).toUpperCase() + cmd.slice(1) + ' OK', 'ok');
+  } catch(_) {}
+}
+
+function applyRuntimeStatus(d) {
+  const badge = document.getElementById('rtBadge');
+  badge.textContent = d.state.toUpperCase();
+  badge.className = 'state-badge state-' + d.state;
+  document.getElementById('rtCycle').textContent = d.cycle_ms ?? '—';
+  document.getElementById('rtLast').textContent  = d.last_cycle_us != null ? fmtNum(d.last_cycle_us) : '—';
+  document.getElementById('rtCount').textContent = d.cycle_count  != null ? fmtNum(d.cycle_count)  : '—';
+}
+
+// ── Tags ────────────────────────────────────────────────────
+async function fetchTags() {
+  try {
+    const list = await api('GET', '/tags');
+    tags = {};
+    list.forEach(t => { tags[t.id] = t; });
+    renderTags();
+  } catch(_) {}
+}
+
+function renderTags() {
+  const filter = document.getElementById('tagFilter').value.toLowerCase();
+  const body = document.getElementById('tagsBody');
+  const now = Date.now();
+  const list = Object.values(tags).filter(t =>
+    !filter || t.name.toLowerCase().includes(filter) || (t.group||'').toLowerCase().includes(filter)
+  );
+  document.getElementById('tagsCount').textContent = list.length + ' tag' + (list.length !== 1 ? 's' : '');
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">No tags</td></tr>';
+    return;
+  }
+  body.innerHTML = list.map(t => {
+    const valClass = t.type === 'BOOL'
+      ? (t.value ? 'td-val bool-true' : 'td-val bool-false')
+      : 'td-val';
+    const val = t.type === 'BOOL' ? (t.value ? '■ TRUE' : '□ FALSE') : String(t.value ?? '—');
+    const age = t.ts_us != null ? fmtAge(now - Math.floor(t.ts_us / 1000)) : '—';
+    const wbtn = t.read_only ? '' : `<button class="btn-write" onclick="openWrite(${t.id})">✎</button>`;
+    return `<tr id="row-${t.id}">
+      <td class="td-name">${esc(t.name)}</td>
+      <td><span class="td-type">${t.type}</span></td>
+      <td class="${valClass}">${esc(val)}</td>
+      <td class="td-age">${age}</td>
+      <td>${wbtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── WebSocket ───────────────────────────────────────────────
+function connectWS() {
+  const dot = document.getElementById('wsDot');
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    dot.className = 'ws-dot ok';
+    // Subscribe to all tags
+    ws.send(JSON.stringify({ type: 'subscribe', tags: ['*'] }));
+    pingTimer = setInterval(() => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'ping' })), PING_MS);
+  };
+
+  ws.onclose = () => {
+    dot.className = 'ws-dot err';
+    clearInterval(pingTimer);
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => { dot.className = 'ws-dot err'; };
+
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      handleWsMsg(msg);
+    } catch(_) {}
+  };
+}
+
+function handleWsMsg(msg) {
+  switch(msg.type) {
+    case 'tag_update':
+      applyTagUpdate(msg.tag, msg.value, msg.ts_us);
+      break;
+    case 'tag_batch':
+      (msg.updates || []).forEach(u => applyTagUpdate(u.tag, u.value, u.ts_us));
+      break;
+    case 'runtime_event':
+      applyRuntimeStatus({ state: msg.state, cycle_count: msg.cycle_count });
+      break;
+    case 'ack':
+      toast('Written: ' + msg.tag + ' = ' + msg.value, 'ok');
+      break;
+    case 'error':
+      toast(msg.code + ': ' + msg.msg, 'err');
+      break;
+  }
+}
+
+function applyTagUpdate(name, value, ts_us) {
+  // Find tag by name
+  const tag = Object.values(tags).find(t => t.name === name);
+  if (!tag) return;
+  tag.value = value;
+  tag.ts_us = ts_us;
+  // Update row in-place if visible
+  const row = document.getElementById('row-' + tag.id);
+  if (!row) return;
+  const valTd = row.children[2];
+  const isTrue = tag.type === 'BOOL' && value;
+  const isFalse = tag.type === 'BOOL' && !value;
+  valTd.className = 'td-val updated' + (isTrue ? ' bool-true' : isFalse ? ' bool-false' : '');
+  valTd.textContent = tag.type === 'BOOL' ? (value ? '■ TRUE' : '□ FALSE') : String(value ?? '—');
+  row.children[3].textContent = '0s';
+  setTimeout(() => {
+    if (valTd.className.includes('updated'))
+      valTd.className = valTd.className.replace(' updated', '');
+  }, 1500);
+}
+
+// ── Write modal ─────────────────────────────────────────────
+function openWrite(tagId) {
+  writeTarget = tags[tagId];
+  if (!writeTarget) return;
+  document.getElementById('modalTagName').textContent = writeTarget.name;
+  document.getElementById('modalVal').value = String(writeTarget.value ?? '');
+  document.getElementById('writeModal').classList.add('open');
+  setTimeout(() => document.getElementById('modalVal').select(), 50);
+}
+
+function closeModal() {
+  document.getElementById('writeModal').classList.remove('open');
+  writeTarget = null;
+}
+
+async function confirmWrite() {
+  if (!writeTarget) return;
+  const raw = document.getElementById('modalVal').value.trim();
+  let value;
+  if (writeTarget.type === 'BOOL') value = raw === '1' || raw.toLowerCase() === 'true';
+  else if (['INT','DINT','LINT','SINT','BYTE','WORD','DWORD'].includes(writeTarget.type)) value = parseInt(raw, 10);
+  else if (['REAL','LREAL'].includes(writeTarget.type)) value = parseFloat(raw);
+  else value = raw;
+
+  // Try WS first (faster), fall back to REST
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'write', tag: writeTarget.name, value }));
+    closeModal();
+  } else {
+    try {
+      await api('PUT', '/tags/' + writeTarget.id, { value });
+      writeTarget.value = value;
+      renderTags();
+      closeModal();
+      toast('Written OK', 'ok');
+    } catch(_) {}
+  }
+}
+
+// ── Utilities ───────────────────────────────────────────────
+function fmtUptime(s) {
+  if (s == null) return '—';
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return `${h}h ${m}m ${sec}s`;
+}
+function fmtAge(ms) {
+  if (ms < 1000) return '<1s';
+  if (ms < 60000) return Math.floor(ms/1000) + 's';
+  return Math.floor(ms/60000) + 'm';
+}
+function fmtNum(n) {
+  return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n);
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+</script>
+</body>
+</html>

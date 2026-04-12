@@ -1,0 +1,14 @@
+{
+  "version": 0,
+  "name": "oso-runtime",
+  "description": "OSOlogic Runtime Control",
+  "menu": {
+    "display": "Runtime",
+    "keyword": ["plc", "runtime", "scan", "osologic", "iec"],
+    "order": 50
+  },
+  "requires": {
+    "cockpit": "195"
+  },
+  "enter-page": "index.html"
+}
