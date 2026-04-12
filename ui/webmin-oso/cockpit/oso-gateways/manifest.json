@@ -1,0 +1,14 @@
+{
+  "version": 0,
+  "name": "oso-gateways",
+  "description": "OSOlogic Protocol Gateways",
+  "menu": {
+    "display": "Gateways",
+    "keyword": ["gateway", "modbus", "opc-ua", "mqtt", "profinet", "ethernetip", "canopen"],
+    "order": 52
+  },
+  "requires": {
+    "cockpit": "195"
+  },
+  "enter-page": "index.html"
+}

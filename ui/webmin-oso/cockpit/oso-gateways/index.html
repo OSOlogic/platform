@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OSOlogic — Gateways</title>
+<script src="../base/cockpit.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5/patternfly.min.css" crossorigin>
+<style>
+  :root {
+    --oso-red:  #800000;
+    --oso-red2: #a00000;
+    --oso-red3: #600000;
+    --bg:       #111;
+    --bg2:      #1a1a1a;
+    --bg3:      #222;
+    --border:   #2a2a2a;
+    --text:     #e0e0e0;
+    --muted:    #666;
+  }
+
+  body { background: #f0f0f0 }   /* PF light base */
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .oso-header {
+    background: #1c1c1c;
+    border-bottom: 3px solid var(--oso-red3);
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .oso-header h1 { font-size:17px; font-weight:700; color:#e0e0e0; margin:0 }
+  .oso-header .sub { font-size:11px; color:#666; margin-top:2px }
+
+  /* ── Toolbar ─────────────────────────────────────────────── */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 24px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    flex-wrap: wrap;
+  }
+  .toolbar h2 { font-size:15px; font-weight:600; margin:0; flex:1 }
+  .btn-primary {
+    background: var(--oso-red); color:#fff; border:none;
+    border-radius:4px; padding:7px 16px; font-size:13px; cursor:pointer;
+  }
+  .btn-primary:hover { background: var(--oso-red2) }
+  .btn-secondary {
+    background:#fff; color:#333; border:1px solid #ccc;
+    border-radius:4px; padding:7px 14px; font-size:13px; cursor:pointer;
+  }
+  .btn-secondary:hover { background:#f5f5f5 }
+  .btn-danger {
+    background:#fff; color:#c00; border:1px solid #fca5a5;
+    border-radius:4px; padding:5px 12px; font-size:12px; cursor:pointer;
+  }
+  .btn-danger:hover { background:#fff5f5 }
+  .btn-icon {
+    background:transparent; border:1px solid #ddd; border-radius:4px;
+    padding:5px 10px; font-size:12px; cursor:pointer; color:#555;
+  }
+  .btn-icon:hover { border-color:#aaa; color:#333 }
+
+  /* ── Gateway cards grid ──────────────────────────────────── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+    padding: 20px 24px;
+  }
+
+  .gw-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.07);
+    transition: box-shadow .2s;
+  }
+  .gw-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.1) }
+  .gw-card.state-error   { border-left: 4px solid #ef4444 }
+  .gw-card.state-connected { border-left: 4px solid #22c55e }
+  .gw-card.state-disconnected { border-left: 4px solid #888 }
+  .gw-card.state-disabled { border-left: 4px solid #ccc; opacity:.7 }
+
+  /* Card header */
+  .gw-card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px 10px;
+  }
+  .proto-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em;
+    padding: 3px 8px; border-radius: 4px;
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  .proto-modbus-tcp  { background:#dbeafe; color:#1d4ed8 }
+  .proto-modbus-rtu  { background:#ede9fe; color:#6d28d9 }
+  .proto-opc-ua      { background:#fef3c7; color:#92400e }
+  .proto-mqtt        { background:#dcfce7; color:#166534 }
+  .proto-profinet    { background:#ffedd5; color:#9a3412 }
+  .proto-ethernetip  { background:#fce7f3; color:#9d174d }
+  .proto-canopen     { background:#e0f2fe; color:#0369a1 }
+
+  .gw-id { font-weight:600; font-size:14px; flex:1; color:#111 }
+
+  .state-dot {
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  }
+  .dot-connected    { background:#22c55e }
+  .dot-disconnected { background:#888 }
+  .dot-error        { background:#ef4444 }
+  .dot-disabled     { background:#ccc }
+
+  /* Stats row */
+  .gw-stats {
+    display: flex; gap:0;
+    border-top: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .gw-stat {
+    flex:1; text-align:center; padding:8px 4px;
+    border-right: 1px solid #f0f0f0;
+  }
+  .gw-stat:last-child { border-right:none }
+  .gw-stat .sv { font-size:16px; font-weight:700; color:#111;
+                 font-variant-numeric:tabular-nums }
+  .gw-stat .sl { font-size:10px; color:#999; text-transform:uppercase;
+                 letter-spacing:.05em; margin-top:1px }
+  .gw-stat.err .sv { color:#ef4444 }
+
+  /* Error message */
+  .gw-error {
+    margin: 8px 16px;
+    background: #fff5f5; border: 1px solid #fca5a5;
+    border-radius:4px; padding:6px 10px;
+    font-size:12px; color:#b91c1c;
+    display:none;
+  }
+
+  /* Card footer */
+  .gw-footer {
+    display:flex; align-items:center; gap:8px;
+    padding: 10px 16px;
+  }
+  .gw-footer .last-ok {
+    font-size:11px; color:#999; margin-left:auto;
+  }
+
+  /* ── Config panel (expandable) ───────────────────────────── */
+  .gw-config {
+    border-top: 1px solid #e8e8e8;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease, padding .3s;
+  }
+  .gw-config.open {
+    max-height: 600px;
+    padding: 16px;
+  }
+  .cfg-title {
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.06em; color:#888; margin-bottom:12px;
+  }
+  .cfg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cfg-field { display:flex; flex-direction:column; gap:4px }
+  .cfg-field.full { grid-column: span 2 }
+  .cfg-field label { font-size:11px; color:#666; font-weight:500 }
+  .cfg-field input, .cfg-field select {
+    background:#f8f8f8; border:1px solid #ddd; border-radius:4px;
+    padding:6px 10px; font-size:13px; color:#111;
+  }
+  .cfg-field input:focus, .cfg-field select:focus {
+    outline:none; border-color:var(--oso-red);
+  }
+  .cfg-actions {
+    display:flex; gap:8px; margin-top:14px; justify-content:flex-end;
+  }
+  .btn-save {
+    background:var(--oso-red); color:#fff; border:none;
+    border-radius:4px; padding:7px 18px; font-size:13px; cursor:pointer;
+  }
+  .btn-save:hover { background:var(--oso-red2) }
+  .btn-cancel-cfg {
+    background:#fff; color:#555; border:1px solid #ccc;
+    border-radius:4px; padding:7px 14px; font-size:13px; cursor:pointer;
+  }
+
+  /* ── Empty state ─────────────────────────────────────────── */
+  .empty-state {
+    text-align:center; padding:60px 24px; color:#aaa;
+  }
+  .empty-state .icon { font-size:48px; margin-bottom:12px }
+  .empty-state p { font-size:14px; margin-bottom:16px }
+
+  /* ── Modal (add gateway) ─────────────────────────────────── */
+  .modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.45); z-index:100;
+    align-items:center; justify-content:center;
+  }
+  .modal-bg.open { display:flex }
+  .modal {
+    background:#fff; border-radius:8px; padding:24px;
+    min-width:360px; max-width:480px; width:100%;
+    box-shadow:0 8px 32px rgba(0,0,0,.2);
+    display:flex; flex-direction:column; gap:16px;
+  }
+  .modal h3 { font-size:16px; font-weight:600; margin:0 }
+  .modal-btns { display:flex; gap:8px; justify-content:flex-end; margin-top:4px }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="oso-header">
+  <svg width="28" height="40" viewBox="30 15 120 100" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#800000" d="M 80.537878,89.583585 C 62.322275,83.223862 50.690496,76.152956 47.23871,69.341183 46.19335,67.278255 45.75168,64.460396 45.992998,61.393492 46.591824,53.783041 49.541792,44.017945 53.199917,37.536865 l 1.522907,-2.698124 -0.610839,-0.650708 c -1.921929,-2.047348 -2.446211,-6.090462 -1.150557,-8.872767 1.315134,-2.824131 3.77209,-4.436102 7.089526,-4.651316 1.861741,-0.120783 2.413977,-0.03072 3.8528,0.627936 0.923753,0.422916 2.213799,1.319445 2.866773,1.99229 l 1.187226,1.223356 2.114304,-0.587204 c 3.860531,-1.072185 10.315054,-1.25662 14.232875,-0.406692 0.727224,0.157764 1.094841,-0.04211 2.47069,-1.343332 1.796222,-1.698787 2.822635,-2.034933 5.528469,-1.810548 4.21251,0.349333 6.876748,4.862838 5.086475,8.617062 -0.415874,0.872112 -0.447033,1.19635 -0.154588,1.608634 1.01616,1.432564 2.286324,4.295137 2.776932,6.258397 0.30234,1.209882 0.71126,2.501642 0.90871,2.87057 0.41804,0.781121 2.04966,1.675084 3.99362,2.188094 4.7797,1.261373 6.17095,4.429751 4.40282,10.026855 -1.87407,5.932491 -6.50368,10.475406 -12.888321,12.646966 -3.031912,1.031222 -3.916164,1.63091 -4.654883,3.156917 l -0.643758,1.329812 0.650213,3.858092 c 0.970825,5.760437 0.796596,8.085732 -0.858524,11.457474 -3.116484,5.149138 -5.161404,7.028678 -10.384909,5.204956 z M 98.890707,59.165747 c 1.569953,-0.768106 3.282873,-2.302789 3.282873,-2.941276 0,-0.138203 -0.65074,-0.04223 -1.44609,0.21335 -2.053621,0.659855 -7.300817,0.651582 -9.818153,-0.01542 -3.819902,-1.012202 -7.247047,-3.277228 -8.827202,-5.833986 -0.973829,-1.57568 -2.638718,-1.788812 -3.365494,-0.43082 -0.251931,0.470736 -0.13994,0.927504 0.53309,2.174125 1.200688,2.223994 3.551585,4.463061 6.0822,5.792862 2.994793,1.573712 5.11531,2.047429 8.77784,1.960935 2.630249,-0.06213 3.285777,-0.188221 4.780936,-0.919725 z m 7.139923,-9.78827 c 0.77937,-0.779359 1.03073,-1.270255 0.95898,-1.872843 l -0.0972,-0.816628 -2.89217,-0.05224 c -1.5907,-0.02865 -3.06342,0.07732 -3.27273,0.235707 -0.66247,0.501206 -0.41469,1.457867 0.65455,2.527095 0.84856,0.84857 1.2655,1.035099 2.31373,1.035099 1.05325,0 1.46484,-0.186195 2.33486,-1.056214 z M 77.824565,42.667352 c 2.70328,-1.397918 1.625261,-5.639942 -1.428766,-5.622199 -2.923995,0.01703 -4.136488,3.414326 -1.89245,5.302553 1.055466,0.888129 2.038868,0.982769 3.321216,0.319646 z m 17.251187,-2.028765 c 0.965406,-0.906954 0.94611,-2.473072 -0.04269,-3.461825 -1.005391,-1.00539 -2.135683,-0.955545 -3.233861,0.142645 -1.098177,1.098177 -1.148035,2.228469 -0.142644,3.23386 0.955614,0.955614 2.453005,0.992975 3.419159,0.08538 z m 23.880978,48.41307 c -2.2257,-0.640259 -3.99672,-2.894031 -3.99672,-5.086153 0,-0.920565 -0.23117,-1.13219 -3.69536,-3.382959 l -3.69537,-2.400962 -1.09504,0.586905 c -1.92583,1.032177 -4.26278,0.686331 -5.93646,-0.878545 -3.978905,-3.720245 -0.30401,-10.301097 4.91933,-8.809275 l 1.43528,0.409925 3.99483,-2.60246 c 3.96498,-2.583016 3.9965,-2.612656 4.21505,-3.9654 0.45155,-2.794824 3.93576,-5.090019 6.54167,-4.309267 3.18019,0.952806 4.79254,4.183226 3.56013,7.132822 -0.45761,1.095186 -2.4084,2.953738 -3.10033,2.953738 -0.37389,0 -0.44452,0.800486 -0.43645,4.947134 l 0.009,4.947133 1.34252,0.814397 c 3.11674,1.890654 3.45833,5.808671 0.72949,8.367155 -0.83498,0.782857 -2.93628,1.711478 -3.61345,1.596874 -0.0838,-0.01415 -0.61417,-0.158638 -1.17876,-0.321062 z m 3.11654,-3.32514 c 1.55888,-1.22622 0.86203,-3.907787 -1.14651,-4.411904 -1.64436,-0.412698 -3.52105,1.3935 -3.1177,3.000581 0.48077,1.915555 2.69256,2.647577 4.26421,1.411323 z m -5.02919,-6.017143 c 0.44446,-0.307646 1.04785,-0.645829 1.34087,-0.751549 0.47867,-0.172688 0.53109,-0.695525 0.51624,-5.148886 l -0.0166,-4.956695 -1.42955,-0.927067 -1.42956,-0.927067 -3.55505,2.36436 -3.55504,2.364348 0.30829,1.116542 c 0.16956,0.614094 0.22802,1.544406 0.12992,2.067347 -0.17445,0.929886 -0.1031,0.998878 3.24676,3.137471 1.88382,1.202667 3.47247,2.194285 3.53034,2.203605 0.0579,0.0092 0.46887,-0.234776 0.91332,-0.542409 z M 105.9929,75.868185 c 1.04745,-1.047446 0.9928,-2.40286 -0.14263,-3.538307 -1.10367,-1.103666 -2.12143,-1.134584 -3.34889,-0.101716 -1.85609,1.561792 -0.79278,4.387303 1.65106,4.387303 0.75477,0 1.32454,-0.231335 1.84046,-0.747257 z m 16.08773,-10.288658 c 1.71546,-1.543394 0.63237,-4.49047 -1.6503,-4.49047 -1.21218,0 -2.73037,1.438881 -2.73037,2.587733 0,1.132053 1.51858,2.587733 2.69956,2.587733 0.52528,0 1.2463,-0.293792 1.68111,-0.684996 z"/>
+  </svg>
+  <div>
+    <h1>Protocol Gateways</h1>
+    <div class="sub" id="gwSummary">Loading…</div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <h2>Configured gateways</h2>
+  <button class="btn-secondary" onclick="fetchAll()">↺ Refresh</button>
+  <button class="btn-primary" onclick="openAddModal()">+ Add gateway</button>
+</div>
+
+<!-- Cards -->
+<div class="cards-grid" id="cardsGrid">
+  <div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa">Loading…</div>
+</div>
+
+<!-- Add gateway modal -->
+<div class="modal-bg" id="addModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>Add gateway</h3>
+    <div class="cfg-grid">
+      <div class="cfg-field full">
+        <label>Gateway ID</label>
+        <input type="text" id="newId" placeholder="e.g. modbus-1">
+      </div>
+      <div class="cfg-field full">
+        <label>Protocol</label>
+        <select id="newProto" onchange="renderNewFields()">
+          <option value="modbus-tcp">Modbus TCP</option>
+          <option value="modbus-rtu">Modbus RTU</option>
+          <option value="opc-ua">OPC-UA</option>
+          <option value="mqtt">MQTT</option>
+          <option value="profinet">PROFINET</option>
+          <option value="ethernetip">EtherNet/IP</option>
+          <option value="canopen">CANopen</option>
+        </select>
+      </div>
+      <div id="newFields" class="cfg-field full" style="display:contents"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel-cfg" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="addGateway()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = '/api/v1';
+const POLL_MS = 5000;
+
+let gateways = [];
+let openConfigs = new Set();  // gateway ids with config panel open
+let pollTimer = null;
+
+// ── Boot ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  fetchAll();
+  pollTimer = setInterval(fetchAll, POLL_MS);
+  renderNewFields();
+});
+
+// ── REST ───────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(BASE + path, opts);
+  if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+  return r.json();
+}
+
+async function fetchAll() {
+  try {
+    gateways = await api('GET', '/gateways');
+    renderCards();
+    const connected = gateways.filter(g => g.state === 'connected').length;
+    const errors    = gateways.filter(g => g.state === 'error').length;
+    document.getElementById('gwSummary').textContent =
+      `${gateways.length} gateways · ${connected} connected` +
+      (errors ? ` · ${errors} error${errors > 1 ? 's' : ''}` : '');
+  } catch(e) {
+    document.getElementById('gwSummary').textContent = 'Error: ' + e.message;
+  }
+}
+
+async function restartGateway(id) {
+  try {
+    await api('POST', `/gateways/${id}/restart`);
+    fetchAll();
+  } catch(e) { alert('Restart failed: ' + e.message) }
+}
+
+async function saveConfig(id) {
+  const cfg = readFormConfig(id);
+  try {
+    await api('PUT', `/gateways/${id}`, cfg);
+    openConfigs.delete(id);
+    fetchAll();
+  } catch(e) { alert('Save failed: ' + e.message) }
+}
+
+async function addGateway() {
+  const id    = document.getElementById('newId').value.trim();
+  const proto = document.getElementById('newProto').value;
+  if (!id) { alert('Gateway ID is required'); return; }
+  const cfg = readNewFormConfig();
+  try {
+    await api('PUT', `/gateways/${id}`, { protocol: proto, config: cfg });
+    closeModal();
+    fetchAll();
+  } catch(e) { alert('Add failed: ' + e.message) }
+}
+
+// ── Render ─────────────────────────────────────────────────
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  if (!gateways.length) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="icon">⚡</div>
+        <p>No gateways configured yet.</p>
+        <button class="btn-primary" onclick="openAddModal()">+ Add first gateway</button>
+      </div>`;
+    return;
+  }
+  grid.innerHTML = gateways.map(g => renderCard(g)).join('');
+}
+
+function renderCard(g) {
+  const st  = g.state || 'disconnected';
+  const cfg = g.config || {};
+  const stats = g.stats || {};
+  const isOpen = openConfigs.has(g.id);
+
+  const errorHtml = (st === 'error' && g.error_msg)
+    ? `<div class="gw-error" style="display:block">${esc(g.error_msg)}</div>` : '';
+
+  const lastOk = stats.last_ok_ts
+    ? `Last OK: ${fmtAge(Date.now() - stats.last_ok_ts)}` : '';
+
+  return `
+  <div class="gw-card state-${st}" id="card-${esc(g.id)}">
+    <div class="gw-card-header">
+      <span class="proto-badge proto-${g.protocol}">${protoLabel(g.protocol)}</span>
+      <span class="gw-id">${esc(g.id)}</span>
+      <span class="state-dot dot-${st}" title="${st}"></span>
+    </div>
+    <div style="padding:0 16px 6px;font-size:12px;color:#777">${cfgSummary(g.protocol, cfg)}</div>
+    ${errorHtml}
+    <div class="gw-stats">
+      <div class="gw-stat">
+        <div class="sv">${fmtNum(stats.tx_count ?? 0)}</div>
+        <div class="sl">TX</div>
+      </div>
+      <div class="gw-stat">
+        <div class="sv">${fmtNum(stats.rx_count ?? 0)}</div>
+        <div class="sl">RX</div>
+      </div>
+      <div class="gw-stat ${(stats.error_count||0) > 0 ? 'err' : ''}">
+        <div class="sv">${fmtNum(stats.error_count ?? 0)}</div>
+        <div class="sl">Errors</div>
+      </div>
+    </div>
+    <div class="gw-footer">
+      <button class="btn-icon" onclick="toggleConfig('${esc(g.id)}')">
+        ${isOpen ? '▲ Hide config' : '▼ Config'}
+      </button>
+      <button class="btn-icon" onclick="restartGateway('${esc(g.id)}')">↺ Restart</button>
+      <span class="last-ok">${lastOk}</span>
+    </div>
+    <div class="gw-config${isOpen ? ' open' : ''}" id="cfg-${esc(g.id)}">
+      <div class="cfg-title">Configuration — ${protoLabel(g.protocol)}</div>
+      <div class="cfg-grid">${cfgFields(g.id, g.protocol, cfg)}</div>
+      <div class="cfg-actions">
+        <button class="btn-cancel-cfg" onclick="toggleConfig('${esc(g.id)}')">Cancel</button>
+        <button class="btn-save" onclick="saveConfig('${esc(g.id)}')">Save & apply</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleConfig(id) {
+  if (openConfigs.has(id)) openConfigs.delete(id);
+  else openConfigs.add(id);
+  renderCards();
+}
+
+// ── Protocol-specific config forms ─────────────────────────
+const PROTO_FIELDS = {
+  'modbus-tcp': [
+    { id:'host',     label:'Host / IP',   type:'text',   placeholder:'192.168.1.100' },
+    { id:'port',     label:'Port',         type:'number', placeholder:'502', half:true },
+    { id:'slave_id', label:'Slave ID',     type:'number', placeholder:'1',   half:true },
+    { id:'poll_ms',  label:'Poll (ms)',    type:'number', placeholder:'100', half:true },
+  ],
+  'modbus-rtu': [
+    { id:'serial_port', label:'Serial port', type:'text',   placeholder:'/dev/ttyUSB0', full:true },
+    { id:'baud_rate',   label:'Baud rate',   type:'number', placeholder:'9600',  half:true },
+    { id:'slave_id',    label:'Slave ID',    type:'number', placeholder:'1',     half:true },
+    { id:'poll_ms',     label:'Poll (ms)',   type:'number', placeholder:'100',   half:true },
+    { id:'parity',      label:'Parity',      type:'select', options:['none','even','odd'], half:true },
+  ],
+  'opc-ua': [
+    { id:'endpoint_url', label:'Endpoint URL', type:'text', placeholder:'opc.tcp://192.168.1.200:4840', full:true },
+    { id:'security',     label:'Security',     type:'select', options:['None','Basic128Rsa15','Basic256Sha256'], full:true },
+    { id:'poll_ms',      label:'Poll (ms)',    type:'number', placeholder:'500', half:true },
+  ],
+  'mqtt': [
+    { id:'host',         label:'Broker host', type:'text',   placeholder:'192.168.1.10' },
+    { id:'port',         label:'Port',        type:'number', placeholder:'1883', half:true },
+    { id:'topic_prefix', label:'Topic prefix',type:'text',   placeholder:'osologic/', full:true },
+    { id:'qos',          label:'QoS',         type:'select', options:['0','1','2'], half:true },
+    { id:'poll_ms',      label:'Publish (ms)',type:'number', placeholder:'100', half:true },
+  ],
+  'profinet': [
+    { id:'interface',     label:'Network interface', type:'text', placeholder:'eth0', half:true },
+    { id:'station_name',  label:'Station name',      type:'text', placeholder:'oso-plc-1', half:true },
+    { id:'update_rate_ms',label:'Update rate (ms)',  type:'number', placeholder:'4', half:true },
+  ],
+  'ethernetip': [
+    { id:'host',     label:'PLC host / IP', type:'text',   placeholder:'192.168.1.50' },
+    { id:'slot',     label:'Slot',          type:'number', placeholder:'0',   half:true },
+    { id:'poll_ms',  label:'Poll (ms)',     type:'number', placeholder:'100', half:true },
+  ],
+  'canopen': [
+    { id:'interface', label:'CAN interface', type:'text',   placeholder:'can0', half:true },
+    { id:'node_id',   label:'Node ID',       type:'number', placeholder:'1',    half:true },
+    { id:'bitrate',   label:'Bitrate (kbps)',type:'select', options:['125','250','500','1000'], half:true },
+  ],
+};
+
+function cfgFields(gwId, proto, current) {
+  const fields = PROTO_FIELDS[proto] || [];
+  return fields.map(f => {
+    const val = current[f.id] ?? '';
+    const cls = f.full ? 'cfg-field full' : 'cfg-field';
+    const inputId = `cfg_${gwId}_${f.id}`;
+    if (f.type === 'select') {
+      const opts = f.options.map(o =>
+        `<option${String(val) === o ? ' selected' : ''}>${o}</option>`).join('');
+      return `<div class="${cls}"><label>${f.label}</label>
+        <select id="${inputId}">${opts}</select></div>`;
+    }
+    return `<div class="${cls}"><label>${f.label}</label>
+      <input type="${f.type}" id="${inputId}" value="${esc(String(val))}" placeholder="${f.placeholder||''}"></div>`;
+  }).join('');
+}
+
+function readFormConfig(gwId) {
+  const gw = gateways.find(g => g.id === gwId);
+  if (!gw) return {};
+  const fields = PROTO_FIELDS[gw.protocol] || [];
+  const cfg = {};
+  fields.forEach(f => {
+    const el = document.getElementById(`cfg_${gwId}_${f.id}`);
+    if (el) cfg[f.id] = f.type === 'number' ? Number(el.value) : el.value;
+  });
+  return { config: cfg };
+}
+
+function renderNewFields() {
+  const proto = document.getElementById('newProto').value;
+  const fields = PROTO_FIELDS[proto] || [];
+  const cont = document.getElementById('newFields');
+  cont.innerHTML = fields.map(f => {
+    const cls = f.full ? 'cfg-field full' : 'cfg-field';
+    if (f.type === 'select') {
+      const opts = f.options.map(o => `<option>${o}</option>`).join('');
+      return `<div class="${cls}"><label>${f.label}</label>
+        <select id="new_${f.id}">${opts}</select></div>`;
+    }
+    return `<div class="${cls}"><label>${f.label}</label>
+      <input type="${f.type}" id="new_${f.id}" placeholder="${f.placeholder||''}"></div>`;
+  }).join('');
+}
+
+function readNewFormConfig() {
+  const proto = document.getElementById('newProto').value;
+  const fields = PROTO_FIELDS[proto] || [];
+  const cfg = {};
+  fields.forEach(f => {
+    const el = document.getElementById(`new_${f.id}`);
+    if (el) cfg[f.id] = f.type === 'number' ? Number(el.value) : el.value;
+  });
+  return cfg;
+}
+
+// ── Modal ──────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('newId').value = '';
+  renderNewFields();
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('newId').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+
+// ── Utils ──────────────────────────────────────────────────
+const PROTO_LABELS = {
+  'modbus-tcp': 'Modbus TCP', 'modbus-rtu': 'Modbus RTU',
+  'opc-ua': 'OPC-UA', 'mqtt': 'MQTT', 'profinet': 'PROFINET',
+  'ethernetip': 'EtherNet/IP', 'canopen': 'CANopen',
+};
+function protoLabel(p) { return PROTO_LABELS[p] || p }
+
+function cfgSummary(proto, cfg) {
+  if (proto === 'modbus-tcp')  return `${cfg.host||'—'}:${cfg.port||502}  slave ${cfg.slave_id||1}`;
+  if (proto === 'modbus-rtu')  return `${cfg.serial_port||'—'}  ${cfg.baud_rate||9600} baud`;
+  if (proto === 'opc-ua')      return cfg.endpoint_url || '—';
+  if (proto === 'mqtt')        return `${cfg.host||'—'}:${cfg.port||1883}  ${cfg.topic_prefix||''}`;
+  if (proto === 'profinet')    return `${cfg.interface||'eth0'}  ${cfg.station_name||'—'}`;
+  if (proto === 'ethernetip')  return `${cfg.host||'—'}  slot ${cfg.slot??0}`;
+  if (proto === 'canopen')     return `${cfg.interface||'can0'}  node ${cfg.node_id||1}  ${cfg.bitrate||250}k`;
+  return '';
+}
+
+function fmtNum(n) {
+  return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : String(n);
+}
+function fmtAge(ms) {
+  if (ms < 1000)    return '< 1s';
+  if (ms < 60000)   return Math.floor(ms/1000) + 's ago';
+  if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
+  return Math.floor(ms/3600000) + 'h ago';
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
