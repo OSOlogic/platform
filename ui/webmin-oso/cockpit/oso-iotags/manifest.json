@@ -1,0 +1,14 @@
+{
+  "version": 0,
+  "name": "oso-iotags",
+  "description": "OSOlogic I/O Tag Browser",
+  "menu": {
+    "display": "I/O Tags",
+    "keyword": ["tags", "io", "plc", "osodb", "signals"],
+    "order": 51
+  },
+  "requires": {
+    "cockpit": "195"
+  },
+  "enter-page": "index.html"
+}
