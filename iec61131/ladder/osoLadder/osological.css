@@ -517,6 +517,74 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
   color: var(--contact-color);
 }
 
+/* ===== PLC CONNECTION STATUS (toolbar) ===== */
+.plc-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: default;
+  user-select: none;
+}
+.plc-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.plc-dot--disconnected { background: var(--text-dim); }
+.plc-dot--connecting   { background: #ffd740; animation: plc-blink .7s ease-in-out infinite; }
+.plc-dot--connected    { background: #81c784; }
+.plc-dot--error        { background: var(--danger); }
+@keyframes plc-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* ===== PLC SETTINGS FORM ===== */
+#plc-settings-block { margin-top: 4px; }
+
+.plc-fields { display: none; }
+
+.plc-note {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  margin: 4px 0 8px;
+  border-radius: 0 4px 4px 0;
+}
+.plc-note--bridge {
+  color: var(--text-secondary);
+  background: var(--bg-cell);
+  border-left: 3px solid var(--accent);
+}
+.plc-note--info {
+  color: var(--text-secondary);
+  background: var(--bg-cell);
+  border-left: 3px solid #ffd740;
+}
+
+.set-plc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.plc-btn-connect    { color: #81c784 !important; border-color: #81c784 !important; }
+.plc-btn-disconnect { color: var(--danger) !important; border-color: var(--danger) !important; }
+
+.set-plc-status {
+  font-size: 11px;
+  color: var(--text-dim);
+  transition: color .3s;
+}
+.set-plc-status.plc-ok   { color: #81c784; }
+.set-plc-status.plc-err  { color: var(--danger); }
+.set-plc-status.plc-info { color: #ffd740; }
+
 /* ===== SCROLLBARS ===== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }

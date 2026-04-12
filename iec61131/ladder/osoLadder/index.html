@@ -34,6 +34,10 @@
     </div>
     <div class="toolbar-right">
       <span class="version">IEC 61131-3</span>
+      <div class="plc-status" id="plc-status-badge" title="osoLogic PLC">
+        <span class="plc-dot plc-dot--disconnected" id="plc-status-dot"></span>
+        <span class="plc-status-label" id="plc-status-label">Desconectado</span>
+      </div>
       <button class="tb-btn" id="btn-settings">⚙ Ajustes</button>
     </div>
   </header>
@@ -237,5 +241,6 @@
 </div>
 
 <script src="osological.js"></script>
+<script src="osoplc.js"></script>
 </body>
 </html>
