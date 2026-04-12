@@ -1,0 +1,6 @@
+# osoST Python Compiler — runtime dependencies
+# No third-party packages required; stdlib only.
+# Compilador Python osoST — sin dependencias externas; solo stdlib.
+
+# Optional: install for development / Opcional: instalar para desarrollo
+pytest>=7.0

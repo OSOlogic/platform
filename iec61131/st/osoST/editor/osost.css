@@ -1,0 +1,237 @@
+/*
+  osoLogic — osoST Web Editor
+  editor/osost.css — Styles following the osoLogic design system
+
+  Copyright (C) 2026 Angel Miguel Zúñiga Schmemund <miguel@ibercomp.com>
+                Ibercomp SL, Roig Borrell SL
+
+  Part of the osoLogic open-source PLC project — osologic.org
+  SPDX-License-Identifier: AGPL-3.0-or-later
+*/
+
+/* ── Reset & base / Reinicio y base ──────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Colour palette (shared with osoLadder) / Paleta de colores */
+  --bg-primary:    #1a1d23;
+  --bg-secondary:  #22262e;
+  --bg-tertiary:   #2a2f3a;
+  --text-primary:  #e8eaf0;
+  --text-secondary:#8892a0;
+  --text-dim:      #555e6e;
+  --accent:        #2979ff;
+  --accent-hover:  #448aff;
+  --accent-green:  #81c784;
+  --accent-orange: #ffb74d;
+  --danger:        #ef5350;
+  --border:        #2e3444;
+  --selected:      #ffd740;
+
+  /* Layout measurements / Medidas de layout */
+  --toolbar-h:    46px;
+  --statusbar-h:  22px;
+  --panel-left-w: 160px;
+  --panel-right-w:320px;
+}
+
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+/* ── Toolbar / Barra de herramientas ─────────────────────────── */
+.toolbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--toolbar-h);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  gap: 4px; padding: 0 10px;
+  z-index: 100;
+}
+
+.toolbar-left  { display: flex; align-items: center; gap: 4px; flex: 1; }
+.toolbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.brand { font-weight: 700; font-size: 15px; letter-spacing: .5px; }
+.brand-oso { color: var(--text-secondary); }
+.brand-st  { color: var(--accent); }
+
+.toolbar-sep {
+  width: 1px; height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.tb-btn {
+  padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--bg-tertiary); color: var(--text-primary);
+  cursor: pointer; font-size: 12px; line-height: 1.4;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.tb-btn:hover  { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tb-btn:active { opacity: .85; }
+
+.tb-btn--primary { border-color: var(--accent); color: var(--accent); }
+.tb-btn--primary:hover { background: var(--accent); color: #fff; }
+
+.tb-btn--accent  { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.tb-btn--accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.tb-btn[disabled] { opacity: .4; cursor: default; pointer-events: none; }
+
+.tb-label { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+#lbl-filename { color: var(--text-primary); font-family: monospace; font-size: 12px; }
+
+.tb-select {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 4px;
+  padding: 3px 6px; font-size: 12px; cursor: pointer;
+}
+.tb-select:focus { outline: none; border-color: var(--accent); }
+
+.tb-input {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 4px;
+  padding: 3px 8px; font-size: 12px; width: 170px;
+}
+.tb-input:focus { outline: none; border-color: var(--accent); }
+
+/* Status dot / Punto de estado */
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+.status-dot--idle     { background: var(--text-dim); }
+.status-dot--running  { background: var(--accent-orange);
+                         animation: pulse .8s infinite alternate; }
+.status-dot--ok       { background: var(--accent-green); }
+.status-dot--error    { background: var(--danger); }
+
+@keyframes pulse { from { opacity: 1; } to { opacity: .4; } }
+
+/* ── Main layout / Layout principal ──────────────────────────── */
+.layout {
+  position: fixed;
+  top: var(--toolbar-h);
+  bottom: var(--statusbar-h);
+  left: 0; right: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Side panels / Paneles laterales ─────────────────────────── */
+.panel {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden; flex-shrink: 0;
+}
+.panel--left  { width: var(--panel-left-w); }
+.panel--right { width: var(--panel-right-w); border-right: none; border-left: 1px solid var(--border); }
+
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 600; letter-spacing: .5px;
+  color: var(--text-secondary); text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  background: none; border: none; color: var(--text-secondary);
+  cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 3px;
+  line-height: 1;
+}
+.icon-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+/* ── File tree / Árbol de archivos ───────────────────────────── */
+.file-tree {
+  list-style: none; padding: 4px 0;
+  overflow-y: auto; flex: 1;
+}
+.file-tree__item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+}
+.file-tree__item:hover     { background: var(--bg-tertiary); color: var(--text-primary); }
+.file-tree__item--active   { color: var(--text-primary); border-left-color: var(--accent);
+                              background: rgba(41,121,255,.08); }
+.file-icon { font-style: normal; }
+
+/* ── Monaco editor container / Contenedor del editor Monaco ──── */
+.editor-wrap {
+  flex: 1; overflow: hidden; position: relative;
+}
+#monaco-editor {
+  position: absolute; inset: 0;
+}
+
+/* ── Output panel / Panel de salida ──────────────────────────── */
+.out-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.out-tab {
+  flex: 1; padding: 5px 4px; border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+  transition: color .15s, border-color .15s;
+}
+.out-tab:hover         { color: var(--text-primary); }
+.out-tab--active       { color: var(--accent); border-bottom-color: var(--accent); }
+
+.out-panels { flex: 1; overflow: hidden; position: relative; }
+.out-panel {
+  position: absolute; inset: 0;
+  display: none; overflow: auto;
+  padding: 8px 10px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px; line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap; word-break: break-all;
+}
+.out-panel--active { display: block; }
+
+/* Coloured lines in console / Líneas con color en consola */
+.out-ok    { color: var(--accent-green); }
+.out-error { color: var(--danger); }
+.out-warn  { color: var(--accent-orange); }
+.out-info  { color: var(--accent); }
+
+.out-actions {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Status bar / Barra de estado ────────────────────────────── */
+.statusbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--statusbar-h);
+  background: var(--accent);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 0;
+  font-size: 11px; color: #fff;
+  z-index: 100;
+}
+.statusbar-sep { width: 1px; height: 14px; background: rgba(255,255,255,.3); margin: 0 8px; }
+.statusbar-right { margin-left: auto; }
+
+/* When there is a compile error the status bar turns red */
+.statusbar--error { background: var(--danger); }
+
+/* ── Scrollbar polish / Barra de scroll ──────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }

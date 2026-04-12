@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+  osoLogic — osoST Web Editor
+  editor/index.html — Monaco-based IEC 61131-3 Structured Text editor
+
+  Copyright (C) 2026 Angel Miguel Zúñiga Schmemund <miguel@ibercomp.com>
+                Ibercomp SL, Roig Borrell SL
+
+  Part of the osoLogic open-source PLC project — osologic.org
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>osoST — Structured Text Editor</title>
+<link rel="stylesheet" href="osost.css"/>
+</head>
+<body>
+
+<!-- ── Toolbar ───────────────────────────────────────────────── -->
+<header class="toolbar" role="banner">
+  <div class="toolbar-left">
+    <span class="brand">
+      <span class="brand-oso">oso</span><span class="brand-st">ST</span>
+    </span>
+    <span class="toolbar-sep"></span>
+
+    <!-- File actions / Acciones de archivo -->
+    <button class="tb-btn" id="btn-new"    title="New file (Ctrl+N)">New</button>
+    <button class="tb-btn" id="btn-open"   title="Open .st file (Ctrl+O)">Open</button>
+    <button class="tb-btn" id="btn-save"   title="Save (Ctrl+S)">Save</button>
+    <input  type="file"    id="file-input" accept=".st,.prj" style="display:none"/>
+
+    <span class="toolbar-sep"></span>
+
+    <!-- Compile actions / Acciones de compilación -->
+    <button class="tb-btn tb-btn--primary" id="btn-lex"     title="Tokenize only">Lex</button>
+    <button class="tb-btn tb-btn--primary" id="btn-parse"   title="Parse AST">Parse</button>
+    <button class="tb-btn tb-btn--accent"  id="btn-compile" title="Compile to HEX (Ctrl+B)">&#9654; Compile</button>
+
+    <span class="toolbar-sep"></span>
+    <span class="tb-label" id="lbl-filename">untitled.st</span>
+  </div>
+
+  <div class="toolbar-right">
+    <!-- Compiler backend selector / Selector de backend de compilación -->
+    <label class="tb-label" for="sel-backend">Backend:</label>
+    <select id="sel-backend" class="tb-select" title="Compiler backend">
+      <option value="java">Java (STLite.jar)</option>
+      <option value="python">Python (ostc)</option>
+    </select>
+
+    <label class="tb-label" for="inp-server" id="lbl-server">Server:</label>
+    <input  type="text" id="inp-server" class="tb-input"
+            value="http://localhost:5000"
+            placeholder="http://localhost:5000"
+            title="REST compiler server URL"/>
+
+    <span class="toolbar-sep"></span>
+
+    <!-- Compile status dot / Punto de estado de compilación -->
+    <span class="status-dot status-dot--idle" id="status-dot" title="Idle"></span>
+    <span class="tb-label" id="lbl-status">Ready</span>
+  </div>
+</header>
+
+<!-- ── Main layout ───────────────────────────────────────────── -->
+<div class="layout">
+
+  <!-- Left panel: project file tree / Panel izquierdo: árbol de archivos -->
+  <aside class="panel panel--left" id="panel-files">
+    <div class="panel-header">
+      <span>Files</span>
+      <button class="icon-btn" id="btn-add-file" title="Add file to project">+</button>
+    </div>
+    <ul class="file-tree" id="file-tree">
+      <li class="file-tree__item file-tree__item--active" data-file="untitled.st">
+        <span class="file-icon">&#128196;</span> untitled.st
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Center: Monaco editor / Centro: editor Monaco -->
+  <main class="editor-wrap" id="editor-wrap">
+    <div id="monaco-editor"></div>
+  </main>
+
+  <!-- Right panel: output / Panel derecho: salida -->
+  <aside class="panel panel--right" id="panel-output">
+    <div class="panel-header">
+      <span id="out-title">Output</span>
+      <button class="icon-btn" id="btn-clear-output" title="Clear output">&#10005;</button>
+    </div>
+
+    <!-- Tabs: Console / Tokens / AST / HEX -->
+    <div class="out-tabs">
+      <button class="out-tab out-tab--active" data-out="console">Console</button>
+      <button class="out-tab" data-out="tokens">Tokens</button>
+      <button class="out-tab" data-out="ast">AST</button>
+      <button class="out-tab" data-out="hex">HEX</button>
+    </div>
+
+    <div class="out-panels">
+      <pre class="out-panel out-panel--active" id="out-console"></pre>
+      <pre class="out-panel"                   id="out-tokens"></pre>
+      <pre class="out-panel"                   id="out-ast"></pre>
+      <pre class="out-panel"                   id="out-hex"></pre>
+    </div>
+
+    <!-- Download HEX button / Botón descargar HEX -->
+    <div class="out-actions">
+      <button class="tb-btn tb-btn--accent" id="btn-download" disabled
+              title="Download compiled HEX file">&#11015; Download HEX</button>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ── Status bar ────────────────────────────────────────────── -->
+<footer class="statusbar" id="statusbar">
+  <span id="sb-pos">Ln 1, Col 1</span>
+  <span class="statusbar-sep"></span>
+  <span>IEC 61131-3 ST</span>
+  <span class="statusbar-sep"></span>
+  <span id="sb-size">0 chars</span>
+  <span class="statusbar-sep"></span>
+  <span>UTF-8</span>
+  <span class="statusbar-right" id="sb-msg"></span>
+</footer>
+
+<!-- ── Monaco Editor loader ──────────────────────────────────── -->
+<script>
+  /* Load Monaco from CDN — no build step required.
+     Cargar Monaco desde CDN — sin paso de compilación. */
+  const MONACO_VERSION = "0.52.0";
+  const require = { paths: { vs: `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min/vs` } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js"></script>
+<script src="osost.js"></script>
+
+</body>
+</html>
