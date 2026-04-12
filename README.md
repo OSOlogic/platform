@@ -1,4 +1,4 @@
-# OsoLogic® - Open Industrial Automation Platform - CE
+# OsoLogic® - Open Industrial Automation Platform - The Open Source OS for PLCs - CE
 
 ![OSOLOGIC logo](logos/osologic_logo.png)
 
