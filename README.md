@@ -2,15 +2,7 @@
 
 ![OSOLOGIC logo](logos/osologic_logo.png)
 
-**(C) Roig Borrell S.L. · Ibercomp S.L.**
-
-## Project Names
-
-- Borrell Automation Platform  
-- Borrell PlantManager OS  
-- OsoLogic OS  
-- OsoLogic Hub  
-- Ibercomp Altair OS  
+**(C) Roig Borrell S.L. · Ibercomp S.L.**  
 
 An open-source hardware and software initiative to modernize industrial and home automation, bridging the gap between traditional PLC systems and the powerful, flexible world of modern computing.
 
