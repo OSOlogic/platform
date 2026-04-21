@@ -1,3 +1,13 @@
+/*
+ * OSOlogic — webmin-oso embedded web server
+ * oso_web.h — Thin wrapper interface for mongoose.ws
+ *
+ * Copyright (C) 2026 Jose Roig Borrell <rrroig@gmail.com>
+ *               Roig Borrell S.L. / Ibercomp S.L.
+ *
+ * Part of the OSOlogic project — https://osologic.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 #pragma once
 /**
  * oso_web.h — OSOlogic embedded web server interface

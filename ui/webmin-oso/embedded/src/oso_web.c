@@ -1,3 +1,13 @@
+/*
+ * OSOlogic — webmin-oso embedded web server
+ * oso_web.c — mongoose.ws implementation (REST + WebSocket)
+ *
+ * Copyright (C) 2026 Jose Roig Borrell <rrroig@gmail.com>
+ *               Roig Borrell S.L. / Ibercomp S.L.
+ *
+ * Part of the OSOlogic project — https://osologic.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * oso_web.c — OSOlogic embedded web server (mongoose.ws)
  *

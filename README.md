@@ -137,13 +137,23 @@ The code is in an early stage — somewhere between alpha and beta. We are curre
 
 ---
 
-## License
+## Licensing
 
-This project is released under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+OSOlogic uses a **dual-license model**:
 
-This license ensures that any modifications or derived works, even when used in a networked environment (e.g., as a backend service), must also be released as open source. It protects the core values of transparency, collaboration, and long-term freedom.
+| Component | License |
+|-----------|---------|
+| Core platform (`core/`, `iec61131/`, `gateways/`, `io/`, `ui/`, `api/`, `cli/`) | [AGPL-3.0-or-later](./LICENSE) |
+| Client SDKs and schemas (`sdk/`, `standard/`) | [Apache-2.0](./LICENSE-APACHE) |
+| Documentation (`docs/`) | CC-BY-4.0 |
+| Hardware designs (`hardware/`) | CERN-OHL-S-2.0 |
 
-For details, see [LICENSE](./LICENSE).
+The **AGPL-3.0** ensures the platform stays open even in cloud/network deployments.
+The **Apache-2.0 SDK** lets any application — open or proprietary — integrate with OSOlogic without license friction.
+
+A **commercial license** is available for organizations that need to embed OSOlogic in closed products or require SLA support. Contact: **licensing@osologic.com**
+
+See [LICENSING.md](./LICENSING.md) for the full breakdown, [CLA.md](./CLA.md) for contribution terms, and [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 
 ---
 
