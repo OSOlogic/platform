@@ -1,5 +1,10 @@
 # OSOlogic Admin API — OpenAPI Spec
 
+**(C) Roig Borrell S.L. · Ibercomp S.L.**
+Part of [OSOlogic](https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE) — Open Industrial Automation Platform · AGPL-3.0
+
+---
+
 `osologic-admin-api.yaml` defines the shared contract for both admin frontends:
 
 | Frontend | Target | File |

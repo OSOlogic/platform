@@ -16,9 +16,16 @@ Community contributions, third-party integrations, and experimental extensions t
 
 ## Contributing
 
-Contributions to OSOlogic are welcome under the terms of the AGPL-3.0 license. Please open a pull request with a clear description of what the contribution does and which part of the platform it targets.
+Contributions to OSOlogic are welcome under the terms of the **AGPL-3.0** license.
+By submitting a pull request you agree to the [Contributor License Agreement (CLA)](../CLA.md),
+which grants Roig Borrell S.L. the rights needed to distribute your work under both the
+open-source and commercial licensing tiers.
 
-See the main [README](../README.md) for the overall project structure and contribution guidelines.
+Please open a pull request with a clear description of what the contribution does and which
+part of the platform it targets.
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full workflow, header templates, and
+commit style guide.
 
 ---
 
