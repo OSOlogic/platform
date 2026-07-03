@@ -4,13 +4,15 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 [![SDK: Apache-2.0](https://img.shields.io/badge/SDK-Apache--2.0-green.svg)](./LICENSE-APACHE)
-[![Status: alpha→beta](https://img.shields.io/badge/status-alpha%E2%86%92beta-orange.svg)](#current-status)
+[![Release: 1.0 Beta](https://img.shields.io/badge/release-1.0%20Beta-f48c06.svg)](#current-status)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 [![Website](https://img.shields.io/badge/web-osologic.com-f48c06.svg)](https://osologic.com)
 
+**[🌐 osologic.com](https://osologic.com)** · **[🚀 Deploy](docs/deployment/)** · **[📖 Docs](docs/)** · **[🧩 Enterprise](docs/enterprise/)** · **[🤝 Contributing](./CONTRIBUTING.md)**
+
 > **Community Edition** — the open-source core of OSOlogic, released under AGPL-3.0.
 
-**(C) Roig Borrell S.L. · Ibercomp S.L.**
+**© 2026 Roig Borrell S.L. · Ibercomp S.L.**
 
 An open-source hardware and software initiative to modernize industrial and home automation, bridging the gap between traditional PLC/SCADA/HMI systems and the powerful, flexible world of modern, software-defined computing.
 
@@ -20,7 +22,7 @@ An open-source hardware and software initiative to modernize industrial and home
 
 From a bare board to a running PLC:
 
-1. **Get OSOLogic onto the board** — flash a pre-built image or clone the platform.
+1. **Get OSOlogic onto the board** — flash a pre-built image or clone the platform.
 2. **Run the installer** — the guided wizard `sudo oso-setup` (fast, ncurses UI with a
    plain-text fallback), or the advanced `install_OsoLogic.sh` for full control.
 
@@ -34,13 +36,7 @@ OSOlogic is a fully open hardware and software platform designed to serve as an 
 
 We want to help industry leap forward by adopting modern, flexible technologies, freeing it from planned obsolescence and the limitations of proprietary, closed systems that still dominate machine control, factory automation, and smart environments.
 
----
-
-## Why?
-
-Most existing automation platforms are closed, rigid, and expensive. Modern computing offers better tools, better scalability, and better integration — but the gap remains between industrial-grade reliability and the flexibility of modern development tools.
-
-**We are building a bridge.**
+**Why?** Most existing automation platforms are closed, rigid, and expensive. Modern computing offers better tools, better scalability, and better integration — but the gap remains between industrial-grade reliability and the flexibility of modern development tools. **We are building a bridge.**
 
 ---
 
@@ -52,13 +48,50 @@ Most existing automation platforms are closed, rigid, and expensive. Modern comp
 - **Modular and compatible** — Interfaces with legacy industrial standards (IEC 61131-3, Ladder, ST) and supports modern technologies.
 - **Secure by design** — Encryption, certificates, authentication, firewalls, and more.
 - **Universal gateway** — Communicates across industrial protocols (Modbus, CAN, EtherNet/IP, PROFINET, OPC-UA) and modern formats (JSON, XML, Protocol Buffers).
+- **Scalable for all** — From microcontrollers and single-board computers to industrial PCs, supercomputers and control rooms.
+- **Ready for AI** — Designed for the AI era: machine-readable, agent-friendly, and open to what comes next.
+
+> **Compatible with** Node-RED, REST, MQTT, WebSockets, GraphQL, gRPC, containers, time-series and
+> relational databases — and C, C++, Rust, Python, Node.js, .NET, PHP, Java and SQL.
 
 ---
 
-## Compatible Tools and Technologies
+## AI-native — Model Context Protocol
 
-The platform is designed to support a wide range of modern tools and technologies:
-Node-RED, REST APIs, MQTT, WebSockets, GraphQL, gRPC, containers, time-series and relational databases, C, C++, Rust, Python, Node.js, .NET, PHP, Java, SQL, and more.
+Because every value flows through the in-memory `osodb` hub, OSOlogic can expose the whole
+plant through a **Model Context Protocol (MCP)** server — so AI agents can list devices, browse
+the tag tree, read live values and perform **guarded, auditable** writes through one safe, open
+interface. No scraping, no brittle glue. The same hub is also reachable over REST, WebSocket,
+OPC-UA and MQTT, with deterministic, reversible node IDs.
+
+→ See [`api/mcp/`](api/mcp/) and [`api/rest/`](api/rest/).
+
+---
+
+## Architecture at a Glance
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  UI / API / CLI                      │
+│   webmin · HMI · ladder-editor · REST · gRPC · MCP  │
+├─────────────────────────────────────────────────────┤
+│              IEC 61131-3 Language Engines            │
+│          Ladder · ST · FBD · SFC · IL               │
+├─────────────────────────────────────────────────────┤
+│                   osoruntime                         │
+│            Scan cycle · Task scheduler               │
+├──────────────────────┬──────────────────────────────┤
+│        osodb         │         Gateways              │
+│  RT in-memory DB     │  OPC-UA · Modbus · PROFINET  │
+│  (shared data bus)   │  EtherNet/IP · CAN · MQTT    │
+├──────────────────────┴──────────────────────────────┤
+│              I/O Layer (HAL + Drivers)               │
+│        GPIO · SPI · I2C · UART · Fieldbus            │
+├─────────────────────────────────────────────────────┤
+│        OSOlogic Linux / Baremetal (osokernel)        │
+│    PREEMPT_RT · Debian · RP2040 · STM32 · ESP32     │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -72,9 +105,14 @@ Node-RED, REST APIs, MQTT, WebSockets, GraphQL, gRPC, containers, time-series an
 
 ---
 
-## Repository Structure
+## Repository layout
 
-OSOlogic follows a modular scaffold designed for multi-target, multi-language industrial automation. Below is the complete top-level layout:
+OSOlogic follows a modular scaffold designed for multi-target, multi-language industrial
+automation. Ready-to-flash OS images are published as **release artifacts**, not stored in the
+repository; the build systems that produce them live in [`os-dist/`](os-dist/).
+
+<details>
+<summary><b>Expand the full top-level layout</b></summary>
 
 ### Core Platform
 
@@ -110,50 +148,19 @@ OSOlogic follows a modular scaffold designed for multi-target, multi-language in
 | [`tests/`](tests/) | Test suites: unit, integration, E2E, hardware-in-loop, RT performance benchmarks |
 | [`ci/`](ci/) | CI/CD workflows, Docker build images, build and release scripts |
 | [`docs/`](docs/) | Architecture documentation, API reference, hardware docs, user guide |
-| [`packaging/`](packaging/) | Distribution packaging: `.deb`, `.rpm`, `.ipk` |
+| [`packaging/`](packaging/) | Installers (`oso-setup`, `install_OsoLogic.sh`) and distribution packages (`.deb`, `.rpm`, `.ipk`) |
 | [`contrib/`](contrib/) | Community contributions and third-party integrations |
-
-### Brand and Assets
-
-| Directory | Description |
-|-----------|-------------|
 | [`logos/`](logos/) | Brand assets: OSOlogic logo (PNG, SVG) — trademark, see [`logos/README.md`](logos/README.md) |
 
-> **Note:** ready-to-flash OS images are published as **release artifacts**, not stored in the
-> repository. The build systems that produce them live in [`os-dist/`](os-dist/).
-
----
-
-## Architecture at a Glance
-
-```
-┌─────────────────────────────────────────────────────┐
-│                  UI / API / CLI                      │
-│   webmin · HMI · ladder-editor · REST · gRPC · MCP  │
-├─────────────────────────────────────────────────────┤
-│              IEC 61131-3 Language Engines            │
-│          Ladder · ST · FBD · SFC · IL               │
-├─────────────────────────────────────────────────────┤
-│                   osoruntime                         │
-│            Scan cycle · Task scheduler               │
-├──────────────────────┬──────────────────────────────┤
-│        osodb         │         Gateways              │
-│  RT in-memory DB     │  OPC-UA · Modbus · PROFINET  │
-│  (shared data bus)   │  EtherNet/IP · CAN · MQTT    │
-├──────────────────────┴──────────────────────────────┤
-│              I/O Layer (HAL + Drivers)               │
-│        GPIO · SPI · I2C · UART · Fieldbus            │
-├─────────────────────────────────────────────────────┤
-│        OSOlogic Linux / Baremetal (osokernel)        │
-│    PREEMPT_RT · Debian · RP2040 · STM32 · ESP32     │
-└─────────────────────────────────────────────────────┘
-```
+</details>
 
 ---
 
 ## Current Status
 
-The code is in an early stage — somewhere between alpha and beta. We are currently building out the scaffold and refactoring the codebase. A minimal functional base is already running on our BorrellPLC devices.
+**OSOlogic 1.0 Beta (codename _Teddy_) is out.** A functional base — the real-time PLC core,
+`osodb`, gateways, APIs and web UI — already runs on our BorrellPLC devices. We are actively
+building out the scaffold and hardening the codebase toward a stable 1.0.
 
 ### Release codenames
 
@@ -165,7 +172,7 @@ platform matures: **Teddy → Misha → Grizzly → Kodiak → Polar → Ursa**.
 - **Community Edition (this repository)** — the open-source core, AGPL-3.0. Fully functional
   for building, running and integrating real automation systems.
 - **Enterprise add-ons** — optional proprietary modules and SLA support for organizations that
-  need to embed OSOlogic in closed products. See [Licensing](#licensing).
+  need to embed OSOlogic in closed products. See [Licensing](#licensing) and [`docs/enterprise/`](docs/enterprise/).
 
 ---
 
