@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# oso-setup — OSOLogic guided installer
+# ==============================================================================
+# A fast, intuitive setup wizard for OSOLogic. Renders a full-screen ncurses UI
+# (dialog / whiptail) with a plain-text fallback for serial consoles, collects
+# a configuration with smart defaults, and drives the advanced installer
+# (install_OsoLogic.sh) unattended.
+#
+#   sudo oso-setup                 run the wizard and install
+#   sudo oso-setup --dry-run       walk the wizard, write the config, install nothing
+#   oso-setup --help               usage
+#
+# (C) Roig Borrell S.L. · Ibercomp S.L. — part of OSOLogic — AGPL-3.0
+# ==============================================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/oso-ui.sh
+. "$SCRIPT_DIR/lib/oso-ui.sh"
+
+BACKEND="$SCRIPT_DIR/install_OsoLogic.sh"
+DEF_REPO_URL="https://github.com/OSOlogic/platform.git"
+DEF_TARGET_DIR="/home/oso/PLC_OsoLogic"
+CRED_FILE="/root/osologic-credentials.txt"
+
+DRY_RUN=0
+
+# --- args ---------------------------------------------------------------------
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --dry-run) DRY_RUN=1 ;;
+        -h|--help)
+            sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0 ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+# --- helpers ------------------------------------------------------------------
+# Emit KEY='value' with single quotes safely escaped, for sourcing by the backend.
+conf_kv() {
+    local key="$1" val="$2"
+    printf "%s='%s'\n" "$key" "${val//\'/\'\\\'\'}"
+}
+
+gen_pass() {
+    # 20-char alnum password, no shell-special characters
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 20
+    else
+        LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20
+    fi
+}
+
+need_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "This wizard must run as root (try: sudo oso-setup)." >&2
+        exit 1
+    fi
+}
+
+WELCOME=$(cat <<'EOF'
+        Welcome to OSOLogic — the modern, open automation platform.
+
+  This guided setup will get you from a fresh board to a running PLC:
+
+    •  detect your network and storage
+    •  set up the database, MQTT broker and services
+    •  deploy the OSOLogic runtime and web manager
+
+  It takes a couple of minutes. You can accept the smart defaults, or
+  switch to Advanced to fine-tune every option.
+EOF
+)
+
+# ==============================================================================
+# Wizard
+# ==============================================================================
+ui_init
+[ "$DRY_RUN" -eq 1 ] || need_root
+
+ui_msg "$WELCOME" 18 76
+
+# --- 1. autodetect ------------------------------------------------------------
+DET_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; DET_IP="${DET_IP:-127.0.0.1}"
+DET_HOST="$(hostname 2>/dev/null || echo oso-plc)"
+DET_DISK="$(df -h / 2>/dev/null | awk 'NR==2{print $4" free of "$2}')"
+ui_msg "Detected environment:
+
+  Hostname   : $DET_HOST
+  IP address : $DET_IP
+  Disk (/)   : ${DET_DISK:-unknown}
+
+These are used as defaults; you can change them in the next steps." 14 74
+
+# --- 2. mode: express vs advanced --------------------------------------------
+ui_menu "How would you like to configure OSOLogic?" \
+    express  "Express — smart defaults, fewest questions (recommended)" \
+    advanced "Advanced — review ports, source and every option"
+MODE="$UI_VALUE"
+
+# --- 3. source code -----------------------------------------------------------
+SETUP_MODE=1                 # 1 = existing dir, 2 = clone
+TARGET_DIR="$DEF_TARGET_DIR"
+REPO_URL="$DEF_REPO_URL"
+GIT_BRANCH="main"
+PULL_UPDATES="n"
+
+if [ "$MODE" = "advanced" ]; then
+    ui_menu "Where is the OSOLogic source code?" \
+        onboard "Already on this board (flashed image)" \
+        clone   "Download it now from a Git repository"
+    if [ "$UI_VALUE" = "clone" ]; then
+        SETUP_MODE=2
+        ui_input "Git repository URL" "$REPO_URL"; REPO_URL="$UI_VALUE"
+        ui_input "Branch" "$GIT_BRANCH";           GIT_BRANCH="$UI_VALUE"
+    else
+        ui_input "Path to the project directory (under /home/oso)" "$TARGET_DIR"
+        TARGET_DIR="$UI_VALUE"
+        if ui_yesno "Pull the latest updates from Git before installing?" no; then
+            PULL_UPDATES="y"
+        fi
+    fi
+fi
+
+# --- 4. optional components ---------------------------------------------------
+ui_checklist "Select optional components to install:" \
+    phpmyadmin "phpMyAdmin — web database admin (osomyadmin coming soon)" off \
+    openui     "Open the web Manager in a browser when finished"          on
+COMPONENTS=" $UI_VALUE "
+INSTALL_PMA="n";  [[ "$COMPONENTS" == *" phpmyadmin "* ]] && INSTALL_PMA="y"
+OPEN_UI="n";      [[ "$COMPONENTS" == *" openui "* ]]     && OPEN_UI="y"
+
+# --- 5. credentials -----------------------------------------------------------
+GENERATED=0
+if ui_yesno "Generate strong passwords automatically?
+(Recommended — they will be saved to $CRED_FILE, readable only by root.)" yes; then
+    DB_ROOT_PASS="$(gen_pass)"
+    DB_OSO_PASS="$(gen_pass)"
+    MQTT_PASS="$(gen_pass)"
+    GENERATED=1
+else
+    ui_password "MariaDB 'root' password";      DB_ROOT_PASS="$UI_VALUE"
+    ui_password "Application DB user 'oso' password"; DB_OSO_PASS="$UI_VALUE"
+    ui_password "MQTT user 'oso' password";     MQTT_PASS="$UI_VALUE"
+fi
+
+# --- 6. ports & access --------------------------------------------------------
+MQTT_PORT=1883; MGR_PORT=8080; GUI_PORT=8082; NR_PORT=1880
+EXT_URL="$DET_IP"
+if [ "$MODE" = "advanced" ]; then
+    ui_input "MQTT port" "$MQTT_PORT";                 MQTT_PORT="$UI_VALUE"
+    ui_input "Service Manager port" "$MGR_PORT";       MGR_PORT="$UI_VALUE"
+    ui_input "GUI port" "$GUI_PORT";                   GUI_PORT="$UI_VALUE"
+    ui_input "Node-RED port" "$NR_PORT";               NR_PORT="$UI_VALUE"
+    ui_input "External IP / hostname for web access" "$EXT_URL"; EXT_URL="$UI_VALUE"
+fi
+
+# --- 7. review ----------------------------------------------------------------
+pw_line() { if [ "$GENERATED" -eq 1 ]; then echo "auto-generated → $CRED_FILE"; else echo "set by you"; fi; }
+SUMMARY="Please review your OSOLogic setup:
+
+  Source        : $( [ "$SETUP_MODE" = 2 ] && echo "clone $REPO_URL ($GIT_BRANCH)" || echo "on-board: $TARGET_DIR" )
+  Passwords     : $(pw_line)
+  phpMyAdmin    : $INSTALL_PMA
+  Web access    : https://$EXT_URL:$MGR_PORT  (Manager)
+  Ports         : MQTT $MQTT_PORT · Mgr $MGR_PORT · GUI $GUI_PORT · Node-RED $NR_PORT
+
+$( [ "$DRY_RUN" -eq 1 ] && echo '  [DRY RUN — nothing will be installed]' )"
+
+if ! ui_confirm "$SUMMARY"; then
+    ui_msg "Setup cancelled. No changes were made."
+    exit 0
+fi
+
+# --- 8. write config ----------------------------------------------------------
+CONF="$(mktemp /tmp/oso-setup.XXXXXX.conf)"
+chmod 600 "$CONF"
+{
+    echo "# Generated by oso-setup — do not commit; contains secrets."
+    conf_kv OSO_UNATTENDED 1
+    conf_kv SETUP_MODE "$SETUP_MODE"
+    conf_kv TARGET_DIR "$TARGET_DIR"
+    conf_kv REPO_URL "$REPO_URL"
+    conf_kv GIT_BRANCH "$GIT_BRANCH"
+    conf_kv PULL_UPDATES "$PULL_UPDATES"
+    conf_kv DB_ROOT_PASS "$DB_ROOT_PASS"
+    conf_kv DB_OSO_PASS "$DB_OSO_PASS"
+    conf_kv MQTT_PASS "$MQTT_PASS"
+    conf_kv MQTT_PORT "$MQTT_PORT"
+    conf_kv MGR_PORT "$MGR_PORT"
+    conf_kv GUI_PORT "$GUI_PORT"
+    conf_kv NR_PORT "$NR_PORT"
+    conf_kv EXT_URL "$EXT_URL"
+    conf_kv INSTALL_PMA "$INSTALL_PMA"
+    conf_kv OPEN_UI "$OPEN_UI"
+} >"$CONF"
+
+if [ "$GENERATED" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
+    umask 077
+    {
+        echo "OSOLogic credentials — generated $(date 2>/dev/null || echo)"
+        echo "MariaDB root      : $DB_ROOT_PASS"
+        echo "DB user 'oso'     : $DB_OSO_PASS"
+        echo "MQTT user 'oso'   : $MQTT_PASS"
+    } >"$CRED_FILE"
+    chmod 600 "$CRED_FILE"
+fi
+
+# --- 9. run backend -----------------------------------------------------------
+if [ "$DRY_RUN" -eq 1 ]; then
+    clear
+    echo "==== DRY RUN — configuration written to $CONF ===="
+    echo
+    sed 's/\(PASS='\''\).*/\1********'\''/' "$CONF"
+    echo
+    echo "Would run: $BACKEND --config $CONF"
+    echo
+    echo "(no changes made)"
+    exit 0
+fi
+
+if ui_run "Installing OSOLogic — this may take a few minutes" \
+        "$BACKEND" --config "$CONF"; then
+    rm -f "$CONF"
+    FINAL="OSOLogic installation completed.
+
+  Manager : https://$EXT_URL:$MGR_PORT"
+    [ "$INSTALL_PMA" = "y" ] && FINAL="$FINAL
+  Database: http://$EXT_URL/phpmyadmin"
+    [ "$GENERATED" -eq 1 ] && FINAL="$FINAL
+
+  Generated passwords saved to $CRED_FILE (root only)."
+    ui_msg "$FINAL" 16 74
+
+    if [ "$OPEN_UI" = "y" ] && command -v xdg-open >/dev/null 2>&1; then
+        if [ -n "${SUDO_USER:-}" ]; then
+            su - "$SUDO_USER" -c "xdg-open https://$EXT_URL:$MGR_PORT >/dev/null 2>&1" & true
+        else
+            xdg-open "https://$EXT_URL:$MGR_PORT" >/dev/null 2>&1 & true
+        fi
+    fi
+else
+    ui_msg "Installation failed. The configuration was kept at:
+  $CONF
+
+Review the output above, fix the issue, and re-run:
+  sudo $BACKEND --config $CONF" 14 76
+    exit 1
+fi

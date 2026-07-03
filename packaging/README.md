@@ -7,6 +7,9 @@ Part of [OSOlogic](https://github.com/OSOlogic/platform) — Open Industrial Aut
 
 Distribution packaging definitions for installing OSOlogic on standard Linux distributions without flashing a full OS image.
 
+> **Installing on a board?** See **[INSTALL.md](INSTALL.md)** — the guided
+> wizard (`oso-setup`) and the advanced installer (`install_OsoLogic.sh`).
+
 ## Directory Structure
 
 ```

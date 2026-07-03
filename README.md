@@ -16,6 +16,18 @@ An open-source hardware and software initiative to modernize industrial and home
 
 ---
 
+## Get started — deploy in minutes
+
+From a bare board to a running PLC:
+
+1. **Get OSOLogic onto the board** — flash a pre-built image or clone the platform.
+2. **Run the installer** — the guided wizard `sudo oso-setup` (fast, ncurses UI with a
+   plain-text fallback), or the advanced `install_OsoLogic.sh` for full control.
+
+→ **[Deployment guide](docs/deployment/)** · **[Installer reference](packaging/INSTALL.md)**
+
+---
+
 ## Overview
 
 OSOlogic is a fully open hardware and software platform designed to serve as an alternative to existing PLC and IoT systems — and as a standard for the ecosystem of single-board computers and microcontroller-based platforms, including maker boards and DIY electronics.

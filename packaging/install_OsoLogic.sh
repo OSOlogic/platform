@@ -22,6 +22,28 @@ BOLD='\033[1m'
 # Default Project URL
 DEF_REPO_URL="https://github.com/BORRELL-AUTOMATION/OSOlogic-PRO-PLCBorrell-RealTime.git"
 
+# --- Unattended / preseed support ---------------------------------------------
+# Allows the guided wizard (oso-setup) or CI to drive this installer without
+# prompts:  install_OsoLogic.sh --config /path/to/oso.conf   (or --unattended
+# with the variables already exported). Interactive use is unchanged.
+OSO_UNATTENDED="${OSO_UNATTENDED:-0}"
+OSO_CONFIG=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --config) shift; OSO_CONFIG="${1:-}";;
+        --config=*) OSO_CONFIG="${1#*=}";;
+        --unattended) OSO_UNATTENDED=1;;
+        *) : ;;   # ignore unknown args for backward compatibility
+    esac
+    shift || true
+done
+if [ -n "$OSO_CONFIG" ]; then
+    [ -f "$OSO_CONFIG" ] || { echo -e "${RED}[ERROR]${NC} Config file not found: $OSO_CONFIG" >&2; exit 1; }
+    # shellcheck disable=SC1090
+    . "$OSO_CONFIG"
+    OSO_UNATTENDED=1
+fi
+
 # --- Fancy Bear ASCII Logo ---
 function print_logo() {
     clear
@@ -78,9 +100,54 @@ function check_root() {
 }
 
 # --- 1. Repository Download & Setup ---
+function git_setup_unattended() {
+    echo -e "${MAGENTA}${BOLD}# STEP 2: Repository Setup (unattended)${NC}"
+    : "${SETUP_MODE:=1}"
+    : "${TARGET_DIR:=/home/oso/PLC_OsoLogic}"
+    : "${GIT_BRANCH:=master}"
+
+    if [ "$SETUP_MODE" = "2" ]; then
+        : "${REPO_URL:=$DEF_REPO_URL}"
+        if [ -d "$TARGET_DIR/.git" ]; then
+            info "Repository already present at $TARGET_DIR; using it."
+        elif [ -d "$TARGET_DIR" ] && [ "$(ls -A "$TARGET_DIR" 2>/dev/null)" ]; then
+            info "Directory $TARGET_DIR exists and is not empty; using existing content."
+        else
+            info "Cloning $REPO_URL into $TARGET_DIR ..."
+            mkdir -p "$TARGET_DIR" || error "Failed to create $TARGET_DIR"
+            git clone "$REPO_URL" "$TARGET_DIR" || error "Clone of $REPO_URL failed."
+        fi
+        cd "$TARGET_DIR" || error "Failed to access $TARGET_DIR"
+        git checkout "$GIT_BRANCH" 2>/dev/null || warning "Branch '$GIT_BRANCH' not found; staying on default branch."
+    else
+        [[ "$TARGET_DIR" =~ ^/home/oso/ ]] || error "Project path must be located within '/home/oso/'."
+        [ -d "$TARGET_DIR" ] || error "Directory '$TARGET_DIR' does not exist."
+        if [ -d "$TARGET_DIR/.git" ] && [[ "${PULL_UPDATES:-n}" =~ ^[Yy]$ ]]; then
+            info "Updating repository and discarding local changes..."
+            cd "$TARGET_DIR" || error "Failed to access $TARGET_DIR"
+            git fetch --all
+            git checkout "$GIT_BRANCH" 2>/dev/null || true
+            git reset --hard "origin/$GIT_BRANCH" || error "Sync with origin/$GIT_BRANCH failed."
+        fi
+    fi
+
+    REPO_DIR="$TARGET_DIR"
+    cd "$REPO_DIR" || error "Failed to access project directory $REPO_DIR"
+    if [ -d "$REPO_DIR/source" ]; then
+        SRC_BASE="$REPO_DIR/source"
+    else
+        error "Could not find 'source' directory in $REPO_DIR. Repository structure is unexpected."
+    fi
+    success "Project root finalized at: $REPO_DIR"
+    success "Source base detected at: $SRC_BASE"
+    chown -R oso:oso "$REPO_DIR" || warning "Failed to set ownership to user 'oso'"
+    echo ""
+}
+
 function git_setup() {
+    if [ "${OSO_UNATTENDED:-0}" = "1" ]; then git_setup_unattended; return; fi
     echo -e "${MAGENTA}${BOLD}# STEP 2: Repository Setup${NC}"
-    
+
     echo -e "${CYAN}Choose how to proceed with the project source code:${NC}"
     echo -e "1) ${BOLD}Existing path:${NC} Specify an existing project directory already on this system."
     echo -e "2) ${BOLD}Download:${NC} Clone the repository from a Git URL."
@@ -208,13 +275,27 @@ function git_setup() {
 # --- 2. Interactive JSON Configuration & DB Initialization ---
 function collect_config() {
     echo -e "${MAGENTA}${BOLD}# STEP 3: Configuration Gathering${NC}"
-    
+
     # --- Hardcoded Project Standards ---
     DB_HOST="localhost"
     DB_USER="oso"
     DB_NAME="PLC"
     MQTT_HOST="localhost"
     MQTT_ID="oso"
+
+    if [ "${OSO_UNATTENDED:-0}" = "1" ]; then
+        for _v in DB_ROOT_PASS DB_OSO_PASS MQTT_PASS; do
+            [ -n "${!_v:-}" ] || error "Unattended install: required value '$_v' is missing from the config."
+        done
+        MQTT_PORT="${MQTT_PORT:-1883}"
+        MGR_PORT="${MGR_PORT:-8080}"
+        GUI_PORT="${GUI_PORT:-8082}"
+        NR_PORT="${NR_PORT:-1880}"
+        IP_ADDR=$(hostname -I | awk '{print $1}')
+        EXT_URL="${EXT_URL:-$IP_ADDR}"
+        info "Using unattended configuration (ports: MQTT $MQTT_PORT, Mgr $MGR_PORT, GUI $GUI_PORT, Node-RED $NR_PORT)."
+        return
+    fi
 
     echo -e "${CYAN}--- Database Security ---${NC}"
     while true; do
@@ -505,8 +586,13 @@ function nodered_flows_setup() {
 # --- 2.1 Extra: phpMyAdmin Installation ---
 function install_phpmyadmin() {
     echo -e "${MAGENTA}${BOLD}# EXTRA: Database Management (phpMyAdmin)${NC}"
-    read -p "Do you want to install phpMyAdmin for easy database access? (y/n) [n]: " INSTALL_PMA
-    INSTALL_PMA=${INSTALL_PMA:-n}
+    if [ "${OSO_UNATTENDED:-0}" = "1" ]; then
+        INSTALL_PMA="${INSTALL_PMA:-n}"
+        info "phpMyAdmin install: ${INSTALL_PMA}"
+    else
+        read -p "Do you want to install phpMyAdmin for easy database access? (y/n) [n]: " INSTALL_PMA
+        INSTALL_PMA=${INSTALL_PMA:-n}
+    fi
     
     if [[ "$INSTALL_PMA" =~ ^[Yy]$ ]]; then
         info "Installing phpMyAdmin (this may take a minute)..."
