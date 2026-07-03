@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a defect in OSOlogic
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. For **security vulnerabilities**,
+        please use [SECURITY.md](../blob/main/SECURITY.md) instead of a public issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - core (osodb / osoruntime / osokernel)
+        - iec61131 (Ladder / ST / FBD / SFC / IL)
+        - io (HAL / drivers)
+        - gateways (OPC-UA / Modbus / PROFINET / …)
+        - api / cli / ui / sdk
+        - os-dist / bsp / hardware
+        - standard (data model / schemas)
+        - docs
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Target / hardware
+      placeholder: "e.g. RPi5, x86_64 VM, BorrellPLC, STM32…"
+  - type: textarea
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: "output of `osctl --version` or the git commit hash"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      render: shell

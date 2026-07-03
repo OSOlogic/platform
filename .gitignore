@@ -1,0 +1,74 @@
+# ─── Build artifacts ───────────────────────────────────────────────
+build/
+dist/
+out/
+target/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.elf
+*.bin
+*.hex
+*.img
+*.uf2
+
+# ─── C / C++ ───────────────────────────────────────────────────────
+*.d
+*.gch
+*.pch
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+compile_commands.json
+
+# ─── Rust ──────────────────────────────────────────────────────────
+Cargo.lock
+**/*.rs.bk
+
+# ─── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Node / web ────────────────────────────────────────────────────
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── .NET ──────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+*.user
+
+# ─── Editors / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Logs / local state ────────────────────────────────────────────
+*.log
+*.pid
+*.sqlite
+*.db
+.env
+.env.local
+secrets/

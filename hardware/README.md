@@ -1,7 +1,7 @@
 # hardware/ — OSOlogic® Open Hardware Designs
 
 **(C) Roig Borrell S.L. · Ibercomp S.L.**
-Part of [OSOlogic](https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE) — Open Industrial Automation Platform · CERN-OHL-S-2.0
+Part of [OSOlogic](https://github.com/OSOlogic/platform) — Open Industrial Automation Platform · CERN-OHL-S-2.0
 
 ---
 

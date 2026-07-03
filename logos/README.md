@@ -1,7 +1,7 @@
 # logos/ — OSOlogic® Brand Assets
 
 **(C) Roig Borrell S.L. · Ibercomp S.L.**
-Part of [OSOlogic](https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE) — Open Industrial Automation Platform · Trademark — All Rights Reserved
+Part of [OSOlogic](https://github.com/OSOlogic/platform) — Open Industrial Automation Platform · Trademark — All Rights Reserved
 
 ---
 

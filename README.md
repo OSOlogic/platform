@@ -1,10 +1,18 @@
-# OSOlogic® — Open Industrial Automation Platform
+# OSOlogic® — The Modern & Open Automation Platform
 
 ![OSOlogic logo](logos/osologic_logo.png)
 
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
+[![SDK: Apache-2.0](https://img.shields.io/badge/SDK-Apache--2.0-green.svg)](./LICENSE-APACHE)
+[![Status: alpha→beta](https://img.shields.io/badge/status-alpha%E2%86%92beta-orange.svg)](#current-status)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+[![Website](https://img.shields.io/badge/web-osologic.com-f48c06.svg)](https://osologic.com)
+
+> **Community Edition** — the open-source core of OSOlogic, released under AGPL-3.0.
+
 **(C) Roig Borrell S.L. · Ibercomp S.L.**
 
-An open-source hardware and software initiative to modernize industrial and home automation, bridging the gap between traditional PLC systems and the powerful, flexible world of modern computing.
+An open-source hardware and software initiative to modernize industrial and home automation, bridging the gap between traditional PLC/SCADA/HMI systems and the powerful, flexible world of modern, software-defined computing.
 
 ---
 
@@ -93,14 +101,14 @@ OSOlogic follows a modular scaffold designed for multi-target, multi-language in
 | [`packaging/`](packaging/) | Distribution packaging: `.deb`, `.rpm`, `.ipk` |
 | [`contrib/`](contrib/) | Community contributions and third-party integrations |
 
-### Legacy and Transitional Directories
+### Brand and Assets
 
-| Directory | Status | Notes |
-|-----------|--------|-------|
-| [`logos/`](logos/) | Active | Brand assets: OSOlogic logo (PNG, SVG) |
-| [`OS/`](OS/) | Transitional | Complete bootable OS images (x64, ARM). Location under review. |
-| [`modules/`](modules/) | Deprecated | Early module structure, fully superseded by the scaffold above. |
-| `IEC 61131-3/` | Archived | Code migrated to [`iec61131/ladder/osoLadder`](iec61131/ladder/osoLadder). |
+| Directory | Description |
+|-----------|-------------|
+| [`logos/`](logos/) | Brand assets: OSOlogic logo (PNG, SVG) — trademark, see [`logos/README.md`](logos/README.md) |
+
+> **Note:** ready-to-flash OS images are published as **release artifacts**, not stored in the
+> repository. The build systems that produce them live in [`os-dist/`](os-dist/).
 
 ---
 
@@ -134,6 +142,18 @@ OSOlogic follows a modular scaffold designed for multi-target, multi-language in
 ## Current Status
 
 The code is in an early stage — somewhere between alpha and beta. We are currently building out the scaffold and refactoring the codebase. A minimal functional base is already running on our BorrellPLC devices.
+
+### Release codenames
+
+OSOlogic releases are named after bears — starting friendly and growing fiercer as the
+platform matures: **Teddy → Misha → Grizzly → Kodiak → Polar → Ursa**.
+
+### Editions
+
+- **Community Edition (this repository)** — the open-source core, AGPL-3.0. Fully functional
+  for building, running and integrating real automation systems.
+- **Enterprise add-ons** — optional proprietary modules and SLA support for organizations that
+  need to embed OSOlogic in closed products. See [Licensing](#licensing).
 
 ---
 

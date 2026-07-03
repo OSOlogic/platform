@@ -134,4 +134,4 @@ submitting contributions.
 Roig Borrell S.L.
 E-mail: **licensing@osologic.com**
 Web: **https://osologic.com**
-GitHub: **https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE**
+GitHub: **https://github.com/OSOlogic/platform**

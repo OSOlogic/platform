@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OSOlogic website
+    url: https://osologic.com
+    about: Project overview, editions, and news.
+  - name: Security vulnerability
+    url: https://github.com/OSOlogic/platform/blob/main/SECURITY.md
+    about: Please report security issues privately, not as public issues.
+  - name: Commercial / enterprise licensing
+    url: mailto:licensing@osologic.com
+    about: Embedding OSOlogic in a closed product or needing SLA support.

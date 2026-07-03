@@ -20,8 +20,8 @@ Thank you for helping build the future of open industrial automation!
 ## Development workflow
 
 ```
-git clone https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE
-cd OSOlogic-OpenSourceOsPLC-CE
+git clone https://github.com/OSOlogic/platform
+cd platform
 git checkout -b feature/my-feature
 # ... make changes ...
 git commit -m "feat(module): short description"

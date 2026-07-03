@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an idea or enhancement for OSOlogic
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do, and what's missing or painful today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you'd like to see.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Area
+      options:
+        - core (osodb / osoruntime / osokernel)
+        - iec61131 (language engines)
+        - io (HAL / drivers)
+        - gateways (protocols)
+        - api / cli / ui / sdk
+        - os-dist / bsp / hardware
+        - standard (data model / schemas)
+        - docs
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

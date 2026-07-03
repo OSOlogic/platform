@@ -1,7 +1,7 @@
 # standard/ — OSOlogic® Open Standard
 
 **(C) Roig Borrell S.L. · Ibercomp S.L.**
-Part of [OSOlogic](https://github.com/BORRELL-AUTOMATION/OSOlogic-OpenSourceOsPLC-CE) — Open Industrial Automation Platform · Apache-2.0
+Part of [OSOlogic](https://github.com/OSOlogic/platform) — Open Industrial Automation Platform · Apache-2.0
 
 ---
 
