@@ -15,11 +15,17 @@ from a bare board to a running PLC.
 | **Raspberry Pi** (official, 4 / 5 / CM4) | 🔜 Planned | [raspberry-pi.md](raspberry-pi.md) |
 | **Generic ARM** (arm64 / armv7) | 🔜 Planned | *(see raspberry-pi.md)* |
 | **x86_64** (industrial PC / VM) | 🔜 Planned | [x86_64.md](x86_64.md) |
+| **MCU baremetal** (RP2040 · STM32 · ESP32) | 🔜 Planned | [baremetal.md](baremetal.md) |
 
 > The reference deployment today is the **Orange Pi**. Raspberry Pi (official images),
 > generic ARM and x86_64 targets are on the roadmap; the runtime and installer are
 > largely platform-independent, so those targets mostly need image builds and BSP work
 > (see [`bsp/`](../../bsp/) and [`os-dist/`](../../os-dist/)).
+>
+> **Microcontrollers** (RP2040/STM32/ESP32) are a distinct baremetal target: no Linux, no
+> database and no `oso-setup` — a trimmed runtime with the same data-centric model (osodb
+> as a local cache) is flashed as firmware. See [`os-dist/osologic-baremetal/`](../../os-dist/osologic-baremetal/)
+> and [baremetal.md](baremetal.md).
 
 ## Deploy in two steps
 

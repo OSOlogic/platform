@@ -8,6 +8,15 @@ icon: 'sitemap'
 
 OSOlogic PRO follows a **layered, modular architecture** that separates hardware-level real-time control (C++) from high-level network services (Python). All components synchronize state through a shared **MariaDB database** that acts as the single source of truth.
 
+<Note>
+**Where `osodb` fits.** MariaDB stays the source of truth and, at scale, the central hub — the
+diagrams below are exactly right. `osodb` is an in-memory real-time **cache** layered in front of
+it (think *Redis in front of MySQL*): the scan cycle and gateways get nanosecond access and keep
+running through a database blip, while MariaDB keeps the truth and the SQL control surface. On a
+baremetal MCU, where no database exists, the cache holds live state locally and syncs when
+connected. See [`core/osodb`](https://github.com/OSOlogic/platform/tree/main/core/osodb).
+</Note>
+
 ```mermaid
 graph TB
   subgraph "Physical Layer"

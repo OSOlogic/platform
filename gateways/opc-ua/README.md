@@ -1,53 +1,52 @@
 # gateways/opc-ua — OPC-UA gateway
 
-**(C) Roig Borrell S.L. · Ibercomp S.L.**
-Part of [OSOlogic](https://github.com/OSOlogic/platform) — The Modern & Open Automation Platform · AGPL-3.0
+**© 2026 Roig Borrell S.L. · Ibercomp S.L.**
+Part of [OSOLogic](https://github.com/OSOlogic/platform) — The Modern & Open Automation Platform · AGPL-3.0
 
 ---
 
-Exposes the OSOlogic in-memory data hub (`osodb`) as an **OPC-UA** address space,
-following OPC-UA information-model conventions **without changing the core data model**.
+Exposes the OSOLogic data hub as an **OPC-UA** address space, following OPC-UA
+information-model conventions **without changing the core data model**.
 
 The device/register model (Modbus/SPI oriented) is projected onto OPC-UA
 Objects/Folders/Variables through a thin **alias layer**:
 
-| OSOlogic (hub / relational) | OPC-UA |
+| OSOLogic (hub / relational) | OPC-UA |
 |---|---|
 | device (`module`) | Object |
 | point `purpose` (standard / secure_state / config) | Folder (`IO` / `SafeState` / `Config`) |
 | I/O point (`module_io_config`) | Variable |
 | `io_type=bit` | DataType `Boolean` |
-| `io_type=register`, width 1 / 2 / 4 | `UInt16` / `UInt32` / `UInt64` |
+| `io_type=register`, width 1 / 2 | `UInt16`/`Int16` / `UInt32`/`Int32`/`Float` |
 | `hardware_access` readonly / readwrite | AccessLevel `CurrentRead` / `+CurrentWrite` |
 | `units` (engineering units) | `EngineeringUnits` property |
-| `rtmirror.net_value` + `timestamp` | Value + `SourceTimestamp` |
+| `rtmirror` value + `timestamp` | Value + `SourceTimestamp` |
 | `device_status.is_connected` | StatusCode `Good` / `Bad_NotConnected` |
 
 ### Reversible NodeId
 
 ```
-ns=<idx>;s=<module_id>.<io_definition_id>
+ns=2;s=<module_id>.<io_definition_id>
 ```
 
-Deterministic and parseable both ways:
+Deterministic and parseable both ways. **Reads** return the tag's current value; **writes**
+parse the NodeId back to `(module_id, io_definition_id)` and become a **set-point** — the same
+`required_value` path any SQL client uses, so control is consistent across protocols.
 
-* **reads** come from the alias view (see [`sql/opcua_views.sql`](sql/opcua_views.sql));
-* **writes** never touch the view — the gateway parses the NodeId back to
-  `(module_id, io_definition_id)` and calls the hub's existing write path.
+## Multiple implementations
 
-## Architecture
+The gateway ships **more than one reference implementation** — a recurring pattern across
+OSOLogic modules. Both honour the identical contract above (address space, NodeId scheme, type
+mapping, read/write semantics); pick the one that fits your deployment:
 
-The gateway talks to a `HubSource` abstraction, consistent with the platform
-principle that the **in-memory DB is the canonical hub** and other databases are
-adapters behind it:
+| Implementation | Best for | Reads from |
+|---|---|---|
+| [`reference/python/`](reference/python/) (asyncua) | a standalone gateway service; reading the MariaDB SQL views | in-memory source **or** `opcua_*` views |
+| [`reference/cpp/`](reference/cpp/) (open62541) | in-process with the runtime; edge / tight-loop; trimmed for small boards | the `osodb` hub in-process |
 
-* `InMemorySource` — the `osodb`-style in-memory hub (used by the in-memory example).
-* `MariaDBSource` — production adapter reading the `opcua_*` SQL views.
-
-```
-OPC-UA client ─► OPC-UA gateway ─► HubSource ─┬─ InMemorySource (osodb)
-                                              └─ MariaDBSource (opcua_* views)
-```
+Because OSOLogic is data-centric, both simply read the same data — the hub
+([`osodb`](../../core/osodb), the in-memory cache in front of MariaDB) or its SQL views. They are
+interchangeable.
 
 ## Layout
 
@@ -55,38 +54,48 @@ OPC-UA client ─► OPC-UA gateway ─► HubSource ─┬─ InMemorySource (o
 opc-ua/
 ├── sql/opcua_views.sql              # alias VIEWS over the core tables (no migration)
 ├── reference/
-│   ├── osologic_opcua_server.py     # reference gateway (asyncua)
-│   └── verify_client.py             # end-to-end browse/read/write check
-├── src/                             # (native C++ gateway — open62541 — planned)
+│   ├── python/                      # asyncua server + verify client
+│   │   ├── osologic_opcua_server.py
+│   │   └── verify_client.py
+│   └── cpp/                         # native open62541 server (reads osodb)
+│       ├── opcua_server.cpp
+│       ├── CMakeLists.txt
+│       └── README.md
+├── src/                             # (production C++ gateway lands here)
 └── include/
 ```
 
 ## Try it
 
+**Python** (easiest; standalone or over the SQL views):
+
 ```bash
 pip install --user asyncua
-cd reference
-python3 osologic_opcua_server.py --example        # endpoint opc.tcp://0.0.0.0:4840/osologic/server/
-python3 verify_client.py                       # in another shell: browse, read, write round-trip
+python3 reference/python/osologic_opcua_server.py --example   # opc.tcp://0.0.0.0:4840/osologic/server/
+python3 reference/python/verify_client.py                     # browse, read, write round-trip
+
+# Production (MariaDB views — core tables untouched):
+mysql PLC < sql/opcua_views.sql
+python3 reference/python/osologic_opcua_server.py --db-host 127.0.0.1 --db-user plc --db-name PLC
 ```
 
-Production (MariaDB adapter):
+**C++** (in-process with the hub):
 
 ```bash
-mysql PLC < ../sql/opcua_views.sql             # create the alias views (core tables untouched)
-python3 osologic_opcua_server.py --db-host 127.0.0.1 --db-user plc --db-name PLC
+sudo apt install libopen62541-dev
+cmake -S reference/cpp -B reference/cpp/build && cmake --build reference/cpp/build
+./reference/cpp/build/osologic_opcua_server                   # opc.tcp://0.0.0.0:4840
 ```
 
 ## Status
 
-Reference implementation (Python/asyncua): **anonymous server, browse, read, write,
-StatusCode, SourceTimestamp, engineering units**. Suitable as the Community Edition
-OPC-UA server.
+Community Edition: **anonymous server, browse, read, write, StatusCode, SourceTimestamp,
+engineering units** — in both Python and C++.
 
-> **Enterprise:** OPC-UA **security** (certificates, user roles, auditing),
-> **Historical Access**, **Alarms & Conditions**, aggregation and **redundancy** are
-> provided by the OSOlogic Enterprise add-ons. See [`docs/`](../../docs/).
+> **Enterprise:** OPC-UA **security** (certificates, user roles, auditing), **Historical
+> Access**, **Alarms & Conditions**, aggregation and **redundancy** are provided by the
+> OSOLogic Enterprise add-ons. See [`docs/enterprise/`](../../docs/enterprise/).
 
 ---
 
-*OSOlogic® is developed and maintained by **Roig Borrell S.L.** and **Ibercomp S.L.***
+*OSOLogic® is developed and maintained by **Roig Borrell S.L.** and **Ibercomp S.L.***
