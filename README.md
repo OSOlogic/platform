@@ -49,7 +49,7 @@ We want to help industry leap forward by adopting modern, flexible technologies,
 - **Secure by design** — Encryption, certificates, authentication, firewalls, and more.
 - **Universal gateway** — Communicates across industrial protocols (Modbus, CAN, EtherNet/IP, PROFINET, OPC-UA) and modern formats (JSON, XML, Protocol Buffers).
 - **Scalable for all** — From microcontrollers and single-board computers to industrial PCs, supercomputers and control rooms.
-- **SQL direct control** — read and control the plant with plain SQL (`SELECT` / `UPDATE`), from any language, no drivers or SDKs.
+- **SQL & REST direct control** — read and control the plant with plain SQL (`SELECT` / `UPDATE`) or a JSON/XML REST API (`GET` / `PUT`), from any language, no drivers or SDKs.
 - **Ready for AI** — Designed for the AI era: machine-readable, agent-friendly, and open to what comes next.
 
 > **Compatible with** Node-RED, REST, MQTT, WebSockets, GraphQL, gRPC, containers, time-series and
@@ -69,24 +69,28 @@ OPC-UA and MQTT, with deterministic, reversible node IDs.
 
 ---
 
-## SQL direct control
+## SQL & REST direct control
 
-Because OSOLogic is data-centric, **every value is a row**. With the right database credentials
-you can read *and control* the plant with plain SQL — from any language, with **no drivers, no
-SDKs, no exotic libraries**:
+Because OSOLogic is data-centric, **every value is a row — and a resource**. With the right
+credentials you can read *and control* the plant with plain **SQL** or a plain **REST API
+(JSON or XML)** — from any language, with **no drivers, no SDKs, no exotic libraries**:
 
 ```sql
--- Read the whole plant
+-- SQL: read the plant, then control it with a set-point (applied by the scan)
 SELECT id, value, units FROM tags;
-
--- Control it — write a set-point, applied by the scan cycle
 UPDATE tags SET required_value = 1450 WHERE id = '3.14';   -- module 3, I/O 14
 ```
 
-Transparent and open to data capture (`SELECT` straight into any BI tool), dead-simple to
-control (`UPDATE`), and gated by MariaDB GRANTs — the same permission model that scopes every
-other surface. SQL is a first-class control interface, symmetric with OPC-UA, MQTT, REST and MCP.
-See [`core/osodb`](core/osodb).
+```bash
+# REST: the same, JSON or XML, curl-simple
+curl host/api/tags/3.14                        # → {"value":1450,"units":"rpm",...}
+curl -X PUT host/api/tags/3.14 -d '{"required_value":1450}'
+```
+
+Transparent and open to data capture (`SELECT` or `GET` straight into any BI tool), dead-simple to
+control (`UPDATE` or `PUT`), and gated by permissions (MariaDB GRANTs / API auth) — the same model
+that scopes every surface. SQL and REST are first-class control interfaces, symmetric with OPC-UA,
+MQTT and MCP. See [`core/osodb`](core/osodb) and [`api/rest`](api/rest).
 
 ---
 
