@@ -24,11 +24,11 @@ advanced security, or turnkey vertical solutions.
 | **Computer Vision / Advanced AI** | Real-time inspection, defect detection, sorting, and on-edge inference; model training pipeline; vision→PLC actuation. | [vision-ai.md](vision-ai.md) |
 | **Advanced Real-Time Multi-Axis CNC** | Deterministic multi-axis motion, coordinated trajectory/interpolation, look-ahead, kinematics, G-code runtime. | [cnc-multiaxis.md](cnc-multiaxis.md) |
 | **OPC-UA Advanced** | Security (certificates, roles, auditing), Historical Access, Alarms & Conditions, aggregation, redundancy. | see [`gateways/opc-ua`](../../gateways/opc-ua/) |
-| **Certified Protocol Gateways** | PROFINET, EtherNet/IP, OPC-DA legacy — with conformance certification. | — |
-| **High Availability / Redundancy** | Hot-standby runtime, redundant I/O, seamless failover. | — |
-| **SCADA/Historian at scale** | Multi-station SCADA, time-series historian, alarm management, analytics. | — |
-| **Fleet Management** | Central provisioning, fleet-wide OTA, device inventory. | — |
-| **Security & Compliance** | RBAC, LDAP/AD/SSO, audit trails, IEC 62443 packs, secure-boot management. | — |
+| **Certified Protocol Gateways** | PROFINET, EtherNet/IP, OPC-DA legacy — with conformance certification. | [profinet-ethernetip.md](profinet-ethernetip.md) |
+| **High Availability / Redundancy** | Hot-standby runtime, redundant I/O, seamless failover. | [high-availability.md](high-availability.md) |
+| **SCADA/Historian at scale** | Multi-station SCADA, time-series historian, alarm management, analytics. | [scada-historian.md](scada-historian.md) |
+| **Fleet Management** | Central provisioning, fleet-wide OTA, device inventory. | [fleet-management.md](fleet-management.md) |
+| **Security & Compliance** | RBAC, LDAP/AD/SSO, audit trails, IEC 62443 packs, secure-boot management. | [security-compliance.md](security-compliance.md) |
 | **Functional Safety (certified)** | Certified safe-state / SIL-rated packages (the base `secure_state` mechanism is in CE). | — |
 
 ## Connecting from Community Edition
