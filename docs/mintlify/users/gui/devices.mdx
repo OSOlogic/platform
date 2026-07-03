@@ -1,0 +1,97 @@
+---
+title: 'Devices'
+description: 'Creating, editing, and managing device instances in your PLC project'
+icon: 'plug'
+---
+
+## What is a Device?
+
+A **device** is a specific physical module installed in your project. While a [model](/users/gui/models) defines *what type* of module it is, a device represents *this particular unit* with its own name, connection, and address.
+
+**Example:** You might have two physical "OsoLogic 8SD" output modules installed on your machine. Each one is a separate **device**, but they both use the same **model**.
+
+## Device List
+
+The devices page shows all configured devices with:
+
+| Column | Description |
+|--------|-------------|
+| **Module Name** | Your custom name for this device |
+| **Model** | The hardware model template it uses |
+| **Protocol** | Communication protocol (inherited from model) |
+| **Channel** | Physical connection type |
+| **Connection** | Connection details (port, IP, etc.) |
+| **Status** | 🟢 Connected or 🔴 Disconnected |
+
+## Creating a New Device
+
+<Steps>
+  <Step title="Basic Configuration">
+    Fill in the device details:
+
+    | Field | Description | Example |
+    |-------|-------------|---------|
+    | **Module Name** | A descriptive name for this specific device | `"Main Output Board"` |
+    | **Model** | Select from available model templates | `"OsoLogic 8SD"` |
+    | **Channel** | How the device connects to the PLC | See table below |
+    | **Connection String** | Physical connection address | `"SPI"`, `"/dev/ttyUSB0"`, `"192.168.1.50:502"` |
+    | **Address on Channel** | Device address on the bus | `"0"` (SPI slot), `"5"` (Modbus ID) |
+    | **Timeout** | Communication timeout in milliseconds (optional, uses model default if empty) | `1000` |
+  </Step>
+  <Step title="I/O Labels Configuration">
+    After selecting a model, the wizard shows all I/O points defined in the model. For each point, you can set:
+
+    - **User Label**: A custom name for this I/O point on this specific device (e.g., `"Conveyor Motor"` instead of `"Output 1"`)
+    - **Units**: Engineering units (e.g., `"°C"`, `"bar"`, `"mm"`)
+    - **Scale Factor & Offset**: Value transformation (see [I/O Config](/users/gui/io-config))
+    - **Visibility**: Whether this point appears on MQTT
+  </Step>
+  <Step title="Save">
+    Click **Save** to create the device. The PLC core will detect it on its next cycle and begin communicating with it.
+  </Step>
+</Steps>
+
+## Channel Types
+
+| Channel | Use Case | Connection String | Address |
+|---------|----------|-------------------|---------|
+| **SPI** | Internal modules plugged directly into the PLC board | `"SPI"` (auto-filled) | Slot number: `"0"`, `"1"`, `"2"`, etc. |
+| **RS-485** | External modules connected via RS-485 serial bus | Serial port: `"/dev/ttyUSB0"` | Modbus slave ID: `"1"`, `"5"`, etc. |
+| **TCP** | Ethernet modules connected over the network | IP and port: `"192.168.1.50:502"` | Can be empty |
+| **Aggregated** | Virtual device composed of other devices | Child device IDs: `"1,2,3"` | Not used |
+
+## Editing a Device
+
+Click on a device to open the edit wizard. You can modify:
+
+- Module name, model, channel, connection details
+- I/O labels and configuration (if the model was changed, the I/O config is regenerated)
+
+<Warning>
+  Changing the **model** of a device will **delete** all its current I/O configuration and replace it with the new model's defaults. Make sure to reconfigure labels and settings afterward.
+</Warning>
+
+## Deleting a Device
+
+Click the delete button on a device to remove it. This will:
+
+1. Remove the device from the `devices` table
+2. Automatically cascade-delete all related data:
+   - Module I/O configuration
+   - Real-time mirror entries
+   - Device status records
+
+<Warning>
+  Deleting a device is **permanent** and cannot be undone. All I/O labels, visibility settings, and historical data for this device will be lost.
+</Warning>
+
+## Connection Status
+
+The PLC core automatically tracks whether each device is communicating:
+
+| Status | Meaning |
+|--------|---------|
+| 🟢 **Connected** | The device responded successfully in the last communication cycle |
+| 🔴 **Disconnected** | The device did not respond (may be offline, misconfigured, or physically disconnected) |
+
+The `last_seen` timestamp shows when the device last communicated successfully.

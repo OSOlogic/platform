@@ -1,0 +1,39 @@
+---
+title: 'Oso CLI Command'
+description: 'A fun terminal command to interact with the factory owner'
+icon: 'terminal'
+---
+
+## What is the Oso Command?
+
+During the installation of OSOlogic PRO, a special CLI (Command Line Interface) tool is created in your system: the `oso` command. This is an Easter egg designed to give your terminal a bit of personality — the personality of a grumpy but efficient bear who owns the factory.
+
+## How to use it
+
+To use the command, open an SSH session or the local terminal on your PLC, and simply type:
+
+```bash
+oso [option]
+```
+
+## Available Options
+
+Here are the arguments you can use with the `oso` command:
+
+| Command | Short | Description |
+|---------|-------|-------------|
+| `oso --help` | `oso -h` | Shows the available options. |
+| `oso --status` | `oso -s` | Ask Oso how the plant is doing. Expect a confident answer! |
+| `oso --who` | `oso -w` | Find out who is really in charge of the system. |
+| `oso --joke` | `oso -j` | Ask Oso for a quick joke. |
+
+### Example output
+
+```bash
+$ oso --status
+🐻 The plant is perfect, obviously. The contactors are humming, Modbus is communicating, and your Node-RED flows... well, they are doing their best. Don't touch anything! ⚡
+```
+
+<Note>
+  The `oso` command is purely for fun and does not make any actual changes to the PLC configuration or state. Don't worry about breaking anything by using it!
+</Note>

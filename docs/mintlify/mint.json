@@ -1,0 +1,129 @@
+{
+  "name": "OSOlogic PRO",
+  "logo": {
+    "dark": "/logo.png",
+    "light": "/logo.png"
+  },
+  "favicon": "/logo.png",
+  "colors": {
+    "primary": "#0F52BA",
+    "light": "#4FA6EB",
+    "dark": "#0B306B"
+  },
+  "topbarCtaButton": {
+    "name": "Web Admin",
+    "url": "http://localhost:8080"
+  },
+  "tabs": [
+    {
+      "name": "For Users",
+      "url": "users"
+    },
+    {
+      "name": "For Developers",
+      "url": "developers"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "users/introduction"
+      ]
+    },
+    {
+      "group": "Service Manager",
+      "pages": [
+        "users/service-manager"
+      ]
+    },
+    {
+      "group": "Database GUI",
+      "pages": [
+        "users/gui/access",
+        "users/gui/dashboard",
+        "users/gui/models",
+        "users/gui/devices",
+        "users/gui/io-config",
+        "users/gui/realtime",
+        "users/gui/users",
+        "users/gui/plc-settings"
+      ]
+    },
+    {
+      "group": "Database Client",
+      "pages": [
+        "users/database"
+      ]
+    },
+    {
+      "group": "Modbus TCP Client",
+      "pages": [
+        "users/modbus-client"
+      ]
+    },
+    {
+      "group": "MQTT Client",
+      "pages": [
+        "users/mqtt-client"
+      ]
+    },
+    {
+      "group": "Auxiliary Scripts",
+      "pages": [
+        "users/scripts"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "developers/architecture"
+      ]
+    },
+    {
+      "group": "Core C++",
+      "pages": [
+        "developers/core/overview",
+        "developers/core/ichannel",
+        "developers/core/spi-channel",
+        "developers/core/tcp-channel",
+        "developers/core/rs485-channel",
+        "developers/core/iprotocol",
+        "developers/core/spi-protocol",
+        "developers/core/modbus-protocol",
+        "developers/core/modbus-rtu-protocol",
+        "developers/core/modbus-tcp-protocol",
+        "developers/core/imodule",
+        "developers/core/module",
+        "developers/core/aggregator-module",
+        "developers/core/plc",
+        "developers/core/database",
+        "developers/core/tasks",
+        "developers/core/errors",
+        "developers/core/logging"
+      ]
+    },
+    {
+      "group": "Modbus TCP",
+      "pages": [
+        "developers/modbus/overview"
+      ]
+    },
+    {
+      "group": "MQTT Gateway",
+      "pages": [
+        "developers/mqtt/overview"
+      ]
+    },
+    {
+      "group": "Services & GUI",
+      "pages": [
+        "developers/services/overview",
+        "developers/services/gui"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/tu-usuario/OSOlogic-PRO"
+  }
+}

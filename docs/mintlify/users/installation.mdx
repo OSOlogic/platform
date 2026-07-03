@@ -1,0 +1,230 @@
+---
+title: 'Installation'
+description: 'Step-by-step guide to set up OSOlogic PRO on your PLC hardware'
+icon: 'download'
+---
+
+## Prerequisites
+
+Before starting, make sure you have:
+
+<CardGroup cols={2}>
+  <Card title="PLC Hardware" icon="microchip">
+    An OSOlogic-compatible industrial PC or SBC (Orange Pi, Raspberry Pi, etc.) with SPI-connected I/O modules.
+  </Card>
+  <Card title="MicroSD Card or eMMC" icon="sd-card">
+    At least **16 GB** of storage. Class 10 or UHS-I recommended for optimal performance.
+  </Card>
+  <Card title="Flashing Tool" icon="hard-drive">
+    **balenaEtcher**, **Rufus**, or similar disk imaging tool installed on your computer.
+  </Card>
+  <Card title="Network Connection" icon="ethernet">
+    Ethernet cable or configured Wi-Fi. The PLC needs internet access during installation.
+  </Card>
+</CardGroup>
+
+## Step 1 — Download the System Image
+
+Go to the **Releases** page of the OSOlogic repository and download the latest system image:
+
+<Steps>
+  <Step title="Navigate to Releases">
+    Open the GitHub repository and click on **Releases** (right sidebar).
+  </Step>
+  <Step title="Select the latest version">
+    Choose the most recent release. Each release includes release notes with a summary of changes.
+  </Step>
+  <Step title="Download the image">
+    Download the `.img.gz` or `.img.xz` file from the **Assets** section. This is a compressed disk image containing the operating system pre-configured for OSOlogic.
+  </Step>
+</Steps>
+
+<Note>
+  The system image is based on **Ubuntu/Armbian Linux** and comes pre-configured with all necessary system packages. The OSOlogic-specific software is installed in the next steps.
+</Note>
+
+## Step 2 — Flash the Image
+
+Write the downloaded image to your MicroSD card or eMMC module:
+
+<Steps>
+  <Step title="Insert the storage media">
+    Insert the MicroSD card or eMMC adapter into your computer.
+  </Step>
+  <Step title="Open your flashing tool">
+    Launch **balenaEtcher** (recommended) or your preferred imaging tool.
+  </Step>
+  <Step title="Select the image">
+    Click **Flash from file** and select the downloaded `.img.gz` / `.img.xz` file. Most tools can flash compressed images directly — no need to decompress first.
+  </Step>
+  <Step title="Select the target">
+    Choose the correct drive. **Double-check** you are selecting the right device to avoid data loss.
+  </Step>
+  <Step title="Flash">
+    Click **Flash** and wait for the process to complete. This typically takes 5–10 minutes.
+  </Step>
+</Steps>
+
+<Warning>
+  Flashing will **erase all data** on the selected drive. Make sure you have selected the correct device and that no important data is stored on it.
+</Warning>
+
+## Step 3 — First Boot
+
+<Steps>
+  <Step title="Insert the media">
+    Insert the flashed MicroSD card or eMMC into the PLC hardware.
+  </Step>
+  <Step title="Connect peripherals">
+    Connect an **Ethernet cable**, a **keyboard**, and a **monitor** (HDMI) to the PLC. Power it on.
+  </Step>
+  <Step title="Wait for boot">
+    The system will boot into Linux. On first boot, the system may perform initial setup tasks (resizing partitions, generating SSH keys, etc.). This can take 1–2 minutes.
+  </Step>
+  <Step title="Log in">
+    Log in with the default credentials:
+    - **User**: `oso`
+    - **Password**: `logic`
+  </Step>
+</Steps>
+
+## Step 4 — Run the Installation Script
+
+The installation script is located directly in the `/home/oso` directory. Execute it from there:
+
+```bash
+cd /home/oso
+sudo ./install_OsoLogic.sh
+```
+
+The installer is **fully interactive** and will guide you through each step. Here is what to expect:
+
+### 4.1 — System Dependencies
+
+The script automatically installs and verifies all required packages:
+- Build tools (GCC, CMake, Make)
+- MariaDB, Mosquitto (MQTT broker)
+- Node.js and Node-RED
+- Python 3 with virtual environment support
+
+### 4.2 — System User Setup
+
+The installer will create or configure the `oso` system user with the necessary permissions for hardware access (GPIO, SPI, I2C) and service management.
+
+```
+Enter password for user 'oso': ********
+Confirm password for user 'oso': ********
+```
+
+### 4.3 — Repository Setup
+
+Choose how to load the project source code:
+
+| Option | Description |
+|--------|-------------|
+| **1 — Existing path** | Point to the project already at `/home/oso/PLC_OsoLogic` |
+| **2 — Download** | Clone a fresh copy from the Git repository |
+
+<Tip>
+  If the image already contains the project at `/home/oso/PLC_OsoLogic`, select **Option 1** and enter the path. You can optionally pull the latest updates from the repository.
+</Tip>
+
+### 4.4 — Security Configuration
+
+The installer will ask you to set passwords for all system components:
+
+```
+--- Database Security ---
+Enter password for MariaDB 'root' user: ********
+Enter password for Application DB user 'oso': ********
+
+--- MQTT Security ---
+Enter password for MQTT user 'oso': ********
+```
+
+### 4.5 — Service Ports
+
+Confirm or customize the network ports for each service:
+
+| Service | Default Port | Prompt |
+|---------|-------------|--------|
+| MQTT Broker | `1883` | `MQTT Port [1883]:` |
+| Services Manager | `8080` | `Services Manager Port [8080]:` |
+| Database GUI | `8082` | `GUI Port [8082]:` |
+| Node-RED | `1880` | `Node-RED Port [1880]:` |
+
+<Note>
+  Press **Enter** to accept the default value shown in brackets. Only change these if you have a specific reason (e.g., port conflict).
+</Note>
+
+### 4.6 — phpMyAdmin (Optional)
+
+```
+Do you want to install phpMyAdmin for easy database access? (y/n) [n]:
+```
+
+Select `y` if you want a web-based database management tool accessible at `http://<PLC_IP>/phpmyadmin`.
+
+### 4.7 — Automated Steps
+
+After the interactive questions, the installer **automatically** performs:
+
+- ✅ Generates unique **SSL certificates** for HTTPS
+- ✅ Compiles the **C++ PLC Core** from source
+- ✅ Creates a **Python virtual environment** with all dependencies
+- ✅ Deploys **Node-RED flows** from the bundled interface
+- ✅ Configures **MariaDB** users and permissions
+- ✅ Secures the **MQTT broker** (Mosquitto)
+- ✅ Registers all **systemd services**
+- ✅ Initializes the **PLC database** schema
+- ✅ Optimizes **CPU governor** for real-time performance
+
+## Step 5 — Verify the Installation
+
+Once the installer finishes, you'll see:
+
+```
+================================================
+      INSTALLATION COMPLETED SUCCESSFULLY!      
+================================================
+
+Access Point Connectivity:
+Manager URL: https://<PLC_IP>:8080
+```
+
+The **Service Manager** starts automatically. Open your browser and navigate to:
+
+```
+https://<PLC_IP>:8080
+```
+
+<Tip>
+  Your browser may show a certificate warning because the SSL certificate is self-signed. This is expected — click **Advanced → Proceed** to continue.
+</Tip>
+
+From the Service Manager, you can now start and enable all other services:
+
+| Service | What it does |
+|---------|-------------|
+| **PLC Core** | Starts hardware communication with I/O modules |
+| **MQTT Gateway** | Publishes I/O data to the MQTT broker |
+| **Modbus TCP** | Exposes I/O data via Modbus TCP for SCADA systems |
+| **Node-RED** | Starts the visual automation editor and dashboard |
+| **Database GUI** | Starts the web interface for database management |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The installer fails at 'Compiling PLC Core'">
+    Ensure all build dependencies are installed. Run `sudo apt-get install -y build-essential cmake libmariadb-dev` manually, then re-run the installer.
+  </Accordion>
+  <Accordion title="Node-RED doesn't start after installation">
+    Check the service status: `sudo systemctl status nodered`. If it shows errors, try restarting: `sudo systemctl restart nodered`. Check logs with `journalctl -u nodered -f`.
+  </Accordion>
+  <Accordion title="Cannot access the Service Manager from another device">
+    Verify the PLC has a valid IP address: run `hostname -I` on the PLC. Ensure both devices are on the same network and that no firewall is blocking port 8080.
+  </Accordion>
+  <Accordion title="Database connection errors">
+    Verify MariaDB is running: `sudo systemctl status mariadb`. If it's not started, run `sudo systemctl start mariadb`. Check that the passwords in `config/config.json` match the ones you entered during installation.
+  </Accordion>
+</AccordionGroup>

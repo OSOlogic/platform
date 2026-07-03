@@ -1,0 +1,2547 @@
+[
+    {
+        "id": "f0f2b3f7a2536013",
+        "type": "tab",
+        "label": "[CORE] HAL",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "9eaf4fb83c9361cb",
+        "type": "tab",
+        "label": "Client Space",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "ae42cfea525d83ae",
+        "type": "subflow",
+        "name": "TON",
+        "info": "A standard Timer On-Delay (TON) block. The output turns true only after the input has been true for the specified delay period. Resets instantly if the input turns false.",
+        "category": "",
+        "in": [
+            {
+                "x": 440,
+                "y": 260,
+                "wires": [
+                    {
+                        "id": "9c22269dcb0dd069"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 1440,
+                "y": 260,
+                "wires": [
+                    {
+                        "id": "5437758ab1fc27a4",
+                        "port": 0
+                    },
+                    {
+                        "id": "9c22269dcb0dd069",
+                        "port": 1
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "delay_ms",
+                "type": "num",
+                "value": "1000",
+                "ui": {
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "num"
+                        ]
+                    }
+                }
+            }
+        ],
+        "meta": {
+            "module": "Timer On-Delay (TON)",
+            "version": "0.1.0",
+            "author": "diego.arcos@jborrell.com. OsoLogic®",
+            "desc": "A standard Timer On-Delay (TON) block. The output turns true only after the input has been true for the specified delay period. Resets instantly if the input turns false.",
+            "keywords": "plc, timer, ton, delay, osologic-plc",
+            "license": "Apache-2.0"
+        },
+        "color": "#DDAA99"
+    },
+    {
+        "id": "12072c3e8eac95e2",
+        "type": "subflow",
+        "name": "TOF",
+        "info": "A standard Timer Off-Delay (TOF) block. The output turns true immediately with the input. The output remains true for the specified delay after the input turns false.",
+        "category": "",
+        "in": [
+            {
+                "x": 160,
+                "y": 420,
+                "wires": [
+                    {
+                        "id": "9583cd0624442b31"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 1060,
+                "y": 420,
+                "wires": [
+                    {
+                        "id": "77d5c11ee8b79424",
+                        "port": 0
+                    },
+                    {
+                        "id": "9583cd0624442b31",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "delay_ms",
+                "type": "num",
+                "value": "1000",
+                "ui": {
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "num"
+                        ]
+                    }
+                }
+            }
+        ],
+        "meta": {
+            "module": "Timer Off-Delay (TOF)",
+            "version": "0.1.0",
+            "author": "diego.arcos@jborrell.com. OsoLogic®",
+            "desc": "A standard Timer Off-Delay (TOF) block. The output turns true immediately with the input. The output remains true for the specified delay after the input turns false.",
+            "keywords": "plc, timer, tof, delay, borrell-plc",
+            "license": "Apache-2.0"
+        },
+        "color": "#DDAA99"
+    },
+    {
+        "id": "2e0e332ca4691484",
+        "type": "subflow",
+        "name": "TP",
+        "info": "A standard Pulse Timer (TP) block. On a rising edge of the input (false to true), the output turns true for a fixed duration, then turns false. Subsequent triggers during the pulse are ignored.",
+        "category": "",
+        "in": [
+            {
+                "x": 100,
+                "y": 120,
+                "wires": [
+                    {
+                        "id": "25d7c04e6feae108"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 920,
+                "y": 120,
+                "wires": [
+                    {
+                        "id": "20ec89fae515272a",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "pulse_duration_ms",
+                "type": "num",
+                "value": "1000",
+                "ui": {
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "num"
+                        ]
+                    }
+                }
+            }
+        ],
+        "meta": {
+            "module": "Timer Pulse (TP)",
+            "version": "0.1.0",
+            "author": "diego.arcos@jborrell.com. OsoLogic®",
+            "desc": "A standard Pulse Timer (TP) block. On a rising edge of the input (false to true), the output turns true for a fixed duration, then turns false. Subsequent triggers during the pulse are ignored.",
+            "keywords": "plc, timer, tp, pulse, borrell-plc",
+            "license": "Apache-2.0"
+        },
+        "color": "#DDAA99"
+    },
+    {
+        "id": "5fdf8441c2fafea1",
+        "type": "subflow",
+        "name": "Universal Notifier",
+        "info": "A centralized notification hub. Receives a message with topic, payload, and priority (1=Info, 2=Warning, 3=Critical) and routes it to the appropriate channels (Log File, Email, Telegram).",
+        "category": "",
+        "in": [
+            {
+                "x": 100,
+                "y": 140,
+                "wires": [
+                    {
+                        "id": "f73e61549c587fe2"
+                    }
+                ]
+            }
+        ],
+        "out": [],
+        "env": [
+            {
+                "name": "email_recipient",
+                "type": "str",
+                "value": "modbus@example.es",
+                "ui": {
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "str"
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "telegram_chatid",
+                "type": "str",
+                "value": "example_id",
+                "ui": {
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "str"
+                        ]
+                    }
+                }
+            }
+        ],
+        "meta": {
+            "module": "Universal Notifier",
+            "version": "0.1.0",
+            "author": "diego.arcos@jborrell.com. OsoLogic®",
+            "desc": "A centralized notification hub. Receives a message with topic, payload, and priority (1=Info, 2=Warning, 3=Critical) and routes it to the appropriate channels (Log File, Email, Telegram).",
+            "keywords": "plc, notify, notification, alarm, email, telegram, log, borrell-plc",
+            "license": "Apache-2.0"
+        },
+        "color": "#DDAA99"
+    },
+    {
+        "id": "05eda3f26608436c",
+        "type": "subflow",
+        "name": "Read IO",
+        "info": "Filters the main I/O bus for a specific label. You have to connect the '[CORE] HAL' bus to the input of this node. It will only output messages (RBE) for the specified I/O point label.",
+        "category": "",
+        "in": [
+            {
+                "x": 160,
+                "y": 400,
+                "wires": [
+                    {
+                        "id": "d86e8202bf2b02c7"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 520,
+                "y": 400,
+                "wires": [
+                    {
+                        "id": "d86e8202bf2b02c7",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "label",
+                "type": "str",
+                "value": "io_label"
+            }
+        ],
+        "meta": {},
+        "color": "#DDAA99"
+    },
+    {
+        "id": "17ba4870719ee8f5",
+        "type": "subflow",
+        "name": "Write IO",
+        "info": "Writes a single boolean (true/false) to the specified 'label'. If 'use_fixed_value' is checked, it sends the 'value' from properties. If unchecked, it sends the incoming 'msg.payload'.",
+        "category": "",
+        "in": [
+            {
+                "x": 80,
+                "y": 380,
+                "wires": [
+                    {
+                        "id": "a00a8fc227f10f09"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 460,
+                "y": 380,
+                "wires": [
+                    {
+                        "id": "a00a8fc227f10f09",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "label",
+                "type": "str",
+                "value": "label"
+            },
+            {
+                "name": "value",
+                "type": "num",
+                "value": "0"
+            },
+            {
+                "name": "use_fixed_value",
+                "type": "bool",
+                "value": "true"
+            }
+        ],
+        "meta": {},
+        "color": "#DDAA99"
+    },
+    {
+        "id": "508eb177dc4700f3",
+        "type": "subflow",
+        "name": "Write IOs",
+        "info": "Writes a batch of boolean commands. If 'use_fixed_commands' is checked, it sends the 'commands' array from properties. If unchecked, it sends the incoming 'msg.payload' (must be an array). The array is split into individual messages.",
+        "category": "",
+        "in": [
+            {
+                "x": 160,
+                "y": 100,
+                "wires": [
+                    {
+                        "id": "ee9dd0ba2c2428ec"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 560,
+                "y": 100,
+                "wires": [
+                    {
+                        "id": "ee9dd0ba2c2428ec",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "labels",
+                "type": "json",
+                "value": "[]"
+            },
+            {
+                "name": "values",
+                "type": "json",
+                "value": "[]"
+            },
+            {
+                "name": "use_fixed_values",
+                "type": "bool",
+                "value": "true"
+            }
+        ],
+        "meta": {},
+        "color": "#DDAA99"
+    },
+    {
+        "id": "5f49f1211eabe63e",
+        "type": "subflow",
+        "name": "Read IOs",
+        "info": "Filters the I/O bus for a specific group of labels. Set the 'labels' to allow in the node's Environment Properties (as a JSON array of strings, e.g., [\"Sensor 1\", \"Sensor 2\"]).\nYou have to connect the '[CORE] HAL' bus to the input of this node.\nThis subflow listens to the 'Bus-in' link. It acts as a simple filter and only allows messages (msg.topic + msg.payload) to pass if their 'topic' is included in the configured 'labels' array. Messages not in the list are blocked.",
+        "category": "",
+        "in": [
+            {
+                "x": 140,
+                "y": 120,
+                "wires": [
+                    {
+                        "id": "60fcaebebc5b532b"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 460,
+                "y": 120,
+                "wires": [
+                    {
+                        "id": "60fcaebebc5b532b",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "labels",
+                "type": "json",
+                "value": "[]"
+            }
+        ],
+        "meta": {},
+        "color": "#DDAA99"
+    },
+    {
+        "id": "313d92e8ee03bdbc",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": true
+    },
+    {
+        "id": "80e8f532c6ebde55",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#0094CE",
+            "bgPage": "#eeeeee",
+            "groupBg": "#ffffff",
+            "groupOutline": "#cccccc"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "e95abf2e7491a479",
+        "type": "ui-page",
+        "name": "[ADMIN] Device Management",
+        "ui": "313d92e8ee03bdbc",
+        "path": "/page1",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "80e8f532c6ebde55",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": true,
+        "disabled": false
+    },
+    {
+        "id": "19cf28205f90e110",
+        "type": "ui-group",
+        "name": "Device Registry",
+        "page": "e95abf2e7491a479",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": true,
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "effd628391fdb493",
+        "type": "ui-page",
+        "name": "[ADMIN] Model Editor",
+        "ui": "313d92e8ee03bdbc",
+        "path": "/page2",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "80e8f532c6ebde55",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 2,
+        "className": "",
+        "visible": true,
+        "disabled": false
+    },
+    {
+        "id": "111da72f2bb95a6e",
+        "type": "ui-group",
+        "name": "Wizard Step 1 Basic Info",
+        "page": "effd628391fdb493",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": false,
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "a153e2a1898630c1",
+        "type": "ui-group",
+        "name": "Wizard Step 2 I/O Definition",
+        "page": "effd628391fdb493",
+        "width": 6,
+        "height": 1,
+        "order": 2,
+        "showTitle": true,
+        "className": "",
+        "visible": false,
+        "disabled": false,
+        "groupType": "default"
+    },
+    {
+        "id": "3ed4f3423e019bc4",
+        "type": "ui-group",
+        "name": "Wizard Step 3 Device Instance",
+        "page": "effd628391fdb493",
+        "width": 6,
+        "height": 1,
+        "order": 3,
+        "showTitle": true,
+        "className": "",
+        "visible": false,
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "32b654378d808f38",
+        "type": "mysql2-server",
+        "host": "192.168.77.172",
+        "port": "3306",
+        "username": "oso",
+        "password": "logic",
+        "db": "PLC",
+        "servername": "PLC2"
+    },
+    {
+        "id": "04ffbb5f1e20f895",
+        "type": "telegram bot",
+        "z": "5fdf8441c2fafea1",
+        "botname": "OsoLogic Alerts",
+        "usernames": "",
+        "chatids": "",
+        "baseapiurl": "",
+        "testenvironment": false,
+        "updatemode": "polling",
+        "pollinterval": 300,
+        "usesocks": false,
+        "sockshost": "",
+        "socksprotocol": "socks5",
+        "socksport": 6667,
+        "socksusername": "anonymous",
+        "sockspassword": "",
+        "bothost": "",
+        "botpath": "",
+        "localbothost": "0.0.0.0",
+        "localbotport": 8443,
+        "publicbotport": 8443,
+        "privatekey": "",
+        "certificate": "",
+        "useselfsignedcertificate": false,
+        "sslterminated": false,
+        "verboselogging": false
+    },
+    {
+        "id": "332b1173c6c3444e",
+        "type": "MySQLdatabase",
+        "name": "PLC",
+        "host": "192.168.77.172",
+        "port": "3306",
+        "db": "PLC",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "9c22269dcb0dd069",
+        "type": "switch",
+        "z": "ae42cfea525d83ae",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "false"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 610,
+        "y": 260,
+        "wires": [
+            [
+                "5437758ab1fc27a4"
+            ],
+            [
+                "055703bd6bbb770e"
+            ]
+        ]
+    },
+    {
+        "id": "5437758ab1fc27a4",
+        "type": "trigger",
+        "z": "ae42cfea525d83ae",
+        "name": "",
+        "op1": "",
+        "op2": "true",
+        "op1type": "nul",
+        "op2type": "bool",
+        "duration": "${delay_ms}",
+        "extend": false,
+        "overrideDelay": false,
+        "units": "ms",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 1150,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "055703bd6bbb770e",
+        "type": "change",
+        "z": "ae42cfea525d83ae",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "reset",
+                "pt": "msg",
+                "to": "true",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 840,
+        "y": 400,
+        "wires": [
+            [
+                "5437758ab1fc27a4"
+            ]
+        ]
+    },
+    {
+        "id": "9583cd0624442b31",
+        "type": "switch",
+        "z": "12072c3e8eac95e2",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "false"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 350,
+        "y": 420,
+        "wires": [
+            [
+                "7fd22c0bb3854f29"
+            ],
+            [
+                "77d5c11ee8b79424"
+            ]
+        ]
+    },
+    {
+        "id": "77d5c11ee8b79424",
+        "type": "trigger",
+        "z": "12072c3e8eac95e2",
+        "name": "",
+        "op1": "",
+        "op2": "false",
+        "op1type": "nul",
+        "op2type": "bool",
+        "duration": "${delay_ms}",
+        "extend": false,
+        "overrideDelay": false,
+        "units": "ms",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 850,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7fd22c0bb3854f29",
+        "type": "change",
+        "z": "12072c3e8eac95e2",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "reset",
+                "pt": "msg",
+                "to": "true",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 600,
+        "y": 240,
+        "wires": [
+            [
+                "77d5c11ee8b79424"
+            ]
+        ]
+    },
+    {
+        "id": "25d7c04e6feae108",
+        "type": "switch",
+        "z": "2e0e332ca4691484",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 310,
+        "y": 120,
+        "wires": [
+            [
+                "20ec89fae515272a"
+            ]
+        ]
+    },
+    {
+        "id": "20ec89fae515272a",
+        "type": "trigger",
+        "z": "2e0e332ca4691484",
+        "name": "",
+        "op1": "true",
+        "op2": "false",
+        "op1type": "bool",
+        "op2type": "bool",
+        "duration": "${pulse_duration_ms}",
+        "extend": false,
+        "overrideDelay": false,
+        "units": "ms",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 630,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f73e61549c587fe2",
+        "type": "switch",
+        "z": "5fdf8441c2fafea1",
+        "name": "",
+        "property": "priority",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "1",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "2",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "3",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 310,
+        "y": 140,
+        "wires": [
+            [
+                "49458010ed927eaa"
+            ],
+            [
+                "49458010ed927eaa",
+                "5989c30437bdc1c8"
+            ],
+            [
+                "49458010ed927eaa",
+                "5989c30437bdc1c8",
+                "c6e3bcf7792f6ea8"
+            ]
+        ]
+    },
+    {
+        "id": "49458010ed927eaa",
+        "type": "file",
+        "z": "5fdf8441c2fafea1",
+        "name": "notifications_log",
+        "filename": "/home/diego_arcos/Escritorio/BOX/espacio_trabajo/OSOlogic-PRO-PLCBorrell-RealTime/nodered_notifications_log.txt",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": false,
+        "overwriteFile": "false",
+        "encoding": "none",
+        "x": 860,
+        "y": 140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5989c30437bdc1c8",
+        "type": "e-mail",
+        "z": "5fdf8441c2fafea1",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "authtype": "BASIC",
+        "saslformat": true,
+        "token": "oauth2Response.access_token",
+        "secure": true,
+        "tls": true,
+        "name": "${email_recipient}",
+        "dname": "email_alerts",
+        "x": 770,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "cc89ad26058174d3",
+        "type": "telegram sender",
+        "z": "5fdf8441c2fafea1",
+        "name": "telegram_alerts",
+        "bot": "04ffbb5f1e20f895",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 940,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c6e3bcf7792f6ea8",
+        "type": "change",
+        "z": "5fdf8441c2fafea1",
+        "name": "",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload",
+                "pt": "msg",
+                "to": "topic",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "json"
+            },
+            {
+                "t": "set",
+                "p": "payload.content",
+                "pt": "msg",
+                "to": "topic",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "payload.type",
+                "pt": "msg",
+                "to": "message",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "payload.chatId",
+                "pt": "msg",
+                "to": "${telegram_chatid}",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 620,
+        "y": 300,
+        "wires": [
+            [
+                "cc89ad26058174d3"
+            ]
+        ]
+    },
+    {
+        "id": "d86e8202bf2b02c7",
+        "type": "switch",
+        "z": "05eda3f26608436c",
+        "name": "",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "label",
+                "vt": "env"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 350,
+        "y": 400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a00a8fc227f10f09",
+        "type": "function",
+        "z": "17ba4870719ee8f5",
+        "name": "function 4",
+        "func": "// 1. Set the label and value\nlet topic = env.get(\"label\");\nlet value = msg.payload;\n\nconst useFixed = env.get(\"use_fixed_value\");\nif (useFixed) {\n    value = env.get(\"value\");\n}\n\n// Generate JSON Array for Stored Procedure\nlet numericValue;\n\n// Normalization: Convert booleans to 1 or 0 (The Stored Procedure expects a number)\nif (typeof value === 'boolean') {\n    numericValue = value ? 1 : 0;\n} else if (typeof value === 'number') {\n    numericValue = value;\n} else {\n    // Handle numeric strings or invalid values (default to 0)\n    numericValue = parseFloat(value) || 0;\n}\n\n// 2. Package this into a single-element array in the required JSON format\nmsg.payload = [{\n    \"label\": topic,\n    \"value\": numericValue\n}];\n\n// msg.topic is set in the Core HAL, but the existing one gets removed for clarity\ndelete msg.topic;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 260,
+        "y": 380,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ee9dd0ba2c2428ec",
+        "type": "function",
+        "z": "508eb177dc4700f3",
+        "name": "function 6",
+        "func": "// 1. Get labels list\nconst labels = env.get(\"labels\");\n\nif (!Array.isArray(labels) || labels.length === 0) {\n    return null;\n}\n\n// 2. Get values list\nlet valuesList;\nconst useFixed = env.get(\"use_fixed_values\");\n\nif (useFixed) {\n    valuesList = env.get(\"values\");\n} else {\n    valuesList = msg.payload;\n}\n\nif (!Array.isArray(valuesList)) {\n    // Handle singular value input gracefully by converting to array\n    valuesList = [valuesList];\n}\n\n// 3. Mapping and JSON construction\nconst commandArray = labels.map((label, index) => {\n    let val = valuesList[index];\n    let numericValue;\n\n    // Normalization: Convert booleans to 1 or 0 (The Stored Procedure expects a number)\n    if (typeof val === 'boolean') {\n        numericValue = val ? 1 : 0;\n    } else if (typeof val === 'number') {\n        numericValue = val;\n    } else {\n        numericValue = parseFloat(val) || 0;\n    }\n\n    // Construct the object expected by the Stored Procedure\n    return {\n        \"label\": label,\n        \"value\": numericValue\n    };\n});\n\n// 4. Send the array of objects\nmsg.payload = commandArray;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "60fcaebebc5b532b",
+        "type": "function",
+        "z": "5f49f1211eabe63e",
+        "name": "function 3",
+        "func": "// 1. Configuration\nconst labels = env.get(\"labels\");\n\n// If the configured list of labels is invalid, stop immediately.\nif (!Array.isArray(labels)) return null;\n\n// 2. Process if the incoming message topic is relevant to this node's configuration.\nif (labels.includes(msg.topic)) {\n\n    // State Management\n    // Safely retrieve the aggregated state object from node context, or initialize as empty object.\n    let state = context.get(\"state\") || {};\n    \n    // Update the persistent state map with the new value that just arrived.\n    state[msg.topic] = msg.payload;\n    context.set(\"state\", state);\n\n    // --- OUTPUT GENERATION (WRITE IOS FORMAT) ---\n\n    // Map the configured labels to their current values in strict, defined order.\n    // This generates the simple array: [value1, value2, value3...]\n    const valuesArray = labels.map(key => {\n        const val = state[key];\n        // Protection: If a label's value is undefined (not yet read), assume false/0 for safety\n        return (val === undefined) ? false : val;\n    });\n\n    // The output payload is the ordered array, which is exactly what \"Write IOs\" expects.\n    msg.payload = valuesArray;\n\n    return msg;\n}\n\n// Ignore the message if its topic is not in the configured list.\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "77706a886e14d1d2",
+        "type": "link out",
+        "z": "f0f2b3f7a2536013",
+        "name": "Bus-in",
+        "mode": "link",
+        "links": [
+            "58998634ea9339a2",
+            "2eb3f8169f0589e9",
+            "136814c45d7fc3df",
+            "790a127b7d599883",
+            "2c990b079167d9e8",
+            "744836ab28b5db28",
+            "896f4ebfe9133e3b",
+            "ddb74648b751c0cf"
+        ],
+        "x": 1325,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "a404c1b185f607cc",
+        "type": "link in",
+        "z": "f0f2b3f7a2536013",
+        "name": "Bus-out",
+        "links": [
+            "13d82a0ef73ade1a",
+            "9e7909647c2e5ec4",
+            "913c370eeda5d97e",
+            "ce4d4eff64102b8f",
+            "e981ebfd35ac25a9",
+            "cb9fa455a7267934",
+            "5974f55469045246",
+            "8bd85e0a058d73ac",
+            "07dfeafd58cfb27b",
+            "5a07ed8ae2563ef4",
+            "d440da3be77f30a5",
+            "b5674af83769dee0"
+        ],
+        "x": 235,
+        "y": 440,
+        "wires": [
+            [
+                "641a79828ccadfd2"
+            ]
+        ]
+    },
+    {
+        "id": "641a79828ccadfd2",
+        "type": "function",
+        "z": "f0f2b3f7a2536013",
+        "name": "function 1",
+        "func": "// Function: function 1\n// ----------------------------------------------------------------------\n// 1. Input Normalization\nlet updates = msg.payload;\n\nif (!Array.isArray(updates) || updates.length === 0) {\n    return null;\n}\n\n// 2. Normalize values (ensure 1/0 for SQL compatibility with net_required_value)\nupdates = updates.map(u => {\n    let val = u.value;\n    if (typeof val === 'boolean') val = val ? 1 : 0;\n    return { label: u.label, value: val };\n});\n\n// 3. Generate cases\nlet cases = updates.map(u =>\n    `WHEN '${u.label}' THEN ${u.value}`\n).join(' ');\n\nlet labels = updates.map(u => `'${u.label}'`).join(',');\n\n// 4. Build query with safety check (joining with model_io_definition)\nmsg.topic = `\n    UPDATE rtmirror rt\n    JOIN module_io_config cfg \n        ON rt.fk_module_id = cfg.fk_module_id \n        AND rt.fk_io_definition_id = cfg.fk_io_definition_id\n    JOIN model_io_definition mid\n        ON rt.fk_io_definition_id = mid.io_definition_id\n    SET rt.net_required_value = CASE cfg.user_label \n        ${cases} \n    END\n    WHERE cfg.user_label IN (${labels})\n    AND mid.hardware_access = 'readwrite'\n`;\nmsg.payload = [];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 440,
+        "wires": [
+            [
+                "b4cf578a9b226c0d",
+                "dcd2b34f8fd02eb6"
+            ]
+        ]
+    },
+    {
+        "id": "55101d406205a38e",
+        "type": "inject",
+        "z": "f0f2b3f7a2536013",
+        "name": "",
+        "props": [
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "0.1",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "SELECT io_definition_id, user_label, net_value, io_type, units, purpose FROM rtmirror_complete WHERE visibility = 'visible'",
+        "x": 200,
+        "y": 200,
+        "wires": [
+            [
+                "679b382b4064212f"
+            ]
+        ]
+    },
+    {
+        "id": "a1e0dee4c55e60e1",
+        "type": "function",
+        "z": "f0f2b3f7a2536013",
+        "name": "function 2",
+        "func": "// Get the rows of the query (an array of objects)\nconst rows = msg.payload;\n\n// Recover the previous state from the node context\nlet lastState = context.get('lastState') || {};\n\n// Iterate through each row that the database has returned\nrows.forEach(row => {\n    let topic = row.user_label;\n    let value = row.net_value;\n    let payload = value;\n\n    // 1. Normalization (Handle floats from DOUBLE in DB)\n    if (row.io_type === 'bit') {\n        payload = (value === 1 || value === true || value === 1.0);\n    }\n\n    // 2. Unit appending for display\n    let displayValue = payload;\n    if (row.io_type === 'register' && row.units) {\n        displayValue = `${value} ${row.units}`;\n    }\n\n    // 3. RBE Logic: Compare current value with last state\n    if (lastState[topic] !== payload) {\n        node.send({\n            topic: topic,\n            payload: payload,\n            displayValue: displayValue,\n            units: row.units,\n            purpose: row.purpose\n        });\n        lastState[topic] = payload;\n    }\n});\n\ncontext.set('lastState', lastState);\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 820,
+        "y": 200,
+        "wires": [
+            [
+                "77706a886e14d1d2"
+            ]
+        ]
+    },
+    {
+        "id": "f91183904696aef6",
+        "type": "comment",
+        "z": "f0f2b3f7a2536013",
+        "name": "Polling Database",
+        "info": "Read data from database",
+        "x": 200,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "3494631ed5ad195f",
+        "type": "comment",
+        "z": "f0f2b3f7a2536013",
+        "name": "Write into database",
+        "info": "Writes data into database",
+        "x": 290,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "b4cf578a9b226c0d",
+        "type": "mysql",
+        "z": "f0f2b3f7a2536013",
+        "mydb": "332b1173c6c3444e",
+        "name": "",
+        "x": 670,
+        "y": 440,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "679b382b4064212f",
+        "type": "mysql",
+        "z": "f0f2b3f7a2536013",
+        "mydb": "332b1173c6c3444e",
+        "name": "",
+        "x": 410,
+        "y": 200,
+        "wires": [
+            [
+                "a1e0dee4c55e60e1"
+            ]
+        ]
+    },
+    {
+        "id": "dcd2b34f8fd02eb6",
+        "type": "debug",
+        "z": "f0f2b3f7a2536013",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 580,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "3f3a06e7b696b514",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "TON TEST",
+        "info": "",
+        "x": 220,
+        "y": 2460,
+        "wires": []
+    },
+    {
+        "id": "58998634ea9339a2",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 2",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 195,
+        "y": 2520,
+        "wires": [
+            [
+                "992980fcdeb4f281"
+            ]
+        ]
+    },
+    {
+        "id": "c3b2aae5fe97cd0f",
+        "type": "subflow:ae42cfea525d83ae",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "x": 610,
+        "y": 2520,
+        "wires": [
+            [
+                "ff027fc20cf47e76"
+            ]
+        ]
+    },
+    {
+        "id": "13d82a0ef73ade1a",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 2",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 1085,
+        "y": 2520,
+        "wires": []
+    },
+    {
+        "id": "ec1a081d92e4a5aa",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "TOF TEST",
+        "info": "",
+        "x": 220,
+        "y": 2680,
+        "wires": []
+    },
+    {
+        "id": "2eb3f8169f0589e9",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 4",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 205,
+        "y": 2780,
+        "wires": [
+            [
+                "e6e5117589272a8f"
+            ]
+        ]
+    },
+    {
+        "id": "9e7909647c2e5ec4",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 4",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 1025,
+        "y": 2780,
+        "wires": []
+    },
+    {
+        "id": "88bfc8a1f88bdfb1",
+        "type": "subflow:12072c3e8eac95e2",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "delay_ms",
+                "value": "2000",
+                "type": "num"
+            }
+        ],
+        "x": 610,
+        "y": 2780,
+        "wires": [
+            [
+                "a419659df8e56ee1"
+            ]
+        ]
+    },
+    {
+        "id": "c98995bd190b1a3b",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "TP TEST",
+        "info": "",
+        "x": 220,
+        "y": 2920,
+        "wires": []
+    },
+    {
+        "id": "136814c45d7fc3df",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 5",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 205,
+        "y": 3060,
+        "wires": [
+            [
+                "9d47023f5a2206d7"
+            ]
+        ]
+    },
+    {
+        "id": "913c370eeda5d97e",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 5",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 1025,
+        "y": 3060,
+        "wires": []
+    },
+    {
+        "id": "dab2fc8f0e057188",
+        "type": "subflow:2e0e332ca4691484",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "pulse_duration_ms",
+                "value": "3000",
+                "type": "num"
+            }
+        ],
+        "x": 590,
+        "y": 3060,
+        "wires": [
+            [
+                "c3bb88de5999d4d7"
+            ]
+        ]
+    },
+    {
+        "id": "7e401b43bcf3665d",
+        "type": "subflow:5fdf8441c2fafea1",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "email_recipient",
+                "value": "",
+                "type": "str"
+            },
+            {
+                "name": "telegram_chatid",
+                "value": "",
+                "type": "str"
+            }
+        ],
+        "x": 980,
+        "y": 3260,
+        "wires": []
+    },
+    {
+        "id": "790a127b7d599883",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 6",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 185,
+        "y": 3260,
+        "wires": [
+            [
+                "76d868c083b3c459"
+            ]
+        ]
+    },
+    {
+        "id": "85e7e94a27d4d57d",
+        "type": "switch",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 530,
+        "y": 3260,
+        "wires": [
+            [
+                "3b8b53e7cc877097"
+            ]
+        ]
+    },
+    {
+        "id": "3b8b53e7cc877097",
+        "type": "change",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "The emergency stop button has been pressed on Line 1.",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "topic",
+                "pt": "msg",
+                "to": "CRITICAL: EMERGENCY STOP",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "priority",
+                "pt": "msg",
+                "to": "3",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 740,
+        "y": 3260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "175270009dc1a6d4",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "UNIVERSAL NOTIFIER TEST",
+        "info": "",
+        "x": 260,
+        "y": 3160,
+        "wires": []
+    },
+    {
+        "id": "992980fcdeb4f281",
+        "type": "subflow:05eda3f26608436c",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Reset Button",
+                "type": "str"
+            }
+        ],
+        "x": 360,
+        "y": 2520,
+        "wires": [
+            [
+                "c3b2aae5fe97cd0f"
+            ]
+        ]
+    },
+    {
+        "id": "e6e5117589272a8f",
+        "type": "subflow:05eda3f26608436c",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Light Curtain Sensor",
+                "type": "str"
+            }
+        ],
+        "x": 360,
+        "y": 2780,
+        "wires": [
+            [
+                "88bfc8a1f88bdfb1"
+            ]
+        ]
+    },
+    {
+        "id": "9d47023f5a2206d7",
+        "type": "subflow:05eda3f26608436c",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "System Pressure OK",
+                "type": "str"
+            }
+        ],
+        "x": 340,
+        "y": 3060,
+        "wires": [
+            [
+                "dab2fc8f0e057188"
+            ]
+        ]
+    },
+    {
+        "id": "76d868c083b3c459",
+        "type": "subflow:05eda3f26608436c",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Emergency Stop Button",
+                "type": "str"
+            }
+        ],
+        "x": 300,
+        "y": 3260,
+        "wires": [
+            [
+                "85e7e94a27d4d57d"
+            ]
+        ]
+    },
+    {
+        "id": "fbd4dae11cc07a80",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IO Fixed Mode Bit TEST",
+        "info": "",
+        "x": 220,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "ce4d4eff64102b8f",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 6",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 755,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "fb8b38fb98a80fe4",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Read IO TEST",
+        "info": "",
+        "x": 180,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "6751e95f8f44a3e7",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Read IOs TEST",
+        "info": "",
+        "x": 180,
+        "y": 1060,
+        "wires": []
+    },
+    {
+        "id": "2c990b079167d9e8",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 7",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 145,
+        "y": 800,
+        "wires": [
+            [
+                "9c5f57fb933d096f"
+            ]
+        ]
+    },
+    {
+        "id": "74e59d002bcd5aa7",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Network Valve Block A1",
+                "type": "str"
+            },
+            {
+                "name": "use_fixed_value",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 540,
+        "y": 800,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e981ebfd35ac25a9",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 8",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 735,
+        "y": 800,
+        "wires": []
+    },
+    {
+        "id": "d31e93b26e65670d",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IO No Fixed Mode Bit TEST",
+        "info": "",
+        "x": 610,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "744836ab28b5db28",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 8",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 105,
+        "y": 1140,
+        "wires": [
+            [
+                "bdac8bfe228fdd06"
+            ]
+        ]
+    },
+    {
+        "id": "cb9fa455a7267934",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 9",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 815,
+        "y": 1140,
+        "wires": []
+    },
+    {
+        "id": "7201599abd5ac2ca",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "standard_output_register_4_1",
+                "type": "str"
+            },
+            {
+                "name": "value",
+                "value": "30000",
+                "type": "num"
+            },
+            {
+                "name": "use_fixed_value",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 600,
+        "y": 1140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7c4b2765341e5c4f",
+        "type": "function",
+        "z": "9eaf4fb83c9361cb",
+        "name": "function 5",
+        "func": "// 1. Receive a simple Array [true, false, true...]\nconst values = msg.payload;\n\n// 2. Check if ALL values are true\nlet allTrue = true;\n\n// Iterate through the list of values\nfor (let val of values) {\n    // If find one that is NOT strictly true (or 1), fail\n    if (val !== true && val !== 1) {\n        allTrue = false;\n        break;\n    }\n}\n\n// 3. Output Calculation\nconst outputValue = allTrue ? 32767 : 0;\n\n// Set the payload with the resulting value (for singular Write IO node)\nmsg.payload = outputValue;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 1140,
+        "wires": [
+            [
+                "7201599abd5ac2ca"
+            ]
+        ]
+    },
+    {
+        "id": "bdac8bfe228fdd06",
+        "type": "subflow:5f49f1211eabe63e",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"Emergency Stop Button\",\"Start Cycle Button\",\"Light Curtain Sensor\",\"System Pressure OK\",\"Part in Position Sensor\",\"Manual Mode Key Switch\",\"Reset Button\",\"Spare Input 1\"]",
+                "type": "json"
+            }
+        ],
+        "x": 260,
+        "y": 1140,
+        "wires": [
+            [
+                "7c4b2765341e5c4f"
+            ]
+        ]
+    },
+    {
+        "id": "10c4f6749ff19392",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IO No Fixed Mode Register TEST",
+        "info": "",
+        "x": 570,
+        "y": 1060,
+        "wires": []
+    },
+    {
+        "id": "9c5f57fb933d096f",
+        "type": "subflow:05eda3f26608436c",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Start Cycle Button",
+                "type": "str"
+            }
+        ],
+        "x": 280,
+        "y": 800,
+        "wires": [
+            [
+                "74e59d002bcd5aa7"
+            ]
+        ]
+    },
+    {
+        "id": "3297076a22d03f3a",
+        "type": "subflow:508eb177dc4700f3",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"Auxiliary Panel Output 1\", \"Auxiliary Panel Output 2\", \"Auxiliary Panel Output 3\", \"Auxiliary Panel Output 4\", \"Auxiliary Panel Output 5\", \"Auxiliary Panel Output 6\", \"Auxiliary Panel Output 7\", \"Auxiliary Panel Output 8\"]",
+                "type": "json"
+            },
+            {
+                "name": "values",
+                "value": "[false, false, false, false, false, false, false, false]",
+                "type": "json"
+            }
+        ],
+        "x": 540,
+        "y": 1460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5974f55469045246",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 10",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 775,
+        "y": 1440,
+        "wires": []
+    },
+    {
+        "id": "bd23a70b112595af",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IOs Fixed Mode Bit TEST",
+        "info": "",
+        "x": 230,
+        "y": 1320,
+        "wires": []
+    },
+    {
+        "id": "7622c9e77103b7a7",
+        "type": "subflow:508eb177dc4700f3",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"Auxiliary Panel Output 1\", \"Auxiliary Panel Output 2\", \"Auxiliary Panel Output 3\", \"Auxiliary Panel Output 4\", \"Auxiliary Panel Output 5\", \"Auxiliary Panel Output 6\", \"Auxiliary Panel Output 7\", \"Auxiliary Panel Output 8\"]",
+                "type": "json"
+            },
+            {
+                "name": "values",
+                "value": "[true, true, true, true, true, true, true, true]",
+                "type": "json"
+            }
+        ],
+        "x": 540,
+        "y": 1400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7830d26c929d2713",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "ON",
+        "props": [],
+        "repeat": "0.5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "1",
+        "topic": "",
+        "x": 170,
+        "y": 1400,
+        "wires": [
+            [
+                "7622c9e77103b7a7"
+            ]
+        ]
+    },
+    {
+        "id": "e4372c7fe70222bc",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "OFF",
+        "props": [],
+        "repeat": "0.5",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "0.25",
+        "topic": "",
+        "x": 170,
+        "y": 1460,
+        "wires": [
+            [
+                "3297076a22d03f3a"
+            ]
+        ]
+    },
+    {
+        "id": "a8ecce02d3ad2110",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IO Fixed Mode Register TEST",
+        "info": "",
+        "x": 240,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "548d9cf65f9a8aaf",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "ON",
+        "props": [],
+        "repeat": "4",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "2",
+        "topic": "",
+        "x": 170,
+        "y": 460,
+        "wires": [
+            [
+                "2566c334728e7fb0"
+            ]
+        ]
+    },
+    {
+        "id": "74d107251dd16f58",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "OFF",
+        "props": [],
+        "repeat": "4",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "1",
+        "topic": "",
+        "x": 170,
+        "y": 560,
+        "wires": [
+            [
+                "9358918da72b144e"
+            ]
+        ]
+    },
+    {
+        "id": "8bd85e0a058d73ac",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 7",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 755,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "2566c334728e7fb0",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "standard_output_register_4_1",
+                "type": "str"
+            },
+            {
+                "name": "value",
+                "value": "32000",
+                "type": "num"
+            }
+        ],
+        "x": 540,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "9358918da72b144e",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "standard_output_register_4_1",
+                "type": "str"
+            }
+        ],
+        "x": 540,
+        "y": 560,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "de063ca79ebec5b8",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IOs Fixed Mode Register TEST",
+        "info": "",
+        "x": 220,
+        "y": 1580,
+        "wires": []
+    },
+    {
+        "id": "753909ee485d7f06",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IOs No Fixed Mode Bit TEST",
+        "info": "",
+        "x": 220,
+        "y": 1860,
+        "wires": []
+    },
+    {
+        "id": "2418193cdef530b7",
+        "type": "comment",
+        "z": "9eaf4fb83c9361cb",
+        "name": "Write IOs No Fixed Mode Register TEST",
+        "info": "",
+        "x": 240,
+        "y": 2140,
+        "wires": []
+    },
+    {
+        "id": "696c0972b18867ca",
+        "type": "subflow:508eb177dc4700f3",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"standard_output_register_4_1\", \"standard_output_register_4_2\", \"standard_output_register_4_3\"]",
+                "type": "json"
+            },
+            {
+                "name": "values",
+                "value": "[0, 0, 0]",
+                "type": "json"
+            }
+        ],
+        "x": 540,
+        "y": 1720,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d9b07f32e3d99866",
+        "type": "subflow:508eb177dc4700f3",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"standard_output_register_4_1\", \"standard_output_register_4_2\", \"standard_output_register_4_3\"]",
+                "type": "json"
+            },
+            {
+                "name": "values",
+                "value": "[32000, 32000, 32000]",
+                "type": "json"
+            }
+        ],
+        "x": 540,
+        "y": 1660,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d0532168496688bb",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "ON",
+        "props": [],
+        "repeat": "4",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "2",
+        "topic": "",
+        "x": 170,
+        "y": 1660,
+        "wires": [
+            [
+                "d9b07f32e3d99866"
+            ]
+        ]
+    },
+    {
+        "id": "a650e49b168ee741",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "OFF",
+        "props": [],
+        "repeat": "4",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "0",
+        "topic": "",
+        "x": 170,
+        "y": 1720,
+        "wires": [
+            [
+                "696c0972b18867ca"
+            ]
+        ]
+    },
+    {
+        "id": "07dfeafd58cfb27b",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 11",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 775,
+        "y": 1680,
+        "wires": []
+    },
+    {
+        "id": "896f4ebfe9133e3b",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 9",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 145,
+        "y": 1980,
+        "wires": [
+            [
+                "fdbd220bbf3d4820"
+            ]
+        ]
+    },
+    {
+        "id": "5a07ed8ae2563ef4",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 12",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 565,
+        "y": 1980,
+        "wires": []
+    },
+    {
+        "id": "7c57cc9bac4bbc9f",
+        "type": "subflow:508eb177dc4700f3",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"Network Valve Block A1\", \"Network Valve Block A2\", \"Network Valve Block A3\", \"Network Valve Block A4\", \"Network Valve Block A5\", \"Network Valve Block A6\", \"Network Valve Block A7\", \"Network Valve Block A8\"]",
+                "type": "json"
+            },
+            {
+                "name": "use_fixed_values",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 440,
+        "y": 1980,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "fdbd220bbf3d4820",
+        "type": "subflow:5f49f1211eabe63e",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"Emergency Stop Button\",\"Start Cycle Button\",\"Light Curtain Sensor\",\"System Pressure OK\",\"Part in Position Sensor\",\"Manual Mode Key Switch\",\"Reset Button\",\"Spare Input 1\"]",
+                "type": "json"
+            }
+        ],
+        "x": 260,
+        "y": 1980,
+        "wires": [
+            [
+                "7c57cc9bac4bbc9f"
+            ]
+        ]
+    },
+    {
+        "id": "ddb74648b751c0cf",
+        "type": "link in",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link in 10",
+        "links": [
+            "77706a886e14d1d2"
+        ],
+        "x": 145,
+        "y": 2260,
+        "wires": [
+            [
+                "67599efdc0573a96"
+            ]
+        ]
+    },
+    {
+        "id": "d440da3be77f30a5",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 13",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 635,
+        "y": 2260,
+        "wires": []
+    },
+    {
+        "id": "a1c0ff0eeb6053ad",
+        "type": "subflow:508eb177dc4700f3",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"standard_output_register_4_1\", \"standard_output_register_4_2\"]",
+                "type": "json"
+            },
+            {
+                "name": "use_fixed_values",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 440,
+        "y": 2260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "67599efdc0573a96",
+        "type": "subflow:5f49f1211eabe63e",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "labels",
+                "value": "[\"standard_input_register_6_8\",\"standard_input_register_6_7\"]",
+                "type": "json"
+            }
+        ],
+        "x": 260,
+        "y": 2260,
+        "wires": [
+            [
+                "a1c0ff0eeb6053ad"
+            ]
+        ]
+    },
+    {
+        "id": "ff027fc20cf47e76",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Stack Light - Green",
+                "type": "str"
+            },
+            {
+                "name": "use_fixed_value",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 880,
+        "y": 2520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a419659df8e56ee1",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Acoustic Alarm",
+                "type": "str"
+            },
+            {
+                "name": "use_fixed_value",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 840,
+        "y": 2780,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c3bb88de5999d4d7",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Reject Piston Extend",
+                "type": "str"
+            },
+            {
+                "name": "use_fixed_value",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 840,
+        "y": 3060,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "bf927b6443b1c4be",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Gripper Open/Close",
+                "type": "str"
+            },
+            {
+                "name": "value",
+                "value": "1",
+                "type": "num"
+            }
+        ],
+        "x": 540,
+        "y": 140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "63fddb387750c48b",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "OFF",
+        "props": [],
+        "repeat": "2",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "1",
+        "topic": "",
+        "x": 170,
+        "y": 240,
+        "wires": [
+            [
+                "ed1f1af00a340643"
+            ]
+        ]
+    },
+    {
+        "id": "ed1f1af00a340643",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Gripper Open/Close",
+                "type": "str"
+            }
+        ],
+        "x": 540,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "714f13b2c8783ef0",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "ON",
+        "props": [],
+        "repeat": "2",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 170,
+        "y": 140,
+        "wires": [
+            [
+                "bf927b6443b1c4be"
+            ]
+        ]
+    },
+    {
+        "id": "27159e86b9c9a3a7",
+        "type": "inject",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "0.05",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 560,
+        "y": 900,
+        "wires": [
+            [
+                "5108c01392077ac7"
+            ]
+        ]
+    },
+    {
+        "id": "5108c01392077ac7",
+        "type": "function",
+        "z": "9eaf4fb83c9361cb",
+        "name": "function 7",
+        "func": "// Read the previous state from the context variable (storage in the node)\nlet currentState = context.get('valveState') || 0;\nlet newState = currentState === 0 ? 1 : 0; // Toggle 0 <-> 1\n\n// Save the new state for the next cycle\ncontext.set('valveState', newState);\n\n// The 'Write IO' subflow expects the label and the value.\n// We prepare the JSON array that the subflow expects:\nmsg.payload = newState;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 760,
+        "y": 900,
+        "wires": [
+            [
+                "6289810bfdb0039a"
+            ]
+        ]
+    },
+    {
+        "id": "6289810bfdb0039a",
+        "type": "subflow:17ba4870719ee8f5",
+        "z": "9eaf4fb83c9361cb",
+        "name": "",
+        "env": [
+            {
+                "name": "label",
+                "value": "Network Valve Block A1",
+                "type": "str"
+            },
+            {
+                "name": "value",
+                "value": "1",
+                "type": "num"
+            },
+            {
+                "name": "use_fixed_value",
+                "value": "false",
+                "type": "bool"
+            }
+        ],
+        "x": 940,
+        "y": 900,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b5674af83769dee0",
+        "type": "link out",
+        "z": "9eaf4fb83c9361cb",
+        "name": "link out 1",
+        "mode": "link",
+        "links": [
+            "a404c1b185f607cc"
+        ],
+        "x": 1065,
+        "y": 900,
+        "wires": []
+    }
+]

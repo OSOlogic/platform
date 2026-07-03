@@ -1,0 +1,129 @@
+---
+title: 'Models'
+description: 'Hardware model templates, I/O definitions, secure states, and aggregated models'
+icon: 'microchip'
+---
+
+## What is a Model?
+
+A **model** is a hardware template that describes a specific type of module. It defines:
+
+- The communication **protocol** (SPI, Modbus RTU, Modbus TCP, or Aggregated)
+- The **I/O map**: which inputs, outputs, and configuration registers the device has
+- **Block size limits** for efficient communication
+- **Secure state** mappings (safe output values for emergencies)
+
+<Note>
+  A model is like a "blueprint". When you install a physical device in the project, you create a **device** that references a model. All devices of the same model share the same I/O structure.
+</Note>
+
+## Pre-Loaded Models
+
+OSOlogic PRO comes with a library of pre-configured models:
+
+### Internal (SPI) Modules
+
+| Model | Description | Bits | Registers |
+|-------|-------------|------|-----------|
+| **OsoLogic 8SD** | 8 digital outputs + 8 secure states | 16 bits | 7 config registers |
+| **OsoLogic 8ED** | 8 digital inputs | 8 bits | 7 config registers |
+| **OsoLogic 8SA** | 8 analog outputs + 8 secure states | — | 23 registers |
+| **OsoLogic 8EA** | 8 analog inputs | — | 15 registers |
+| **OsoLogic 32SD** | 32 digital outputs + 32 secure states | 64 bits | 7 config registers |
+
+### RS-485 Modules
+
+| Model | Description | Bits | Registers |
+|-------|-------------|------|-----------|
+| **RS-485 I8SD** | 8 digital outputs (with timers) | 16 bits | 85 registers |
+| **RS-485 I8ED** | 8 digital inputs | 8 bits | — |
+| **RS-485 iBC24SD** | 24 digital outputs | 24 bits | — |
+
+### Ethernet (TCP) Modules
+
+| Model | Description | Bits | Registers |
+|-------|-------------|------|-----------|
+| **ETH 8ED** | 8 digital inputs (with latches/counters) | 16 bits | 35 registers |
+| **ETH 8SD** | 8 digital outputs (with timers) | 16 bits | 45 registers |
+
+## Creating a New Model
+
+<Steps>
+  <Step title="Open the Models section">
+    Navigate to the **Models** page in the GUI.
+  </Step>
+  <Step title="Fill in basic information">
+    | Field | Description | Example |
+    |-------|-------------|---------|
+    | **Model Name** | A descriptive name | `"Custom Sensor Module"` |
+    | **Protocol** | Communication protocol | `modbus-rtu`, `modbus-tcp`, `osologic-spi`, or `aggregated` |
+    | **Default Timeout** | Communication timeout in milliseconds | `1000` |
+    | **Max Block Sizes** | Maximum number of bits/registers per read/write operation | `16` |
+  </Step>
+  <Step title="Save the model">
+    Click **Save**. The model is now available for creating devices.
+  </Step>
+</Steps>
+
+## I/O Definitions
+
+After creating a model, you need to define its **I/O map** — the list of all input and output points the device has.
+
+### Understanding I/O Definition Fields
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Logical Address** | The address you use to read/write this point (also the Modbus address) | `0`, `1`, `100` |
+| **I/O Type** | Whether this is a single bit (ON/OFF) or a register (numeric value) | `bit` or `register` |
+| **Purpose** | When this point is synchronized | `standard`, `secure_state`, or `config` |
+| **Hardware Access** | Whether the PLC reads from hardware or writes to hardware | `readonly` (input) or `readwrite` (output) |
+| **Physical Address** | The actual hardware address on the device | `0`, `17` |
+| **Access Method** | How the value is read from the hardware register | `direct` or `bitmask` |
+| **Bitmask Offset** | If `bitmask`, which bit within the register | `0` to `15` |
+| **Register Count** | Number of 16-bit registers this point occupies | `1` (16-bit), `2` (32-bit) |
+| **Default Label** | A default name for this I/O point | `"Output 1"`, `"Temperature"` |
+
+### Purpose Types Explained
+
+<AccordionGroup>
+  <Accordion title="standard">
+    Normal I/O points synchronized during **execution** mode. These are the main inputs and outputs you use during regular operation. Example: `Output 1`, `Input 3`.
+  </Accordion>
+  <Accordion title="secure_state">
+    Safe-state values synchronized during **configuration** mode. These define what each output should be set to when the device enters safe mode. Example: `Safe State Output 1`.
+  </Accordion>
+  <Accordion title="config">
+    Device configuration registers synchronized during **configuration** mode. These include parameters like watchdog timers, firmware versions, and device identifiers. Example: `Watchdog Timeout`, `Firmware Version`.
+  </Accordion>
+</AccordionGroup>
+
+### Adding I/O Definitions
+
+You can add I/O definitions individually or in batch. For each one, specify:
+
+1. The **model** it belongs to
+2. A **logical address** (must be unique per type within the model)
+3. The **I/O type**, **purpose**, and **hardware access**
+4. The **physical address** and access method
+5. An optional **default label**
+
+## Secure State Mapping
+
+Secure state mapping links each **standard output** to its corresponding **secure state value**. When the PLC loses communication with a device, it writes the secure state values to the outputs automatically.
+
+**Example:** Output 1 (address 0) is mapped to Safe State Output 1 (address 8). If communication fails, the PLC will set Output 1 to whatever value is stored in Safe State Output 1.
+
+## Aggregated Models
+
+An **aggregated model** is a virtual model that combines multiple physical models into one logical device. This is useful when a single physical unit contains several sub-modules.
+
+### How It Works
+
+1. Create a new model with protocol `aggregated`
+2. Define child models: specify which existing models compose the aggregated model, and in what order (slot 0, slot 1, etc.)
+3. Create aggregated I/O definitions: define the logical I/O map of the aggregated model
+4. Create the I/O map: link each aggregated I/O point to a specific child model's I/O point
+
+<Tip>
+  When you create a device using an aggregated model, its `connection_string` should list the child device IDs separated by the appropriate delimiter.
+</Tip>

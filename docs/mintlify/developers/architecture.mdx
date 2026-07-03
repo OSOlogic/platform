@@ -1,0 +1,162 @@
+---
+title: 'System Architecture'
+description: 'High-level architecture, threading model, and data flow of OSOlogic PRO'
+icon: 'sitemap'
+---
+
+## Overview
+
+OSOlogic PRO follows a **layered, modular architecture** that separates hardware-level real-time control (C++) from high-level network services (Python). All components synchronize state through a shared **MariaDB database** that acts as the single source of truth.
+
+```mermaid
+graph TB
+  subgraph "Physical Layer"
+    HW_SPI["🔌 Internal Modules<br/>(SPI Bus)"]
+    HW_RS485["🔌 External Modules<br/>(RS-485 / Modbus RTU)"]
+    HW_TCP["🌐 Network Modules<br/>(TCP / Modbus TCP)"]
+  end
+
+  subgraph "Core Engine (C++)"
+    CHAN["Channel Layer<br/>(SPI, RS485, TCP)"]
+    PROTO["Protocol Layer<br/>(OsoLogic SPI, Modbus RTU, Modbus TCP)"]
+    MOD["Module Layer<br/>(Module, AggregatorModule)"]
+    PLC["OsoLogicPLC<br/>Singleton"]
+    TASKS["Task System<br/>(sync threads)"]
+  end
+
+  subgraph "Persistence Layer"
+    DB[("MariaDB<br/>rtmirror · devices · model_config")]
+  end
+
+  subgraph "Service Layer (Python)"
+    MQTT["MQTT Gateway<br/>(paho-mqtt)"]
+    MODBUS["Modbus TCP Server<br/>(pymodbus)"]
+    SVCMGR["Services Manager<br/>(Flask)"]
+    GUI["GUI Admin<br/>(Flask)"]
+  end
+
+  subgraph "External Consumers"
+    SCADA["SCADA / HMI"]
+    IOT["IoT / Cloud"]
+    BROWSER["Web Browser"]
+  end
+
+  HW_SPI <--> CHAN
+  HW_RS485 <--> CHAN
+  HW_TCP <--> CHAN
+  CHAN <--> PROTO
+  PROTO <--> MOD
+  MOD <--> PLC
+  PLC <--> TASKS
+  TASKS <--> DB
+  DB <--> MQTT
+  DB <--> MODBUS
+  DB <--> GUI
+  DB <--> SVCMGR
+  MODBUS <--> SCADA
+  MQTT <--> IOT
+  SVCMGR <--> BROWSER
+  GUI <--> BROWSER
+```
+
+## Threading Model
+
+The core C++ process launches multiple threads at startup. All threads inherit a blocked `SIGINT`/`SIGTERM` signal mask — a dedicated watcher thread handles shutdown via `sigwait()`.
+
+```mermaid
+graph LR
+  subgraph "main() Process"
+    direction TB
+    SIG["Signal Watcher<br/>(sigwait)"]
+    LED["LED Sync Task"]
+    TIMER["Timer Task"]
+    DB_SYNC["Database Sync Task<br/>(all modules ↔ DB)"]
+    SPI_SYNC["Internal SPI Sync<br/>(fast polling loop)"]
+    EXT1["External Module #1<br/>(TCP thread)"]
+    EXT2["External Module #2<br/>(TCP thread)"]
+    EXT_N["External Module #N<br/>(TCP thread)"]
+  end
+
+  SIG -.- |"detached"| LED
+  LED -.- TIMER
+  TIMER -.- DB_SYNC
+  DB_SYNC -.- SPI_SYNC
+  SPI_SYNC -.- EXT1
+  EXT1 -.- EXT2
+  EXT2 -.- EXT_N
+```
+
+| Thread | Purpose | Cycle |
+|--------|---------|-------|
+| **Signal Watcher** | Catches `SIGINT`/`SIGTERM`, prints cycle statistics, exits | Blocks on `sigwait()` |
+| **LED Sync** | Refreshes front panel LEDs | Continuous loop |
+| **Timer Task** | Manages internal 100ms counter | 100ms ticks |
+| **Database Sync** | Writes memory → DB, reads required_values DB → memory | Continuous loop |
+| **Internal SPI Sync** | Polls all internal SPI modules sequentially | Tight loop (~5-10ms) |
+| **External Module (×N)** | One thread per network module (RS-485, TCP) | Continuous with timeout |
+
+## Data Synchronization Flow
+
+Data flows in three stages, each handled by dedicated tasks:
+
+```mermaid
+sequenceDiagram
+  participant HW as Physical Hardware
+  participant MEM as In-Memory Maps
+  participant DB as MariaDB (rtmirror)
+  participant SVC as Services (MQTT/Modbus)
+
+  Note over HW,MEM: HW ↔ MEM Sync (SPI/Network threads)
+  HW->>MEM: Read inputs (bits, registers)
+  MEM->>HW: Write outputs (required_values)
+
+  Note over MEM,DB: MEM ↔ DB Sync (Database thread)
+  MEM->>DB: batch_update_rtmirror_values()
+  DB->>MEM: get_all_required_values()
+
+  Note over DB,SVC: DB ↔ Services (Python threads)
+  DB->>SVC: SELECT from rtmirror
+  SVC->>DB: UPDATE required_value
+```
+
+### Key Design Principles
+
+<CardGroup cols={2}>
+  <Card title="Shared-Nothing Between Layers" icon="layer-group">
+    C++ core and Python services never communicate directly. The database is the only synchronization point, ensuring clean process isolation and crash recovery.
+  </Card>
+  <Card title="Composite Pattern for Modules" icon="diagram-project">
+    `IModule` is implemented by both `Module` (physical) and `AggregatorModule` (virtual), allowing transparent composition of devices.
+  </Card>
+  <Card title="Strategy Pattern for Communication" icon="shuffle">
+    `Channel` and `Protocol` interfaces allow plugging in any transport (SPI, RS-485, TCP) and protocol (OsoLogic SPI, Modbus RTU/TCP) without changing module logic.
+  </Card>
+  <Card title="Singleton for Global State" icon="database">
+    `OsoLogicPLC` and `PLC_Database` use the Singleton pattern to ensure a single system-wide instance with thread-safe initialization.
+  </Card>
+</CardGroup>
+
+## Directory Structure
+
+```
+source/
+├── core/                          # C++ real-time engine
+│   ├── main.cpp                   # Entry point, module factory, thread launcher
+│   ├── common/                    # Shared utilities (logging, errors, debug)
+│   ├── communication/
+│   │   ├── channels/              # Transport layer (SPI, RS-485, TCP)
+│   │   └── protocols/             # Protocol layer (Modbus, OsoLogic SPI)
+│   ├── hardware/                  # Module abstractions & PLC singleton
+│   ├── database/                  # MariaDB database client
+│   └── tasks/                     # Thread tasks & cycle statistics
+├── addons/services/               # Python microservices & interfaces
+│   ├── modbustcp/server.py        # Modbus TCP server (pymodbus)
+│   ├── mqtt/                      # MQTT gateway (paho-mqtt)
+│   ├── services_manager/app.py    # Services manager web admin
+│   ├── GUI/app.py                 # Database & I/O management GUI
+│   └── node-red-interface/        # Node-RED custom automation flows
+├── common/                        # Shared Python utilities
+│   └── config_loader.py           # Central JSON config loader
+└── config/                        # System-wide configuration
+    └── config.json                # Main configuration file
+```

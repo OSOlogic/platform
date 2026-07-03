@@ -1,0 +1,37 @@
+---
+title: 'ModbusRtuProtocol'
+description: 'Implementation of standard Modbus RTU over Serial'
+icon: 'barcode'
+---
+
+`ModbusRtuProtocol` provides a standard-compliant implementation of the Modbus RTU protocol for communication with external third-party devices and older OsoLogic modules via RS-485.
+
+## ADU Structure
+
+This class wraps the Modbus PDU (Protocol Data Unit) into an RTU ADU (Application Data Unit):
+
+```text
+[ Slave ID (1B) ] [ PDU (N Bytes) ] [ CRC-16 (2B) ]
+```
+
+## Key Responsibilities
+
+- **CRC Calculation**: Generates and validates the 16-bit Cyclic Redundancy Check required for every frame.
+- **Slave Addressing**: Handles the unit ID routing on the shared serial bus.
+- **Exception Parsing**: Translates Modbus error codes (01, 02, 03, 04) into internal `PlcErrorCodes`.
+
+## Usage with Mutex
+
+Since RS-485 is a shared medium, this protocol requires a shared mutex at construction to serialize access:
+
+```cpp
+auto bus_mutex = std::make_shared<std::mutex>();
+auto protocol = std::make_shared<ModbusRtuProtocol>(channel, bus_mutex, 500);
+```
+
+## Implementation of IProtocol
+
+- `readBits` -> Uses Modbus Function `0x01` (Read Coils) or `0x02` (Read Discrete Inputs).
+- `readRegisters` -> Uses Modbus Function `0x03` (Read Holding Registers) or `0x04` (Read Input Registers).
+- `writeBits` -> Uses Modbus Function `0x05` (Write Single Coil) or `0x0F` (Write Multiple Coils).
+- `writeRegisters` -> Uses Modbus Function `0x06` (Write Single Register) or `0x10` (Write Multiple Registers).

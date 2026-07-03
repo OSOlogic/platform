@@ -1,0 +1,96 @@
+---
+title: 'Error Codes (C++)'
+description: 'Complete reference for PlcErrorCodes used across the C++ core'
+icon: 'triangle-exclamation'
+---
+
+The `errors.hpp` file defines the `PlcErrorCodes` enum used as return values across all C++ core functions. Every operation returns a `PlcErrorCodes` value — `PLC_SUCCESS` (0) on success, or a negative value for errors.
+
+## Error Code Reference
+
+### Success
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ✅ | `PLC_SUCCESS` | `0` | Operation completed successfully |
+
+### Communication Errors
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ❌ | `ERROR_CHANNEL_CONNECT` | `-1` | Failed to establish channel connection |
+| ❌ | `ERROR_CHANNEL_DISCONNECT` | `-2` | Failed to disconnect channel |
+| ❌ | `ERROR_CHANNEL_WRITE` | `-3` | Failed to write data to channel |
+| ❌ | `ERROR_CHANNEL_READ` | `-4` | Failed to read data from channel |
+| ❌ | `ERROR_CHANNEL_TIMEOUT` | `-5` | Channel operation timed out |
+| ❌ | `ERROR_CHANNEL_NOT_CONNECTED` | `-6` | Channel is not connected |
+
+### Protocol Errors
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ❌ | `ERROR_PROTOCOL_INVALID_RESPONSE` | `-10` | Protocol received malformed response |
+| ❌ | `ERROR_PROTOCOL_CRC` | `-11` | CRC/checksum verification failed |
+| ❌ | `ERROR_PROTOCOL_EXCEPTION` | `-12` | Device returned a protocol-level exception |
+| ❌ | `ERROR_PROTOCOL_TIMEOUT` | `-13` | No response within timeout period |
+
+### Module Errors
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ❌ | `ERROR_MODULE_NOT_FOUND` | `-20` | Module ID not found in the system |
+| ❌ | `ERROR_MODULE_NOT_INITIALIZED` | `-21` | Module has not been initialized |
+| ❌ | `ERROR_INVALID_ADDRESS` | `-22` | I/O address does not exist on this module |
+| ❌ | `ERROR_INVALID_IO_TYPE` | `-23` | Invalid I/O type (neither bit nor register) |
+
+### Database Errors
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ❌ | `ERROR_DATABASE_CONNECTION` | `-30` | Failed to connect to MariaDB |
+| ❌ | `ERROR_DATABASE_QUERY` | `-31` | SQL query execution failed |
+| ❌ | `ERROR_DATABASE_NO_DATA` | `-32` | Query returned no results |
+
+### Configuration Errors
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ❌ | `ERROR_CONFIGURATION_INVALID_VALUE` | `-40` | Invalid configuration value (e.g., bad connection string) |
+| ❌ | `ERROR_CONFIGURATION_INVALID_MODEL` | `-41` | Model mismatch during aggregated module validation |
+
+### System Errors
+
+| Code | Name | Value | Description |
+|------|------|-------|-------------|
+| ❌ | `ERROR_PLC_NOT_INITIALIZED` | `-50` | `OsoLogicPLC::getInstance()` called before initialization |
+| ❌ | `ERROR_GPIO_INIT` | `-51` | GPIO/WiringPi initialization failed |
+| ❌ | `ERROR_NULL_POINTER` | `-52` | Null pointer passed to a function |
+
+## Usage Pattern
+
+All functions in the core follow the same error handling convention:
+
+```cpp
+PlcErrorCodes rs = module->getBit(address, value);
+if (rs != PlcErrorCodes::PLC_SUCCESS) {
+  log_error("context", "Failed to read bit", rs);
+  return rs;  // Propagate error up the call stack
+}
+```
+
+## Error Logging Helper
+
+The `log_error()` function formats errors with context:
+
+```cpp
+void log_error(
+  const std::string& context,    // e.g., "Module::syncInputs"
+  const std::string& message,    // e.g., "Failed to read registers"
+  PlcErrorCodes code             // e.g., ERROR_CHANNEL_TIMEOUT
+);
+```
+
+Output format:
+```
+[2026-01-15 10:23:45.123] [ERROR] [Module::syncInputs] Failed to read registers (code: -5)
+```

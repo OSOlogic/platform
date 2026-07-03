@@ -1,0 +1,203 @@
+---
+title: 'Database Client'
+description: 'Connect directly to the PLC database using phpMyAdmin, MySQL Workbench, or any SQL client'
+icon: 'database'
+---
+
+## Overview
+
+All PLC data is stored in a **MariaDB** database called `PLC`. You can connect to it directly using any MySQL/MariaDB-compatible client to query values, write to outputs, or build custom dashboards.
+
+## Connection Details
+
+| Parameter | Value |
+|-----------|-------|
+| **Host** | `<PLC_IP>` (or `localhost` if on the PLC itself) |
+| **Port** | `3306` |
+| **User** | `oso` |
+| **Password** | `logic` |
+| **Database** | `PLC` |
+
+<Note>
+  These are the default credentials. They may have been changed by your administrator in the `config/config.json` file.
+</Note>
+
+## Recommended Tools
+
+<CardGroup cols={3}>
+  <Card title="phpMyAdmin" icon="php">
+    Web-based. Access from your browser at `http://<PLC_IP>/phpmyadmin` (if installed).
+  </Card>
+  <Card title="MySQL Workbench" icon="laptop">
+    Desktop application. Free download from Oracle. Best for complex queries and data exploration.
+  </Card>
+  <Card title="DBeaver" icon="table">
+    Universal database client. Free and open-source. Supports MariaDB natively.
+  </Card>
+</CardGroup>
+
+### Command Line (CLI)
+
+```bash
+mysql -h <PLC_IP> -u oso -plogic PLC
+```
+
+## Key Tables for Users
+
+### `rtmirror` — Live I/O Values
+
+This is the most important table. It contains the **real-time** value of every I/O point in the system.
+
+| Column | Description |
+|--------|-------------|
+| `fk_module_id` | Device ID |
+| `fk_io_definition_id` | I/O point definition ID |
+| `value` | Raw hardware value (read by PLC core) |
+| `net_value` | Engineering value (= `value × scale_factor + offset`) |
+| `required_value` | Raw value to write to the output |
+| `net_required_value` | Engineering value to write |
+| `scale_factor` | Multiplier for conversion |
+| `offset` | Additive constant for conversion |
+| `timestamp` | Last update time |
+
+### `devices` — Configured Devices
+
+| Column | Description |
+|--------|-------------|
+| `module_id` | Unique device ID |
+| `module_name` | Device name |
+| `fk_model_id` | Model template ID |
+| `channel` | Connection type (spi, rs485, tcp, aggregated) |
+| `connection_string` | Physical connection address |
+| `address_on_channel` | Bus address |
+
+### `device_status` — Connection Status
+
+| Column | Description |
+|--------|-------------|
+| `fk_module_id` | Device ID |
+| `is_connected` | `1` = online, `0` = offline |
+| `last_seen` | Last successful communication timestamp |
+
+### `module_io_config` — Labels & Visibility
+
+| Column | Description |
+|--------|-------------|
+| `fk_module_id` | Device ID |
+| `fk_io_definition_id` | I/O definition ID |
+| `user_label` | Custom name for this I/O point |
+| `units` | Engineering units |
+| `scale_factor` | Value multiplier |
+| `offset` | Value offset |
+| `visibility` | `visible` or `hidden` |
+
+## Practical SQL Examples
+
+### Read all current values for a device
+
+```sql
+SELECT 
+    mc.module_name,
+    mio.user_label,
+    mid.logical_address,
+    mid.io_type,
+    mid.hardware_access,
+    r.value AS raw_value,
+    r.net_value,
+    r.required_value,
+    mio.units,
+    r.timestamp
+FROM rtmirror r
+JOIN devices mc ON r.fk_module_id = mc.module_id
+JOIN model_io_definition mid ON r.fk_io_definition_id = mid.io_definition_id
+LEFT JOIN module_io_config mio ON r.fk_module_id = mio.fk_module_id 
+    AND r.fk_io_definition_id = mio.fk_io_definition_id
+WHERE r.fk_module_id = 1
+ORDER BY mid.logical_address;
+```
+
+### Write a value to an output
+
+To set **Output 1** (logical address 0) on device 1 to the value `1` (ON):
+
+```sql
+UPDATE rtmirror r
+JOIN model_io_definition mid ON r.fk_io_definition_id = mid.io_definition_id
+SET r.required_value = 1
+WHERE r.fk_module_id = 1 
+  AND mid.logical_address = 0
+  AND mid.io_type = 'bit'
+  AND mid.hardware_access = 'readwrite';
+```
+
+To set a **net** (engineering) value — e.g., set a temperature setpoint to `25.0`:
+
+```sql
+UPDATE rtmirror r
+JOIN model_io_definition mid ON r.fk_io_definition_id = mid.io_definition_id
+SET r.net_required_value = 25.0
+WHERE r.fk_module_id = 1
+  AND mid.logical_address = 0
+  AND mid.io_type = 'register'
+  AND mid.hardware_access = 'readwrite';
+```
+
+<Note>
+  When you write to `net_required_value`, a database trigger automatically calculates the raw `required_value` using the inverse formula.
+</Note>
+
+### Check which devices are connected
+
+```sql
+SELECT 
+    d.module_id,
+    d.module_name,
+    m.model_name,
+    ds.is_connected,
+    ds.last_seen
+FROM devices d
+LEFT JOIN model_config m ON d.fk_model_id = m.model_id
+LEFT JOIN device_status ds ON d.module_id = ds.fk_module_id
+ORDER BY d.module_id;
+```
+
+### View I/O labels for a device
+
+```sql
+SELECT 
+    mid.logical_address,
+    mid.io_type,
+    mid.hardware_access,
+    mio.user_label,
+    mio.units,
+    mio.scale_factor,
+    mio.offset,
+    mio.visibility
+FROM module_io_config mio
+JOIN model_io_definition mid ON mio.fk_io_definition_id = mid.io_definition_id
+WHERE mio.fk_module_id = 1
+ORDER BY mid.logical_address;
+```
+
+### Read only inputs that changed in the last 5 seconds
+
+```sql
+SELECT 
+    r.fk_module_id,
+    mio.user_label,
+    mid.logical_address,
+    r.net_value,
+    mio.units,
+    r.timestamp
+FROM rtmirror r
+JOIN model_io_definition mid ON r.fk_io_definition_id = mid.io_definition_id
+LEFT JOIN module_io_config mio ON r.fk_module_id = mio.fk_module_id 
+    AND r.fk_io_definition_id = mio.fk_io_definition_id
+WHERE mid.hardware_access = 'readonly'
+  AND r.timestamp >= NOW() - INTERVAL 5 SECOND
+ORDER BY r.timestamp DESC;
+```
+
+<Warning>
+  The `rtmirror` table uses the **MEMORY** storage engine for maximum speed. This means its data is **volatile** — it is lost when the database restarts and rebuilt automatically by the PLC core.
+</Warning>

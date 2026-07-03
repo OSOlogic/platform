@@ -1,0 +1,93 @@
+---
+title: 'Dashboard'
+description: 'Create visual control panels with buttons, gauges, and charts to monitor and control the PLC'
+icon: 'chart-line'
+---
+
+## Overview
+
+Node-RED includes **Dashboard 2.0** (FlowFuse), a powerful tool for building custom **HMI panels** accessible from any web browser. You can create control panels with buttons, switches, gauges, charts, and tables — all connected live to PLC I/O data.
+
+## Accessing the Dashboard
+
+The dashboard is available at:
+
+```
+https://<PLC_IP>:1880/dashboard
+```
+
+<Note>
+  The dashboard is a separate URL from the Node-RED editor. You can share the dashboard URL with operators who need to monitor and control the machine without accessing the flow editor.
+</Note>
+
+## Pre-installed Pages
+
+The OSOlogic installation includes two dashboard pages ready to customize:
+
+| Page | Path | Description |
+|------|------|-------------|
+| **[ADMIN] Device Management** | `/page1` | Registry of connected devices and their status |
+| **[ADMIN] Model Editor** | `/page2` | Wizard for creating and configuring device models |
+
+## Building a Custom Panel
+
+<Steps>
+  <Step title="Create a UI Group">
+    In the Node-RED editor, go to the **Dashboard 2.0** sidebar tab. Create a new **Page** and a **Group** inside it. Groups are visual containers on the dashboard.
+  </Step>
+  <Step title="Add widgets">
+    Drag dashboard nodes from the palette onto your flow canvas:
+    - **ui-button** — Clickable button for triggering actions
+    - **ui-switch** — Toggle switch for ON/OFF controls
+    - **ui-slider** — Slider for setting numeric values
+    - **ui-gauge** — Circular gauge to display a value
+    - **ui-chart** — Line/bar chart for historical data
+    - **ui-text** — Display text or formatted values
+    - **ui-table** — Data table for tabular information
+  </Step>
+  <Step title="Connect to PLC data">
+    Wire the dashboard nodes to the OSOlogic subflows:
+    - **Read IO** → **ui-gauge** (display a sensor value)
+    - **ui-switch** → **Write IO** (toggle an output)
+    - **Read IO** → **ui-chart** (plot historical values)
+  </Step>
+  <Step title="Deploy">
+    Click **Deploy** in the editor. Open the dashboard URL to see your panel live.
+  </Step>
+</Steps>
+
+## Example — Temperature Monitor with Control
+
+Here's a practical example of a dashboard panel that monitors temperature and controls a fan:
+
+```
+[Read IO "Temperature"] → [ui-gauge "Temperature °C"]
+[Read IO "Temperature"] → [Switch > 30°C] → [TON 5s] → [Write IO "Fan"] 
+[ui-switch "Manual Fan"] → [Write IO "Fan"]
+```
+
+This creates:
+- A **gauge** showing the current temperature
+- **Automatic fan control** — turns the fan ON after 5 seconds above 30°C
+- A **manual override switch** for the operator
+
+## Layout Tips
+
+<CardGroup cols={2}>
+  <Card title="Use Grid Layout" icon="table-cells">
+    Pages use a responsive grid layout. Set the **width** of each group to control how many columns it spans (out of 12).
+  </Card>
+  <Card title="Group by Function" icon="object-group">
+    Create separate groups for "Monitoring", "Controls", "Alarms", etc. to keep the panel organized.
+  </Card>
+  <Card title="Responsive Design" icon="mobile">
+    Dashboard 2.0 automatically adjusts for tablets and phones. Test on different screen sizes.
+  </Card>
+  <Card title="Use Themes" icon="palette">
+    Customize colors in the Dashboard sidebar to match your corporate branding or improve readability.
+  </Card>
+</CardGroup>
+
+<Tip>
+  You can create **multiple dashboard pages** for different areas or operators. Use the sidebar navigation to switch between them.
+</Tip>

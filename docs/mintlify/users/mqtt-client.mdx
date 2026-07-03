@@ -1,0 +1,257 @@
+---
+title: 'MQTT Client'
+description: 'Subscribe to live I/O data and send commands through MQTT for IoT integration'
+icon: 'wifi'
+---
+
+## Overview
+
+OSOlogic PRO publishes all I/O data to an **MQTT broker** in real time. You can subscribe to receive live values and publish commands to write to outputs. This is ideal for IoT dashboards, cloud integration, and remote monitoring.
+
+## Connection Details
+
+| Parameter | Value |
+|-----------|-------|
+| **Broker Address** | `<PLC_IP>` (default: `localhost`) |
+| **Port** | `1883` |
+| **Client ID** | `oso` |
+| **Password** | `logic` |
+
+<Note>
+  These are the default credentials. They may have been changed in `config/config.json` under the `services.mqtt` section.
+</Note>
+
+## Topic Structure
+
+All MQTT topics follow the pattern:
+
+```
+/plc/{category}/{module_id}/...
+```
+
+There are three categories:
+
+| Category | Purpose | Direction |
+|----------|---------|-----------|
+| `/plc/info/` | Device metadata (name, status, model) | PLC → Client (read only) |
+| `/plc/data/` | Live I/O values with full metadata | PLC → Client (read only) |
+| `/plc/write/` | Write commands to outputs | Client → PLC |
+
+## Info Topics — Device Metadata
+
+These topics provide information about each device. All messages are **retained** (you receive the last known value immediately upon subscribing).
+
+| Topic | Example Payload | Description |
+|-------|----------------|-------------|
+| `/plc/info/{id}/is_connected` | `"1"` | `"1"` = online, `"0"` = offline |
+| `/plc/info/{id}/module_name` | `"Main Output Board"` | Device name |
+| `/plc/info/{id}/fk_model_id` | `"16"` | Model template ID |
+| `/plc/info/{id}/channel_type` | `"spi"` | Connection type |
+| `/plc/info/{id}/protocol` | `"osologic-spi"` | Communication protocol |
+| `/plc/info/{id}/connection_string` | `"SPI"` | Physical connection |
+| `/plc/info/{id}/address_on_channel` | `"0"` | Bus address |
+| `/plc/info/{id}/timeout_ms` | `"1000"` | Timeout setting |
+| `/plc/info/{id}/last_seen` | `"2026-01-15 10:23:45"` | Last communication |
+
+**Subscribe to all info for all devices:**
+```
+/plc/info/#
+```
+
+## Data Topics — Live I/O Values
+
+These topics carry the real-time value of each I/O point as a **structured JSON** payload.
+
+**Topic format:**
+```
+/plc/data/{module_id}/{bits|registers}/{address}
+```
+
+**Example topic:** `/plc/data/1/registers/5`
+
+### JSON Payload
+
+Each data message contains complete information about the I/O point:
+
+```json
+{
+  "module_id": 1,
+  "module_name": "Expansion A",
+  "io_type": "register",
+  "address": 5,
+  "label": "Temperature Sensor",
+  "value": 23.5,
+  "raw_value": 235,
+  "units": "°C",
+  "purpose": "standard",
+  "hardware_access": "readonly",
+  "scale_factor": 0.1,
+  "offset": 0.0,
+  "timestamp": "2026-01-15T10:23:45+0100"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `module_id` | Device ID |
+| `module_name` | Device name |
+| `io_type` | `"bit"` or `"register"` |
+| `address` | Logical address |
+| `label` | Custom user label |
+| `value` | Engineering value (after scale/offset) |
+| `raw_value` | Raw hardware value |
+| `units` | Engineering units (if configured) |
+| `purpose` | `"standard"`, `"secure_state"`, or `"config"` |
+| `hardware_access` | `"readonly"` (input) or `"readwrite"` (output) |
+| `scale_factor` | Scaling multiplier |
+| `offset` | Scaling offset |
+| `timestamp` | ISO 8601 timestamp |
+
+**Subscribe to all data for all devices:**
+```
+/plc/data/#
+```
+
+**Subscribe to all data for device 1:**
+```
+/plc/data/1/#
+```
+
+**Subscribe to all bits for device 1:**
+```
+/plc/data/1/bits/#
+```
+
+## Write Topics — Sending Commands
+
+To write a value to an output, publish to the write topic:
+
+**Topic format:**
+```
+/plc/write/{module_id}/{bits|registers}/{address}
+```
+
+**Payload:** A numeric value as a string.
+
+### Examples
+
+Turn **ON** bit 0 on device 1:
+```
+Topic:   /plc/write/1/bits/0
+Payload: 1
+```
+
+Turn **OFF** bit 0 on device 1:
+```
+Topic:   /plc/write/1/bits/0
+Payload: 0
+```
+
+Set register 5 on device 1 to `500`:
+```
+Topic:   /plc/write/1/registers/5
+Payload: 500
+```
+
+Set register 0 on device 1 to `23.5` (net value):
+```
+Topic:   /plc/write/1/registers/0
+Payload: 23.5
+```
+
+<Warning>
+  Only I/O points with `hardware_access = 'readwrite'` accept write commands. Writes to `readonly` inputs are silently ignored.
+</Warning>
+
+## Practical Examples
+
+### Using MQTT Explorer (GUI Tool)
+
+[MQTT Explorer](https://mqtt-explorer.com/) is a free, visual MQTT client.
+
+<Steps>
+  <Step title="Connect">
+    - **Host**: `<PLC_IP>`
+    - **Port**: `1883`
+    - **Username**: `oso`
+    - **Password**: `logic`
+    - Click **Connect**
+  </Step>
+  <Step title="Subscribe">
+    MQTT Explorer automatically subscribes to `#` (all topics). You'll see the tree structure:
+    ```
+    /plc/
+      info/
+        1/
+          is_connected: "1"
+          module_name: "Main Output Board"
+          ...
+      data/
+        1/
+          bits/
+            0: { "value": 1, "label": "Output 1", ... }
+          registers/
+            0: { "value": 23.5, "label": "Temperature", ... }
+    ```
+  </Step>
+  <Step title="Send Write Commands">
+    - Navigate to **Publish** section
+    - Enter topic: `/plc/write/1/bits/0`
+    - Enter payload: `1`
+    - Click **Publish**
+  </Step>
+</Steps>
+
+### Using mosquitto (Command Line)
+
+```bash
+# Subscribe to ALL PLC data
+mosquitto_sub -h 192.168.1.152 -p 1883 -u oso -P logic -t '/plc/#' -v
+
+# Subscribe to data for device 1 only
+mosquitto_sub -h 192.168.1.152 -p 1883 -u oso -P logic -t '/plc/data/1/#' -v
+
+# Subscribe to info for all devices
+mosquitto_sub -h 192.168.1.152 -p 1883 -u oso -P logic -t '/plc/info/#' -v
+
+# Turn ON output bit 0 on device 1
+mosquitto_pub -h 192.168.1.152 -p 1883 -u oso -P logic -t '/plc/write/1/bits/0' -m '1'
+
+# Set register 5 on device 1 to 500
+mosquitto_pub -h 192.168.1.152 -p 1883 -u oso -P logic -t '/plc/write/1/registers/5' -m '500'
+```
+
+### Using Node-RED
+
+Node-RED runs on the PLC at `https://<PLC_IP>:1880`. You can create visual flows to process PLC data:
+
+**Example flow — Read temperature and display:**
+
+1. Add an **mqtt in** node:
+   - Server: `localhost:1883` (credentials: `oso` / `logic`)
+   - Topic: `/plc/data/1/registers/5`
+2. Add a **json** node to parse the payload
+3. Add a **change** node to extract `msg.payload.value`
+4. Add a **gauge** node from the Dashboard palette to display the temperature
+
+**Example flow — Toggle an output on button press:**
+
+1. Add a **dashboard button** node
+2. Add a **change** node to set `msg.payload` to `"1"` or `"0"`
+3. Add an **mqtt out** node:
+   - Server: `localhost:1883`
+   - Topic: `/plc/write/1/bits/0`
+
+## Visibility and Publish Behavior
+
+Not all I/O points are published to MQTT. The behavior depends on the [I/O Configuration](/users/gui/io-config):
+
+| Setting | Effect |
+|---------|--------|
+| `visibility = hidden` | Point is not published to MQTT at all |
+| `visibility_mode = on_change` | Published only when the value changes |
+| `visibility_mode = periodically` | Published every `refresh_rate` seconds |
+
+<Tip>
+  If you're not seeing data for a specific I/O point on MQTT, check its **visibility** setting in the GUI. It may be set to `hidden`.
+</Tip>

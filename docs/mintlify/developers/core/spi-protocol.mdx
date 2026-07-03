@@ -1,0 +1,44 @@
+---
+title: 'ProtocolSPIV0'
+description: 'Proprietary SPI protocol for internal expansion modules'
+icon: 'code-branch'
+---
+
+`ProtocolSPIV0` is the implementation of the communication protocol used by OsoLogic to interact with internal expansion modules (IO, Sensors, etc.) connected via the SPI bus.
+
+## Protocol Structure
+
+This protocol uses a custom frame format optimized for high-speed local transactions. It handles:
+- **Function Codes**: Identifying the operation (Read Bit, Write Register, etc.).
+- **Addressing**: Mapping logical I/O addresses to physical module locations.
+- **Error Handling**: Validating responses from the modules.
+
+## Supported Functions
+
+| Code | Function | Description |
+|---|---|---|
+| `0x01` | `GET_MODULE_INFO` | Retrieves model ID and hardware version. |
+| `0x02` | `READ_SINGLE_BIT` | Reads the state of one digital point. |
+| `0x03` | `WRITE_SINGLE_BIT` | Sets the state of one digital output. |
+| `0x04` | `READ_SINGLE_REGISTER` | Reads a 16-bit analog value. |
+| `0x05` | `WRITE_SINGLE_REGISTER` | Sets a 16-bit analog output. |
+| `0x06` | `READ_MULTIPLE_BITS` | Block read of digital inputs. |
+| `0x08` | `READ_MULTIPLE_REGISTERS`| Block read of analog inputs. |
+
+## Implementation Details
+
+The protocol layer interacts with `SPI_Channel` to perform atomic transactions. Every request-response cycle follows this pattern:
+1. `channel->start(slot)` - Select and lock the slot.
+2. `channel->write(request)` - Send the command frame.
+3. `channel->read(response)` - Receive the feedback frame.
+4. `channel->stop(slot)` - Release the bus.
+
+## Advanced Features
+
+<ParamField path="readUuid" type="PlcErrorCodes">
+  Reads the unique hardware identifier (UUID) from the expansion module.
+</ParamField>
+
+<ParamField path="readWDT / setWDT" type="PlcErrorCodes">
+  Manages the module's Watchdog Timer to ensure safe states in case of communication loss.
+</ParamField>

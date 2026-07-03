@@ -1,0 +1,102 @@
+---
+title: 'Node-RED Overview'
+description: 'Visual programming interface for custom automation, monitoring, and control of PLC I/O'
+icon: 'leaf'
+---
+
+## What is Node-RED?
+
+**Node-RED** is a visual, flow-based programming tool that runs inside the OSOlogic ecosystem. It allows you to create custom automation logic, dashboards, and integrations **without writing traditional code** — you simply connect blocks (called *nodes*) in a browser-based editor.
+
+<Tip>
+  Node-RED is ideal for operators who want to go beyond basic monitoring and create custom rules, alerts, and control panels tailored to their specific machine.
+</Tip>
+
+## Accessing Node-RED
+
+Open your web browser and navigate to:
+
+```
+https://<PLC_IP>:1880
+```
+
+You can also open it from the **Service Manager** by clicking the **"🌐 OPEN WEB INTERFACE"** button on the Node-RED service card.
+
+<Note>
+  Node-RED uses the same SSL certificates as the rest of the system. Your browser may show a security warning the first time — this is normal for self-signed certificates. Accept the exception to proceed.
+</Note>
+
+## The Editor
+
+The Node-RED editor has three main areas:
+
+| Area | Description |
+|------|-------------|
+| **Node Palette** (left) | Library of all available nodes — drag them onto the canvas |
+| **Flow Canvas** (center) | Your workspace where you build flows by connecting nodes |
+| **Info / Debug Panel** (right) | Shows node documentation, debug output, and context data |
+
+### Key Concepts
+
+<CardGroup cols={2}>
+  <Card title="Nodes" icon="circle">
+    Individual building blocks. Each node performs one action: read a value, make a decision, send a message, etc.
+  </Card>
+  <Card title="Wires" icon="arrow-right">
+    Connections between nodes. Data flows from left to right through the wires.
+  </Card>
+  <Card title="Flows (Tabs)" icon="layer-group">
+    Separate canvases for organizing your logic. Each tab is an independent flow.
+  </Card>
+  <Card title="Deploy" icon="rocket">
+    Click the **Deploy** button (top right) to save and activate your changes.
+  </Card>
+</CardGroup>
+
+## Pre-installed Flow Tabs
+
+The OSOlogic installation includes two pre-configured flow tabs:
+
+### `[CORE] HAL` — Hardware Abstraction Layer
+
+This is the **system tab** that handles all communication between Node-RED and the PLC hardware (through the database). It runs automatically and provides:
+
+- **Polling** — Reads all visible I/O values from the database every **100ms**
+- **Data Bus** — Broadcasts each I/O point as an individual message (`msg.topic` = label, `msg.payload` = value)
+- **Write Bus** — Receives write commands and generates optimized SQL updates
+
+<Warning>
+  Do **not** modify the `[CORE] HAL` tab unless you fully understand its internals. Incorrect changes can break the communication between Node-RED and the PLC.
+</Warning>
+
+### `Client Space` — Your Workspace
+
+This is **your tab** for building custom logic. It comes pre-loaded with example flows that demonstrate how to use the OSOlogic subflow library (Read IO, Write IO, timers, etc.).
+
+You can create additional tabs for different machines, areas, or automation tasks.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Reading & Writing I/O"
+    icon="arrows-rotate"
+    href="/users/nodered/io"
+  >
+    Learn how to read sensor values and control outputs using the OSOlogic subflow blocks.
+  </Card>
+  <Card
+    title="Subflow Library"
+    icon="cubes"
+    href="/users/nodered/subflows"
+  >
+    Explore the built-in PLC-style blocks: timers (TON, TOF, TP), notifications, and more.
+  </Card>
+  <Card
+    title="Dashboard"
+    icon="chart-line"
+    href="/users/nodered/dashboard"
+  >
+    Create visual control panels with buttons, gauges, and charts accessible from any browser.
+  </Card>
+</CardGroup>

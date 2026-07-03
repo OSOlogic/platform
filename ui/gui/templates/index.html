@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLC OsoLogic - GUI</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="/static/logo.png" alt="PLC OsoLogic" class="sidebar-logo">
+            <div class="sidebar-brand">
+                <h1>PLC OsoLogic</h1>
+                <p>GUI</p>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">🧩 Hardware</div>
+                <a href="#" class="nav-item" data-page="models">
+                    <span class="nav-icon">📦</span>
+                    <span>Models</span>
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">⚡ Real-Time</div>
+                <a href="#" class="nav-item active" data-page="rtmirror">
+                    <span class="nav-icon">🔄</span>
+                    <span>Real-Time Twin</span>
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">⚙️ Configuration</div>
+                <a href="#" class="nav-item" data-page="devices">
+                    <span class="nav-icon">📟</span>
+                    <span>Devices</span>
+                </a>
+                <a href="#" class="nav-item" data-page="plc-settings">
+                    <span class="nav-icon">🛠️</span>
+                    <span>PLC Config</span>
+                </a>
+                <a href="#" class="nav-item" data-page="gui-config">
+                    <span class="nav-icon">🖥️</span>
+                    <span>GUI Config</span>
+                </a>
+            </div>
+            
+            <!-- Admin-only section (hidden by default, shown via JS) -->
+            <div class="nav-section admin-only" id="adminSection" style="display: none;">
+                <div class="nav-section-title">👥 Administration</div>
+                <a href="#" class="nav-item" data-page="users">
+                    <span class="nav-icon">👤</span>
+                    <span>User Management</span>
+                </a>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-info" id="userInfo">
+                <span class="user-name" id="userName">Loading...</span>
+                <span class="user-role badge" id="userRole"></span>
+            </div>
+            <a href="/logout" class="logout-btn">🚪 Logout</a>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="main-header">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <h2 id="pageTitle">Dashboard</h2>
+            <div class="header-actions" id="headerActions"></div>
+        </header>
+        
+        <div class="content-area" id="contentArea">
+            <!-- Content will be loaded dynamically -->
+        </div>
+    </main>
+    
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Modal Title</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Modal content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

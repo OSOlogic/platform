@@ -1,0 +1,95 @@
+---
+title: 'User Management'
+description: 'Create, edit, and manage user accounts and roles (admin only)'
+icon: 'users'
+---
+
+## Overview
+
+The User Management section is available only to users with the **Admin** role. From here you can create, edit, and delete user accounts.
+
+<Note>
+  OSOlogic PRO enforces a **single admin** policy. There can only be one admin at any time. To make someone else an admin, you must **transfer** the role.
+</Note>
+
+## Viewing Users
+
+The users table displays:
+
+| Column | Description |
+|--------|-------------|
+| **Username** | Login name |
+| **Role** | `admin`, `operator`, or `viewer` |
+| **Active** | Whether the account is enabled |
+| **Created** | Account creation date |
+| **Last Login** | Most recent login timestamp |
+
+## Creating a New User
+
+<Steps>
+  <Step title="Open Create User">
+    Click the **Create User** button.
+  </Step>
+  <Step title="Fill in details">
+    | Field | Requirements |
+    |-------|-------------|
+    | **Username** | At least 3 characters, must be unique |
+    | **Password** | At least 6 characters |
+    | **Role** | `operator` or `viewer` (cannot create admin directly) |
+  </Step>
+  <Step title="Save">
+    Click **Save**. The new user can now log in.
+  </Step>
+</Steps>
+
+<Warning>
+  You cannot create a user with the **admin** role directly. To transfer admin privileges, first create the user as an operator, then use the **role transfer** mechanism.
+</Warning>
+
+## Editing a User
+
+Click on a user to modify their settings:
+
+- **Username**: Change the login name
+- **Password**: Set a new password (leave blank to keep the current one)
+- **Role**: Change between `viewer`, `operator`, or `admin`
+- **Active**: Enable or disable the account
+
+## Transferring the Admin Role
+
+To make another user an admin:
+
+<Steps>
+  <Step title="Select the target user">
+    Click **Edit** on the user you want to promote to admin.
+  </Step>
+  <Step title="Change their role to Admin">
+    Set the role to `admin`.
+  </Step>
+  <Step title="Automatic demotion">
+    The system will automatically **demote you** from admin to operator. This is by design — there can only be one admin.
+  </Step>
+</Steps>
+
+<Warning>
+  After transferring the admin role, **you will no longer have admin privileges**. You will be logged in as an operator. Make sure you trust the person you're transferring to.
+</Warning>
+
+## Deactivating a User
+
+Instead of deleting a user, you can **deactivate** their account. A deactivated user cannot log in but their account data is preserved.
+
+- Toggle the **Active** field to disable/enable an account
+- You **cannot deactivate your own account**
+
+## Deleting a User
+
+Click the **Delete** button to permanently remove a user account.
+
+Rules:
+- You **cannot delete your own account** (transfer admin first)
+- You **cannot delete the last admin** user
+
+## Password Security
+
+Passwords are stored using **SHA-256 hashing with a random salt**. The format is `salt$hash`. Plain-text passwords are never stored.

@@ -1,0 +1,165 @@
+---
+title: 'Service Manager'
+description: 'Web dashboard to control PLC services, view logs, and edit system configuration'
+icon: 'server'
+---
+
+## Accessing the Service Manager
+
+Open your web browser and navigate to:
+
+```
+https://<PLC_IP>:8080
+```
+
+The Service Manager is the **central control panel** for all PLC services. It does not require login — it is designed for on-site operators.
+
+## Services Tab
+
+The main screen displays a card for each PLC service:
+
+| Service | Description |
+|---------|-------------|
+| **PLC Core** | The main C++ engine that communicates with hardware modules |
+| **MQTT Gateway** | Publishes I/O data to an MQTT broker for IoT/cloud integration |
+| **Modbus TCP Gateway** | Exposes I/O data via Modbus TCP for SCADA/HMI systems |
+| **Node-RED** | Visual programming tool for custom automation flows |
+| **Graphic User Interface** | Web GUI for database management and real-time monitoring |
+
+### Service Controls
+
+Each service card provides the following actions:
+
+<CardGroup cols={2}>
+  <Card title="▶️ Start" icon="play">
+    Starts the service. Only available when the service is stopped.
+  </Card>
+  <Card title="⏹️ Stop" icon="stop">
+    Stops the service gracefully. Only available when the service is running.
+  </Card>
+  <Card title="🔄 Restart" icon="rotate">
+    Stops and restarts the service. Useful after configuration changes.
+  </Card>
+  <Card title="📋 Logs" icon="file-lines">
+    Opens a live log viewer showing the last 150 lines of the service output. Updates every 2.5 seconds.
+  </Card>
+</CardGroup>
+
+### Auto-Start Toggle
+
+Each card includes an **ENABLED / DISABLED** toggle switch. When enabled, the service will automatically start when the PLC boots up. When disabled, the service must be started manually.
+
+<Tip>
+  After installation, only the **Service Manager** is enabled by default. Enable the services you need by toggling them on.
+</Tip>
+
+### External Links
+
+Some services have a **"🌐 OPEN WEB INTERFACE"** button that opens the service's own web interface in a new tab:
+- **Graphic User Interface** → Opens the Database GUI
+- **Node-RED** → Opens the Node-RED editor
+
+### Global Controls
+
+At the bottom of the services tab, you'll find global control buttons:
+
+| Button | Action |
+|--------|--------|
+| **▶️ Start All** | Starts all services sequentially |
+| **⏹️ Stop All** | Stops all services sequentially |
+| **🔄 Restart All** | Restarts all services sequentially |
+| **🐘 phpMyAdmin** | Opens phpMyAdmin in a new tab (if installed) |
+
+## Configuration Tab
+
+Click the **⚙️ Configuration** tab to access the system's central configuration file (`config/config.json`).
+
+The configuration editor uses a professional code editor (Ace Editor) with syntax highlighting. Here you can modify:
+
+### Database Settings
+
+```json
+"database": {
+  "host": "localhost",
+  "user": "oso",
+  "password": "logic",
+  "db_name": "PLC"
+}
+```
+
+These are the credentials the PLC services use to connect to the internal MariaDB database.
+
+### MQTT Settings
+
+```json
+"mqtt": {
+  "broker_address": "localhost",
+  "port": 1883,
+  "client_id": "oso",
+  "password": "logic",
+  "topic_info_prefix": "/plc/modules_info",
+  "topic_data_prefix": "/plc/data",
+  "topic_write_prefix": "/plc/write",
+  "loop_interval_seconds": 1
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `broker_address` | IP or hostname of the MQTT broker |
+| `port` | MQTT broker port (default: 1883) |
+| `client_id` / `password` | Authentication credentials for the broker |
+| `topic_*_prefix` | Base paths for MQTT topics |
+| `loop_interval_seconds` | How often the service reads from the database and publishes (in seconds) |
+
+### GUI Settings
+
+```json
+"gui": {
+  "host": "0.0.0.0",
+  "port": 8082,
+  "secret_key": "...",
+  "session_timeout": 30,
+  "external_url": "https://192.168.1.152:8082/"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `port` | Port for the Database GUI web interface |
+| `session_timeout` | Minutes before an inactive session expires |
+| `external_url` | The URL used by the Service Manager to link to the GUI |
+
+### Modbus TCP Settings
+
+```json
+"modbustcp": {
+  "host": "0.0.0.0",
+  "port": 502
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `host` | `0.0.0.0` means listen on all network interfaces |
+| `port` | Standard Modbus TCP port (502) |
+
+### Saving Changes
+
+<Steps>
+  <Step title="Edit">
+    Modify the JSON in the editor. The editor will highlight syntax errors in real time.
+  </Step>
+  <Step title="Save">
+    Click **"PROCEED & SAVE CONFIG"** to save the changes to disk.
+  </Step>
+  <Step title="Restart">
+    Go back to the **Services** tab and **restart** the affected services for the changes to take effect.
+  </Step>
+</Steps>
+
+<Warning>
+  Configuration changes only take effect after restarting the affected service. For example, changing MQTT settings requires restarting the MQTT Gateway service.
+</Warning>
+
+You can click **"RESET CHANGES"** at any time to discard your edits and reload the saved configuration.

@@ -1,0 +1,44 @@
+---
+title: "Auxiliary Scripts"
+description: "Tools for hardware maintenance, provisioning, and diagnostics"
+---
+
+This directory contains auxiliary tools for hardware maintenance, provisioning, and diagnostics related to the OSOlogic project.
+
+## Scripts Overview
+
+### `img_flash.sh`
+* **What it does:** Safely writes (flashes) an operating system image to an SD card. It automatically filters your devices to prevent you from accidentally formatting your computer's main hard drive, and automatically expands the file system to use the full capacity of the SD card/USB once flashed.
+* **What you can use it for:** Preparing new SD cards for your OSOlogic PLCs or updating existing devices with a fresh, new system image.
+* **Why it's useful:** Flashing OS images manually can be risky. This script makes the process foolproof by only showing removable drives, guiding you step-by-step, and automatically handling partition resizing so you don't waste any space on your memory card.
+
+### `img_extract.sh`
+* **What it does:** Creates a compressed backup image of an existing SD card. It copies the entire contents of the card and then uses `pishrink.sh` to drastically reduce the final file size by removing empty space.
+* **What you can use it for:** Creating "golden" master images from a fully configured PLC, or simply backing up a working system before making major software updates.
+* **Why it's useful:** Standard backups create files as large as the entire SD card (e.g., a 32GB file for a 32GB SD card, even if only 4GB is actually used). This script compresses the backup to only the size of the actual data, saving massive amounts of disk space and making the images easier to share or store.
+
+### `ip_dhcp_forcer.sh`
+* **What it does:** Temporarily turns your computer into a DHCP server to assign a specific, pre-determined IP address to a device (like a PLC) that is connected directly to your computer via an Ethernet cable.
+* **What you can use it for:** First-time setup of a PLC, or accessing a PLC in the field when you don't have access to a standard network router. 
+* **Why it's useful:** Normally, PLCs wait for a router to give them an IP address. If you connect one directly to your laptop, it won't get an IP, making it impossible to communicate. This script forces the PLC to take the IP address you choose, allowing you to instantly access its web interface or SSH into it from your laptop.
+
+### `universal_chroot.sh`
+* **What it does:** Allows you to "enter" into a raw operating system image (`.img` file) without needing to flash it to an SD card or boot it up. 
+* **What you can use it for:** Modifying system files, installing packages, or changing configurations directly inside an `.img` file from your computer.
+* **Why it's useful:** If you have an image and you forgot to change a setting (like a Wi-Fi password or a default user), you would normally have to flash it to an SD card, boot a board, change the setting, and extract the image all over again. With this tool, you mount the image locally, make the edits as if you were inside it, and safely close it, saving hours of work.
+
+### `pishrink.sh`
+* **What it does:** A utility tool that takes an uncompressed Raspberry Pi or Armbian image and shrinks it down to its minimum possible size.
+* **What you can use it for:** This is mainly a background helper script utilized automatically by `img_extract.sh`. You generally won't need to run this manually.
+
+## Usage
+
+To execute any script, ensure you are in the root directory of the repository and run:
+
+```bash
+sudo ./scripts/script_name.sh
+```
+
+<Warning>
+Most of these scripts require superuser privileges (`sudo`) as they interact directly with hardware and network configuration.
+</Warning>

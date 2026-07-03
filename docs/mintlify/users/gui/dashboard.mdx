@@ -1,0 +1,38 @@
+---
+title: 'Dashboard'
+description: 'System overview with key metrics at a glance'
+icon: 'gauge'
+---
+
+## Overview
+
+The **Dashboard** is the main landing page after login. It provides a quick summary of the entire PLC system status.
+
+## Dashboard Metrics
+
+| Metric | Description |
+|--------|-------------|
+| **Models** | Number of hardware model templates defined in the system |
+| **Devices** | Total number of device instances configured |
+| **Connected Devices** | How many devices are currently online and communicating |
+| **I/O Definitions** | Total number of input/output points defined across all models |
+| **Operation Mode** | Current PLC mode: `execution` (normal) or `configuration` (maintenance) |
+| **Aggregated Mappings** | Number of virtual-to-physical I/O mappings for aggregated models |
+| **Secure State Mappings** | Number of safe-state output configurations |
+
+## Understanding the Metrics
+
+<CardGroup cols={2}>
+  <Card title="Models vs Devices" icon="layer-group">
+    A **model** is a template (e.g., "OsoLogic 8SD — 8 digital outputs"). A **device** is a specific physical unit installed in the project using that template. You may have 3 devices all using the same model.
+  </Card>
+  <Card title="Connected vs Configured" icon="signal">
+    A device can be **configured** in the database but not yet **connected** physically. The "Connected Devices" counter shows only devices that are actively communicating with the PLC core.
+  </Card>
+  <Card title="Operation Mode" icon="toggle-on">
+    In **execution** mode, the PLC synchronizes standard I/O points. In **configuration** mode, it synchronizes secure state and config registers instead. See [PLC Settings](/users/gui/plc-settings) for details.
+  </Card>
+  <Card title="Secure State" icon="shield-halved">
+    Secure state mappings define what safe values each output should hold if communication is lost. For example, "if connection drops, set Output 3 to OFF."
+  </Card>
+</CardGroup>

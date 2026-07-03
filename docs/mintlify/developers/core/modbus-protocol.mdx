@@ -1,0 +1,35 @@
+---
+title: 'ModbusProtocol'
+description: 'Intermediate base class for Modbus RTU and TCP'
+icon: 'diagram-project'
+---
+
+`ModbusProtocol` is an abstract base class that implements the common Modbus PDU (Protocol Data Unit) logic shared by both RTU and TCP variants. It inherits from `IProtocol`.
+
+## Key Responsibilities
+
+- **PDU Construction**: Handles the formatting of Modbus requests (Read/Write Bits/Registers).
+- **Address Selection**: Decides whether to use Read Coils (`0x01`) vs Read Discrete Inputs (`0x02`) based on the hardware access configuration.
+- **Mutex Management**: Provides the synchronization logic to ensure atomic request-response cycles on shared buses.
+
+## Abstract Contract
+
+Child classes must implement the transport-specific framing by overriding:
+
+```cpp
+virtual PlcErrorCodes sendAndReceiveAdu(
+  uint8_t unit_id, 
+  const std::vector<uint8_t> &pdu,
+  std::vector<uint8_t> &response_pdu
+) = 0;
+```
+
+## Shared Functionality
+
+The following methods are implemented in this base class using the `sendAndReceiveAdu` template method:
+
+- `readBit` / `readBits`
+- `writeBit` / `writeBits`
+- `readRegister` / `readRegisters`
+- `writeRegister` / `writeRegisters`
+- `pingDevice`

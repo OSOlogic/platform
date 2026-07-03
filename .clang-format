@@ -1,0 +1,13 @@
+---
+Language:        Cpp
+# Based on the most widely used industry standard
+BasedOnStyle:    Google
+# Set this to the C++ version you are using (c++17, c++20, etc.)
+Standard:        c++20
+
+# General readability improvements over the base standard
+ColumnLimit:     100               # Avoid excessively long lines (Google uses 80, 150 is a modern wide-screen limit)
+IndentWidth:     2                 # Standard Google indentation. 
+AccessModifierOffset: -4           # Ensures public/private modifiers align with class/struct level
+SortIncludes:    true              # Keep #include directives sorted alphabetically
+AllowShortFunctionsOnASingleLine: Empty # Prevents single-line function bodies for better readability

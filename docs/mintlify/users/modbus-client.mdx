@@ -1,0 +1,163 @@
+---
+title: 'Modbus TCP Client'
+description: 'Read inputs and write outputs using any Modbus TCP client, SCADA, or HMI system'
+icon: 'network-wired'
+---
+
+## Overview
+
+OSOlogic PRO includes a **Modbus TCP server** that exposes all PLC I/O data using the standard Modbus TCP/IP protocol. Any SCADA system, HMI panel, or Modbus client tool can connect to read inputs and write outputs.
+
+## Connection Details
+
+| Parameter | Value |
+|-----------|-------|
+| **Host** | `<PLC_IP>` |
+| **Port** | `502` (standard Modbus TCP port) |
+| **Protocol** | Modbus TCP/IP |
+
+## Key Concept: Unit ID = Device ID
+
+Each device in the PLC has a unique `module_id`. In Modbus TCP, this corresponds to the **Unit ID** (also called Slave Address). When you make a request, you specify which device you want to communicate with.
+
+**Example:** If your output module has `module_id = 1` in the database, you use **Unit ID = 1** in your Modbus client.
+
+<Tip>
+  You can find the module IDs of your devices in the [Database GUI](/users/gui/devices) or by querying the `devices` table.
+</Tip>
+
+## Memory Map
+
+The Modbus server maps I/O points to the four standard Modbus data areas:
+
+| Modbus Area | Function Code (Read) | Function Code (Write) | I/O Type | Access | Description |
+|---|---|---|---|---|---|
+| **Coils** | FC 1 | FC 5 (single), FC 15 (multiple) | `bit` | `readwrite` | Output bits (ON/OFF) |
+| **Discrete Inputs** | FC 2 | — | `bit` | `readonly` | Input bits (ON/OFF) |
+| **Holding Registers** | FC 3 | FC 6 (single), FC 16 (multiple) | `register` | `readwrite` | Output registers (numeric) |
+| **Input Registers** | FC 4 | — | `register` | `readonly` | Input registers (numeric) |
+
+### Address Mapping
+
+The **Modbus address** = the **logical address** defined in the model's I/O definition.
+
+**Example:** If a model defines `Output 1` at `logical_address = 0` as a `bit` with `readwrite` access, then:
+- Read it with **FC 1** (Read Coils) at **address 0**
+- Write it with **FC 5** (Write Single Coil) at **address 0**
+
+## Practical Examples
+
+### Using QModMaster (GUI Tool)
+
+[QModMaster](https://sourceforge.net/projects/qmodmaster/) is a free, cross-platform Modbus TCP master/client.
+
+<Steps>
+  <Step title="Connect">
+    - Set **Mode**: TCP
+    - Set **Slave IP**: `<PLC_IP>`
+    - Set **TCP Port**: `502`
+    - Click **Connect**
+  </Step>
+  <Step title="Read Input Bits">
+    - Set **Function Code**: `02 - Read Discrete Inputs`
+    - Set **Slave Address** (Unit ID): `1` (your device ID)
+    - Set **Start Address**: `0`
+    - Set **Number of Points**: `8`
+    - Click **Read** → You'll see the current state of 8 input bits
+  </Step>
+  <Step title="Read Output Registers">
+    - Set **Function Code**: `03 - Read Holding Registers`
+    - Set **Slave Address**: `1`
+    - Set **Start Address**: `0`
+    - Set **Number of Points**: `8`
+    - Click **Read** → You'll see the current values of 8 output registers
+  </Step>
+  <Step title="Write a Single Coil (Output Bit)">
+    - Set **Function Code**: `05 - Write Single Coil`
+    - Set **Slave Address**: `1`
+    - Set **Address**: `0`
+    - Set **Value**: `FF00` (ON) or `0000` (OFF)
+    - Click **Write**
+  </Step>
+  <Step title="Write a Holding Register">
+    - Set **Function Code**: `06 - Write Single Register`
+    - Set **Slave Address**: `1`
+    - Set **Address**: `0`
+    - Set **Value**: `100` (or any integer value)
+    - Click **Write**
+  </Step>
+</Steps>
+
+### Using pymodbus (Python)
+
+```python
+from pymodbus.client import ModbusTcpClient
+
+# Connect to the PLC
+client = ModbusTcpClient('192.168.1.152', port=502)
+client.connect()
+
+# Read 8 input bits from device 1 (FC 2)
+result = client.read_discrete_inputs(address=0, count=8, slave=1)
+print("Inputs:", result.bits[:8])
+
+# Read 8 holding registers from device 1 (FC 3)
+result = client.read_holding_registers(address=0, count=8, slave=1)
+print("Registers:", result.registers)
+
+# Write a single coil ON (FC 5)
+client.write_coil(address=0, value=True, slave=1)
+
+# Write a single register (FC 6)
+client.write_register(address=0, value=500, slave=1)
+
+# Write multiple coils (FC 15)
+client.write_coils(address=0, values=[True, False, True, False], slave=1)
+
+# Write multiple registers (FC 16)
+client.write_registers(address=0, values=[100, 200, 300], slave=1)
+
+client.close()
+```
+
+### Using modbus-cli (Command Line)
+
+```bash
+# Install
+pip install modbus-cli
+
+# Read 8 discrete inputs from device 1
+modbus read 192.168.1.152 --slave-id 1 --fc 2 0 8
+
+# Read 4 holding registers from device 1
+modbus read 192.168.1.152 --slave-id 1 --fc 3 0 4
+
+# Write coil 0 to ON on device 1
+modbus write 192.168.1.152 --slave-id 1 --fc 5 0 1
+
+# Write register 0 to value 500 on device 1
+modbus write 192.168.1.152 --slave-id 1 --fc 6 0 500
+```
+
+## SCADA / HMI Integration Tips
+
+When configuring a SCADA or HMI system to communicate with OSOlogic PRO:
+
+<CardGroup cols={2}>
+  <Card title="One Connection, Multiple Devices" icon="diagram-project">
+    Connect to a single IP and port (502). Use different **Unit IDs** to address different devices.
+  </Card>
+  <Card title="Address = Logical Address" icon="hashtag">
+    The Modbus address matches the `logical_address` from the model's I/O definitions. Check the [Models](/users/gui/models) page for the complete address map.
+  </Card>
+  <Card title="No Offset Needed" icon="arrow-right">
+    Addresses start at 0, not 1 or 40001. Use the logical address directly without adding any offset.
+  </Card>
+  <Card title="Atomic Writes" icon="shield">
+    Write operations are atomic. If you write multiple coils or registers in a single request (FC 15 or FC 16), either all values are written or none are (in case of error).
+  </Card>
+</CardGroup>
+
+<Warning>
+  If a Modbus address is not defined in the PLC's model configuration, the server will respond with an **Illegal Data Address** exception (error code 0x02). Make sure the addresses you request exist in the model's I/O definition.
+</Warning>

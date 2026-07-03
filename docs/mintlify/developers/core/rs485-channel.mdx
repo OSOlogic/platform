@@ -1,0 +1,57 @@
+---
+title: 'RS485_Channel'
+description: 'Half-duplex serial communication channel for RS-485 buses'
+icon: 'bolt'
+---
+
+The `RS485_Channel` class manages serial communication over half-duplex RS-485 interfaces. It handles low-level timing requirements and buffer management necessary for reliable industrial serial communication.
+
+## Key Features
+
+- **Bus Turnaround**: Implements necessary delays between writing and reading to allow the half-duplex bus to stabilize.
+- **Timing Control**: Uses `nanosleep` and polling for precise timeout management.
+- **Buffer Flushing**: Provides methods to clear stale data from the serial buffers.
+
+## Constructor
+
+```cpp
+RS485_Channel(
+  const std::string& device_path, 
+  int32_t baudrate, 
+  char parity, 
+  uint8_t stop_bits,
+  uint8_t data_bits
+);
+```
+
+### Parameters
+
+- `device_path`: Path to the serial device (e.g., `"/dev/ttyS0"`).
+- `baudrate`: Speed (e.g., 9600, 115200).
+- `parity`: `'N'` (none), `'E'` (even), `'O'` (odd).
+- `stop_bits`: 1 or 2.
+- `data_bits`: Usually 8.
+
+## Channel Implementation
+
+<ParamField path="connect" type="PlcErrorCodes">
+  Opens the serial device and applies the termios configuration (baudrate, parity, etc.).
+</ParamField>
+
+<ParamField path="disconnect" type="PlcErrorCodes">
+  Closes the file descriptor.
+</ParamField>
+
+<ParamField path="write" type="PlcErrorCodes">
+  Writes data to the serial port and waits for the hardware buffer to empty before returning.
+</ParamField>
+
+<ParamField path="read" type="PlcErrorCodes">
+  Reads data with a software-implemented timeout (`READ_TOTAL_TIMEOUT_MS`).
+</ParamField>
+
+## Utility Methods
+
+<ParamField path="flush()" type="PlcErrorCodes">
+  Discard any data currently in the OS-level input/output buffers for the serial port.
+</ParamField>

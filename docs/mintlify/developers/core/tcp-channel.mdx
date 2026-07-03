@@ -1,0 +1,48 @@
+---
+title: 'TCP_Channel'
+description: 'Standard TCP/IP socket communication channel'
+icon: 'network-wired'
+---
+
+The `TCP_Channel` class implements the `Channel` interface using standard Linux sockets. It is used primarily by the `ModbusTcpProtocol` to communicate with remote Modbus devices over Ethernet.
+
+## Key Features
+
+- **Socket management**: Handles opening, connecting, and closing of TCP sockets.
+- **Thread safety**: Uses a `std::mutex` to protect the socket during read/write operations.
+- **Connection status**: Tracks the connection state atomically.
+
+## Constructor
+
+```cpp
+TCP_Channel(const std::string &ip_address, int port);
+```
+
+### Parameters
+
+- `ip_address`: The destination IP address (e.g., "192.168.1.10").
+- `port`: The destination port (default for Modbus is 502).
+
+## Channel Implementation
+
+<ParamField path="connect" type="PlcErrorCodes">
+  Creates a socket and attempts to establish a connection to the configured IP and port.
+</ParamField>
+
+<ParamField path="disconnect" type="PlcErrorCodes">
+  Safely closes the socket and resets the internal state.
+</ParamField>
+
+<ParamField path="write" type="PlcErrorCodes">
+  Sends data using the `send()` system call.
+</ParamField>
+
+<ParamField path="read" type="PlcErrorCodes">
+  Receives data using the `recv()` system call.
+</ParamField>
+
+## Advanced Methods
+
+<ParamField path="getSocketFD(int &socket_fd)" type="PlcErrorCodes">
+  Returns the underlying file descriptor, useful for setting socket options (timeouts, keep-alive).
+</ParamField>

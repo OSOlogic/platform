@@ -1,0 +1,13 @@
+---
+title: "Real-Time API"
+description: "High-performance POSIX shared memory bridge."
+icon: "bolt"
+---
+
+<Warning>
+This feature is currently in development and will be available in an upcoming release.
+</Warning>
+
+## Overview
+
+The Real-Time API is a C/C++ interface that provides direct, lock-free access to the PLC Core's internal I/O buffers. By utilizing POSIX shared memory (`/dev/shm`), it bypasses the MariaDB database completely, enabling sub-millisecond and nanosecond-level latency for critical control loops and external applications.

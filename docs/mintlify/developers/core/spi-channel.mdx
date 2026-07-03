@@ -1,0 +1,63 @@
+---
+title: 'SPI_Channel'
+description: 'GPIO-based SPI communication channel for internal expansion modules'
+icon: 'microchip'
+---
+
+The `SPI_Channel` class implements the `Channel` interface for high-speed communication with internal OsoLogic expansion modules via a bit-banged SPI protocol over GPIO pins.
+
+## Key Features
+
+- **Slot-based selection**: Manages G, CS0, CS1, and CS2 pins to select one of 8 available hardware slots.
+- **Thread-safe**: Uses `threadSafeDigitalWrite` and `threadSafeDigitalRead` to prevent interference between different communication tasks.
+- **Session management**: The `start()` and `stop()` methods handle the bus locking and slot selection, ensuring atomic transactions.
+
+## Constructor
+
+```cpp
+SPI_Channel(
+  uint8_t _SPI_G, 
+  uint8_t _SPI_CS0, 
+  uint8_t _SPI_CS1, 
+  uint8_t _SPI_CS2,
+  uint8_t _SPI_MOSI, 
+  uint8_t _SPI_MISO, 
+  uint8_t _SPI_CLK, 
+  size_t _SPI_DELAY,
+  size_t _SPI_DELAY_START, 
+  size_t _SPI_DELAY_RW
+);
+```
+
+### Parameters
+
+- `_SPI_G`: Bus busy/enable signal pin.
+- `_SPI_CS0..2`: Chip selection pins (binary address for slots 0-7).
+- `_SPI_MOSI / _MISO / _CLK`: Standard SPI signal pins.
+- `_SPI_DELAY`: Delay between clock ticks (CPU cycles).
+- `_SPI_DELAY_START`: Delay after selecting a slot.
+- `_SPI_DELAY_RW`: Delay between bytes.
+
+## Channel Implementation
+
+<ParamField path="connect / disconnect" type="PlcErrorCodes">
+  For this GPIO-based implementation, these methods are effectively NOPs. Connection is managed per-transaction by `start()`.
+</ParamField>
+
+<ParamField path="write" type="PlcErrorCodes">
+  Sends a buffer of bytes bit-by-bit over the MOSI pin, toggling the CLK pin.
+</ParamField>
+
+<ParamField path="read" type="PlcErrorCodes">
+  Reads bytes bit-by-bit from the MISO pin, toggling the CLK pin.
+</ParamField>
+
+## SPI-Specific Methods
+
+<ParamField path="start(uint8_t slot)" type="PlcErrorCodes">
+  Locks the bus for the specified slot (0-7), sets the CS pins, and pulls the G pin HIGH.
+</ParamField>
+
+<ParamField path="stop(uint8_t slot)" type="PlcErrorCodes">
+  Releases the bus by pulling the G pin LOW.
+</ParamField>

@@ -1,0 +1,87 @@
+---
+title: Introduction
+description: 'Welcome to the OSOlogic PRO operator manual — everything you need to interact with your PLC'
+icon: 'book-open'
+---
+
+<img
+  className="block dark:hidden"
+  src="/logo.png"
+  alt="OSOlogic PRO"
+/>
+<img
+  className="hidden dark:block"
+  src="/logo.png"
+  alt="OSOlogic PRO"
+/>
+
+**OSOlogic PRO** is an open-source industrial PLC platform designed for maximum flexibility and adaptability. It allows you to read sensors, control outputs, and manage complex automation workflows. Its modular architecture and standard interfaces make it a perfect fit for a wide range of industrial and home automation systems, allowing developers and integrators to modify and adapt the core engine to their specific needs.
+
+This manual explains how to operate the system — **no programming knowledge required**, though its open nature allows for deep customization.
+
+## How to Interact with the PLC
+
+There are **6 ways** to communicate with OSOlogic PRO. Choose the one that best fits your workflow:
+
+<CardGroup cols={2}>
+  <Card
+    title="Service Manager"
+    icon="server"
+    href="/users/service-manager"
+  >
+    Start, stop, and restart PLC services. Edit the system configuration. Access logs.
+  </Card>
+  <Card
+    title="Database GUI"
+    icon="table"
+    href="/users/gui/access"
+  >
+    Full web interface to manage models, devices, I/O configuration, users, and real-time values.
+  </Card>
+  <Card
+    title="Database Client"
+    icon="database"
+    href="/users/database"
+  >
+    Connect with phpMyAdmin, MySQL Workbench, or any SQL client to query and modify data directly.
+  </Card>
+  <Card
+    title="Modbus TCP Client"
+    icon="network-wired"
+    href="/users/modbus-client"
+  >
+    Use any SCADA, HMI, or Modbus tool (QModMaster, pymodbus) to read inputs and write outputs.
+  </Card>
+  <Card
+    title="MQTT Client"
+    icon="wifi"
+    href="/users/mqtt-client"
+  >
+    Subscribe to real-time I/O data and send commands through any MQTT client or IoT platform.
+  </Card>
+  <Card
+    title="Node-RED"
+    icon="leaf"
+    href="/users/nodered/overview"
+  >
+    Build custom automation flows, dashboards, and alerts with a visual drag-and-drop editor.
+  </Card>
+</CardGroup>
+
+## Network Access Summary
+
+All services are accessible over the network. Here are the default addresses:
+
+| Service | URL / Address | Port |
+|---------|--------------|------|
+| **Service Manager** | `https://<PLC_IP>:8080` | 8080 |
+| **Database GUI** | `https://<PLC_IP>:8082` | 8082 |
+| **phpMyAdmin** | `http://<PLC_IP>/phpmyadmin` | 80 |
+| **Modbus TCP** | `<PLC_IP>` | 502 |
+| **MQTT Broker** | `<PLC_IP>` | 1883 |
+| **Node-RED** | `https://<PLC_IP>:1880` | 1880 |
+| **MariaDB** | `<PLC_IP>` | 3306 |
+
+<Note>
+  Replace `<PLC_IP>` with the actual IP address of your PLC. You can find it in your network configuration or by asking your system administrator.
+</Note>

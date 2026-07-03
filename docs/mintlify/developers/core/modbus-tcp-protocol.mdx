@@ -1,0 +1,35 @@
+---
+title: 'ModbusTcpProtocol'
+description: 'Implementation of standard Modbus TCP/IP'
+icon: 'ethernet'
+---
+
+`ModbusTcpProtocol` implements the Modbus protocol for Ethernet communication. It is used to integrate with modern industrial equipment and remote I/O distributed systems.
+
+## MBAP Header
+
+Unlike RTU, Modbus TCP does not use a CRC. Instead, it uses the **MBAP Header** (Modbus Application Protocol):
+
+| Field | Length | Description |
+|---|---|---|
+| Transaction ID | 2 Bytes | Identification of a Modbus Request/Response transaction. |
+| Protocol ID | 2 Bytes | Always 0 for Modbus. |
+| Length | 2 Bytes | Number of following bytes. |
+| Unit ID | 1 Byte | Identification of a remote slave (usually 0 or 255). |
+
+## Key Features
+
+- **Transaction Tracking**: Automatically increments the Transaction ID for each request to match asynchronous responses correctly.
+- **Ethernet Efficiency**: Optimized for TCP stream communication, handling partial packet reads.
+- **No CRC**: Relies on the TCP layer's internal checksum for data integrity.
+
+## Connection Management
+
+This protocol implementation supports:
+- **Persistent connections**: Keeping the socket open for high-speed cyclical syncing.
+- **On-demand connections**: Opening and closing for infrequent tasks.
+
+## Implementation of IProtocol
+
+- `connect(address)`: Triggers the underlying `TCP_Channel` to perform the TCP handshake.
+- `readRegisters / writeRegisters`: Wraps the standard PDU with the MBAP header before sending through the socket.

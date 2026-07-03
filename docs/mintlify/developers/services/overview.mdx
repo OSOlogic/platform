@@ -1,0 +1,52 @@
+---
+title: 'Services Manager'
+description: 'Web dashboard for controlling PLC systemd services and editing configuration'
+icon: 'server'
+---
+
+## Overview
+
+The **Services Manager** is a Flask web application that provides a dark-themed dashboard for managing all PLC systemd services. It runs on port **8080** with optional HTTPS.
+
+## Service Registry
+
+| Key | Service Name | Display Name |
+|-----|-------------|--------------|
+| `core` | `plc_osologic-core` | PLC Core |
+| `mqtt` | `plc_osologic-mqtt` | MQTT Gateway |
+| `modbustcp` | `plc_osologic-modbustcp` | Modbus TCP Gateway |
+| `nodered` | `nodered` | Node-RED |
+| `gui` | `plc_osologic-gui` | GUI Admin |
+
+## REST API
+
+### Service Status
+```
+GET /api/status → { "core": { "status": "running", "enabled": true }, ... }
+```
+
+### Service Control
+```
+POST /api/service/{key}/{action}
+```
+Actions: `start`, `stop`, `restart`, `enable`, `disable`
+
+### Log Streaming
+```
+GET /api/service/{key}/logs → { "logs": "..." }
+```
+Returns last 150 lines from `journalctl`. The UI polls every 2.5s.
+
+### Configuration
+```
+GET  /api/config          → Full config.json contents
+POST /api/config (JSON)   → Saves to config/config.json
+```
+
+## UI Features
+
+- **Service cards** with animated status indicators and action buttons
+- **Ace Editor** (Monokai theme) for JSON configuration editing
+- **Global controls**: Start All, Stop All, Restart All, phpMyAdmin link
+- **Auto-start toggles** for systemd enable/disable
+- **SSL/TLS**: Auto-detects `certs/cert.pem` and `certs/key.pem`

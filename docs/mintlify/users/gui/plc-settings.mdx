@@ -1,0 +1,84 @@
+---
+title: 'PLC Settings'
+description: 'Configure RS-485 serial parameters and PLC operation mode'
+icon: 'gear'
+---
+
+## Overview
+
+The PLC Settings page controls two key aspects of the system:
+
+1. **RS-485 serial communication** parameters
+2. **Operation mode** of the PLC
+
+<Note>
+  Modifying PLC settings requires the **Operator** or **Admin** role.
+</Note>
+
+## RS-485 Settings
+
+These parameters configure the serial communication bus used by RS-485 modules:
+
+| Setting | Options | Default | Description |
+|---------|---------|---------|-------------|
+| **Baud Rate** | 9600, 19200, 38400, 57600, 115200 | 19200 | Communication speed in bits per second |
+| **Data Bits** | 7, 8 | 8 | Number of data bits per frame |
+| **Parity** | N (None), E (Even), O (Odd) | N | Error detection parity |
+| **Stop Bits** | 1, 2 | 1 | Number of stop bits per frame |
+
+<Warning>
+  RS-485 settings must match the physical configuration of your RS-485 devices. If the baud rate or parity settings don't match, the PLC will not be able to communicate with the modules. Refer to the documentation of your RS-485 modules for the correct settings.
+</Warning>
+
+<Tip>
+  The most common configuration is: **19200 baud, 8 data bits, No parity, 1 stop bit** (19200 8N1). This is the factory default for most RS-485 modules.
+</Tip>
+
+## Operation Mode
+
+The PLC has two operation modes that determine which I/O points are synchronized with hardware:
+
+### Execution Mode (Normal Operation)
+
+| Setting | Value |
+|---------|-------|
+| Mode | `execution` |
+| Synced I/O | All points with `purpose = 'standard'` |
+| Use Case | Normal machine operation |
+
+In **execution** mode, the PLC synchronizes all standard inputs and outputs. This is the normal operating mode for production.
+
+### Configuration Mode (Maintenance)
+
+| Setting | Value |
+|---------|-------|
+| Mode | `configuration` |
+| Synced I/O | All points with `purpose = 'secure_state'` or `purpose = 'config'` |
+| Use Case | Maintenance, setup, and safe state configuration |
+
+In **configuration** mode, the PLC synchronizes secure state values and configuration registers instead of standard I/O. This allows you to:
+
+- Read and write **secure state** values (safe output positions)
+- Read and write **configuration registers** (watchdog timers, firmware info, device parameters)
+- Perform device maintenance without affecting normal I/O
+
+<Warning>
+  Switching to **configuration** mode will **stop** synchronizing standard I/O. The machine outputs will hold their last values. Only switch to configuration mode during planned maintenance when the machine is safely stopped.
+</Warning>
+
+## Changing Settings
+
+<Steps>
+  <Step title="Navigate to PLC Settings">
+    Open the PLC Settings page in the GUI.
+  </Step>
+  <Step title="Modify values">
+    Change the RS-485 parameters or operation mode as needed.
+  </Step>
+  <Step title="Save">
+    Click **Save**. The changes are written to the database immediately.
+  </Step>
+  <Step title="Restart PLC Core">
+    For RS-485 settings changes, **restart the PLC Core** service from the [Service Manager](/users/service-manager) for the changes to take effect. Operation mode changes take effect on the next core sync cycle.
+  </Step>
+</Steps>

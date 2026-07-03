@@ -1,0 +1,103 @@
+---
+title: 'I/O Configuration'
+description: 'Customize labels, units, scaling, and visibility for each I/O point'
+icon: 'sliders'
+---
+
+## What is I/O Configuration?
+
+When a device is created, it inherits its I/O structure from the model. The **I/O Configuration** allows you to customize how each I/O point behaves for this specific device:
+
+- Give it a meaningful **label** (e.g., `"Conveyor Motor"` instead of `"Output 1"`)
+- Set **engineering units** (e.g., `"°C"`, `"bar"`)
+- Apply **scaling** to convert raw hardware values to real-world units
+- Control **visibility** on MQTT
+
+## Configuration Fields
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| **User Label** | Custom name for this I/O point | Auto-generated from model default |
+| **Units** | Engineering units string | Empty |
+| **Scale Factor** | Multiplier for raw → engineering conversion | `1.0` |
+| **Offset** | Additive constant for raw → engineering conversion | `0.0` |
+| **Visibility** | Whether this point is published to MQTT | `visible` |
+| **Visibility Mode** | When to publish: on every change, or at fixed intervals | `periodically` |
+| **Refresh Rate** | Publish interval in seconds (for `periodically` mode) | `1` |
+| **Sync** | Whether this I/O point is synchronized with hardware | `true` |
+
+## Scale Factor & Offset
+
+The system uses a linear transformation to convert between raw hardware values and engineering values:
+
+```
+engineering_value = raw_value × scale_factor + offset
+```
+
+### Example: Temperature Sensor
+
+A temperature sensor sends a raw value of `235` that represents `23.5 °C`:
+
+| Setting | Value |
+|---------|-------|
+| Scale Factor | `0.1` |
+| Offset | `0.0` |
+| Units | `°C` |
+
+Calculation: `235 × 0.1 + 0.0 = 23.5 °C`
+
+### Example: Pressure Sensor with Offset
+
+A pressure sensor sends a raw value of `4000` that represents `3.5 bar` (raw range 500-4500 maps to 0-4 bar):
+
+| Setting | Value |
+|---------|-------|
+| Scale Factor | `0.001` |
+| Offset | `-0.5` |
+| Units | `bar` |
+
+Calculation: `4000 × 0.001 + (-0.5) = 3.5 bar`
+
+<Note>
+  Scale factor and offset are applied automatically by database triggers. You see the **net value** (engineering) in MQTT and when querying `net_value` from the database. The **raw value** is always preserved in the `value` column.
+</Note>
+
+## Visibility Settings
+
+Visibility controls whether an I/O point is published to the MQTT broker:
+
+### Visibility
+
+| Option | Behavior |
+|--------|----------|
+| `visible` | The point is published to MQTT |
+| `hidden` | The point is **not** published to MQTT (but still readable via database or Modbus) |
+
+### Visibility Mode
+
+| Mode | Behavior |
+|------|----------|
+| `on_change` | Published only when the value changes |
+| `periodically` | Published at regular intervals regardless of changes |
+
+### Refresh Rate
+
+The publish interval in seconds for `periodically` mode. A value of `1` means the value is published every second. A value of `5` means every 5 seconds.
+
+<Tip>
+  Use `on_change` mode for critical I/O points that need immediate updates (e.g., alarms). Use `periodically` mode for slow-changing values like temperatures to reduce MQTT traffic.
+</Tip>
+
+## Editing I/O Configuration
+
+Navigate to the I/O Configuration section for a specific device. Each I/O point is listed with its current settings. Click on a point to modify its configuration:
+
+1. Change the **User Label** to something meaningful for your project
+2. Set the appropriate **Units**
+3. Configure **Scale Factor** and **Offset** if needed
+4. Choose the right **Visibility** settings
+5. Save changes
+
+<Warning>
+  The **User Label** must be unique across the entire project. Two different I/O points (even from different devices) cannot have the same label.
+</Warning>

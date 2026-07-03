@@ -1,0 +1,157 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "OSOlogic PRO",
+  "colors": {
+    "primary": "#0F52BA",
+    "light": "#4FA6EB",
+    "dark": "#0B306B"
+  },
+  "favicon": "/logo.png",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "For Users",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "users/introduction",
+              "users/installation",
+              "users/oso-cli"
+            ]
+          },
+          {
+            "group": "Service Manager",
+            "pages": [
+              "users/service-manager"
+            ]
+          },
+          {
+            "group": "Database GUI",
+            "pages": [
+              "users/gui/access",
+              "users/gui/dashboard",
+              "users/gui/models",
+              "users/gui/devices",
+              "users/gui/io-config",
+              "users/gui/realtime",
+              "users/gui/users",
+              "users/gui/plc-settings"
+            ]
+          },
+          {
+            "group": "Database Client",
+            "pages": [
+              "users/database"
+            ]
+          },
+          {
+            "group": "Modbus TCP Client",
+            "pages": [
+              "users/modbus-client"
+            ]
+          },
+          {
+            "group": "MQTT Client",
+            "pages": [
+              "users/mqtt-client"
+            ]
+          },
+          {
+            "group": "Node-RED",
+            "pages": [
+              "users/nodered/overview",
+              "users/nodered/io",
+              "users/nodered/subflows",
+              "users/nodered/dashboard"
+            ]
+          },
+          {
+            "group": "Auxiliary Scripts",
+            "pages": [
+              "users/scripts"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "For Developers",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "developers/architecture"
+            ]
+          },
+          {
+            "group": "Core C++",
+            "pages": [
+              "developers/core/overview",
+              "developers/core/ichannel",
+              "developers/core/iprotocol",
+              "developers/core/imodule",
+              "developers/core/module",
+              "developers/core/aggregator-module",
+              "developers/core/plc",
+              "developers/core/database",
+              "developers/core/tasks",
+              "developers/core/errors",
+              "developers/core/logging"
+            ]
+          },
+          {
+            "group": "Modbus TCP",
+            "pages": [
+              "developers/modbus/overview"
+            ]
+          },
+          {
+            "group": "MQTT Gateway",
+            "pages": [
+              "developers/mqtt/overview"
+            ]
+          },
+          {
+            "group": "Services & GUI",
+            "pages": [
+              "developers/services/overview",
+              "developers/services/gui"
+            ]
+          },
+          {
+            "group": "Node-RED Interface",
+            "pages": [
+              "developers/nodered/overview"
+            ]
+          },
+          {
+            "group": "🚀 Coming Soon",
+            "pages": [
+              "developers/coming-soon/realtime-api",
+              "developers/coming-soon/iec61131",
+              "developers/coming-soon/opc-ua",
+              "developers/coming-soon/mcp-server"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo.png",
+    "dark": "/logo.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "button",
+      "label": "Web Admin",
+      "href": "http://localhost:8080"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/tu-usuario/OSOlogic-PRO"
+    }
+  }
+}

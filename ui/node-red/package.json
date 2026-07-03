@@ -1,0 +1,14 @@
+{
+    "name": "PLCBorrell-node-red-interface",
+    "description": "A Node-RED Project",
+    "version": "0.0.1",
+    "dependencies": {
+        "node-red-contrib-mysql-config": "1.0.4"
+    },
+    "node-red": {
+        "settings": {
+            "flowFile": "flows.json",
+            "credentialsFile": "flows_cred.json"
+        }
+    }
+}

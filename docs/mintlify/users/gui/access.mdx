@@ -1,0 +1,66 @@
+---
+title: 'Access & Login'
+description: 'How to access the Database GUI and understand user roles'
+icon: 'right-to-bracket'
+---
+
+## Accessing the GUI
+
+Open your web browser and navigate to:
+
+```
+https://<PLC_IP>:8082
+```
+
+<Note>
+  Your browser may show a security warning because the PLC uses a self-signed SSL certificate. Click **"Advanced"** → **"Proceed"** to continue safely.
+</Note>
+
+## Login
+
+The GUI requires authentication. Enter your **username** and **password** on the login screen.
+
+<Tip>
+  Default credentials after installation are configured by your system administrator during setup. Contact them if you don't have an account.
+</Tip>
+
+## User Roles
+
+OSOlogic PRO uses a **role-based access control** system with three levels:
+
+| Role | Can View | Can Write Outputs | Can Manage Users | Can Change Settings |
+|------|----------|-------------------|------------------|---------------------|
+| **Viewer** | ✅ All data | ❌ | ❌ | ❌ |
+| **Operator** | ✅ All data | ✅ Write values | ❌ | ✅ PLC Settings |
+| **Admin** | ✅ All data | ✅ Write values | ✅ Full control | ✅ PLC Settings |
+
+### What Each Role Can Do
+
+<AccordionGroup>
+  <Accordion title="Viewer">
+    - View the dashboard, devices, models, I/O configuration, and real-time values
+    - Cannot modify any data or write to outputs
+    - Ideal for monitoring personnel
+  </Accordion>
+  <Accordion title="Operator">
+    - Everything a Viewer can do, **plus**:
+    - Write values to outputs (set `required_value` on writable I/O points)
+    - Modify PLC settings (RS-485 parameters, operation mode)
+    - Ideal for machine operators
+  </Accordion>
+  <Accordion title="Admin">
+    - Everything an Operator can do, **plus**:
+    - Create, edit, and delete users
+    - Transfer the admin role to another user
+    - Activate/deactivate user accounts
+    - Only **one admin** can exist at a time
+  </Accordion>
+</AccordionGroup>
+
+## Session Timeout
+
+Your session will automatically expire after **30 minutes** of inactivity (configurable in `config.json`). After expiration, you will be redirected to the login screen.
+
+## Logging Out
+
+Click the **Logout** link in the navigation to end your session manually.

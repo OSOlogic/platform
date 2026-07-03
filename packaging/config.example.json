@@ -1,0 +1,36 @@
+{
+  "database": {
+    "host": "localhost",
+    "user": "oso",
+    "password": "CHANGEME_DB_PASSWORD",
+    "db_name": "PLC"
+  },
+  "services": {
+    "mqtt": {
+      "broker_address": "localhost",
+      "port": 1883,
+      "client_id": "oso",
+      "password": "CHANGEME_MQTT_PASSWORD",
+      "topic_info_prefix": "/plc/modules_info",
+      "topic_data_prefix": "/plc/data",
+      "topic_write_prefix": "/plc/write",
+      "loop_interval_seconds": 1
+    },
+    "gui": {
+      "host": "0.0.0.0",
+      "port": 8082,
+      "secret_key": "CHANGEME_GENERATE_WITH_openssl_rand_-hex_32",
+      "session_timeout": 30,
+      "external_url": "https://your-host:8082/"
+    },
+    "nodered": {
+      "host": "localhost",
+      "port": 1880,
+      "external_url": "https://your-host:1880/"
+    },
+    "modbustcp": {
+      "host": "0.0.0.0",
+      "port": 502
+    }
+  }
+}

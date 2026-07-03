@@ -1,0 +1,54 @@
+---
+title: 'IChannel (C++)'
+description: 'Abstract interface for communication channel management (Read/Write)'
+icon: 'plug'
+---
+
+The `Ichannel.hpp` file defines the base interface (`Channel`) that all communication channel implementations must inherit from. It guarantees a uniform standard for connecting, disconnecting, and transferring memory buffers.
+
+## Class Definition
+
+```cpp
+#include <memory>
+#include <cstdint>
+#include <sys/types.h>
+#include "PlcErrorCodes.hpp"
+
+class Channel {
+public:
+  virtual ~Channel() = default;
+
+  virtual PlcErrorCodes connect() = 0;
+  virtual PlcErrorCodes disconnect() = 0;
+  
+  virtual PlcErrorCodes write(const void *buf, size_t n, ssize_t &bytes_written) = 0;
+  virtual PlcErrorCodes read(void *buf, size_t n, ssize_t &bytes_read) = 0;
+};
+
+using ChannelPtr = std::shared_ptr<Channel>;
+```
+
+## Virtual Methods
+
+<ParamField path="connect" type="PlcErrorCodes">
+  Establishes a connection with the physical or virtual communication medium. 
+  **Returns**: `PlcErrorCodes::PLC_SUCCESS` if successful.
+</ParamField>
+
+<ParamField path="disconnect" type="PlcErrorCodes">
+  Safely closes the channel and releases any associated descriptors.
+</ParamField>
+
+<ParamField path="write" type="PlcErrorCodes">
+  Sends a block of bytes through the channel.
+  - `buf`: Pointer to the data to be sent.
+  - `n`: Number of bytes attempting to send.
+  - `bytes_written`: (Reference) Returns the actual number of bytes sent.
+</ParamField>
+
+<ParamField path="read" type="PlcErrorCodes">
+  Reads information from the channel into a buffer.
+  - `buf`: Pointer to the buffer where the read data will be stored.
+  - `n`: Number of requested bytes.
+  - `bytes_read`: (Reference) Returns the number of bytes that were successfully read.
+</ParamField>

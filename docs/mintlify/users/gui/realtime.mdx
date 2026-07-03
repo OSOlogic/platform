@@ -1,0 +1,89 @@
+---
+title: 'Real-Time Monitoring'
+description: 'Monitor live I/O values and write to outputs from the GUI'
+icon: 'wave-pulse'
+---
+
+## The Real-Time Mirror
+
+OSOlogic PRO maintains a **real-time mirror** (`rtmirror`) of all I/O values in the database. This table is continuously updated by the C++ core engine as it communicates with hardware.
+
+## Viewing Live Values
+
+The real-time monitoring page displays all I/O points for each device with the following information:
+
+| Column | Description |
+|--------|-------------|
+| **Device** | The device this I/O point belongs to |
+| **Label** | Your custom label for this point |
+| **Address** | Logical address |
+| **Type** | `bit` (ON/OFF) or `register` (numeric) |
+| **Purpose** | `standard`, `secure_state`, or `config` |
+| **Access** | `readonly` (input) or `readwrite` (output) |
+| **Value (Raw)** | The raw hardware value |
+| **Value (Net)** | The engineering value after applying scale and offset |
+| **Required Value** | The value you want to write to the output |
+| **Units** | Engineering units |
+| **Timestamp** | When this value was last updated |
+
+## Understanding Raw vs Net Values
+
+Each I/O point has two representations:
+
+```
+net_value = value × scale_factor + offset
+```
+
+| Type | Column | Description |
+|------|--------|-------------|
+| **Raw** | `value` | Direct hardware value (integer) |
+| **Engineering** | `net_value` | Scaled value with units |
+| **Raw Required** | `required_value` | Raw value to write to hardware |
+| **Engineering Required** | `net_required_value` | Scaled value to write |
+
+### Example
+
+For a temperature sensor with `scale_factor = 0.1` and `offset = 0`:
+
+| Column | Value | Meaning |
+|--------|-------|---------|
+| `value` | `235` | Raw from hardware |
+| `net_value` | `23.5` | 23.5 °C |
+| `required_value` | — | Not applicable (readonly input) |
+
+## Writing Values to Outputs
+
+For I/O points with `hardware_access = readwrite` (outputs), you can set the desired value:
+
+<Steps>
+  <Step title="Find the output">
+    Navigate to the real-time view and locate the output you want to control.
+  </Step>
+  <Step title="Enter the value">
+    Enter the desired value in the **Required Value** field:
+    - For **bits**: enter `0` (OFF) or `1` (ON)
+    - For **registers**: enter the desired integer value (0–4294967295)
+  </Step>
+  <Step title="Submit">
+    Click the write/submit button. The value is written to the `required_value` column in the database.
+  </Step>
+  <Step title="Wait for synchronization">
+    The C++ core picks up the new `required_value` on its next database sync cycle and writes it to the physical hardware. This typically happens within milliseconds.
+  </Step>
+</Steps>
+
+<Note>
+  You can also write the **net** (engineering) value via `net_required_value`. The database trigger will automatically calculate the raw `required_value` using the inverse formula: `required_value = (net_required_value - offset) / scale_factor`.
+</Note>
+
+### Write Permissions
+
+Only I/O points marked as `readwrite` can be written to. Attempting to write to a `readonly` (input) point will be rejected with an error.
+
+<Warning>
+  Only users with the **Operator** or **Admin** role can write values to outputs. Viewers can only monitor.
+</Warning>
+
+## Filtering by Device
+
+You can filter the real-time view to show only I/O points for a specific device. Use the device selector to choose which device to monitor.
