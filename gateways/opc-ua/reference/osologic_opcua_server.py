@@ -15,15 +15,15 @@ data model:
 
 The gateway talks to a `HubSource` abstraction. Two adapters are provided:
 
-  * InMemorySource  — the osodb-style in-memory hub (used by the demo).
-  * MariaDBSource   — production adapter reading the opcua_* SQL views.
+  * InMemorySource  — the osodb-style in-memory hub (self-contained example).
+  * MariaDBSource   — adapter that reads the opcua_* SQL views.
 
-This mirrors the platform architecture: the in-memory DB is the canonical hub;
-MariaDB / other DBs are adapters behind it.
+This mirrors the platform architecture: the in-memory database is the canonical
+hub; MariaDB and other databases are adapters behind it.
 
-Run the demo:   python3 osologic_opcua_server.py --demo
-Endpoint:       opc.tcp://0.0.0.0:4840/osologic/server/
-Namespace:      urn:osologic:platform
+Run the example:  python3 osologic_opcua_server.py --example
+Endpoint:         opc.tcp://0.0.0.0:4840/osologic/server/
+Namespace:        urn:osologic:platform
 """
 import argparse
 import asyncio
@@ -72,7 +72,7 @@ class HubSource:
 
 
 class InMemorySource(HubSource):
-    """osodb-style in-memory hub. Seeded with a representative device."""
+    """osodb-style in-memory hub, populated with a representative configuration."""
 
     def __init__(self):
         self._objects = []
@@ -122,13 +122,13 @@ class InMemorySource(HubSource):
 
 
 class MariaDBSource(HubSource):
-    """Production adapter: reads the opcua_* SQL views (see sql/opcua_views.sql).
+    """Adapter that reads the opcua_* SQL views (see sql/opcua_views.sql).
 
-    Writes bypass the view and call the hub/runtime write path (here shown as a
-    direct rtmirror.required_value update; wire to osoruntime in production)."""
+    Reads are served from the views; writes bypass the views and update the
+    setpoint through the runtime write path."""
 
     def __init__(self, **conn):
-        import mariadb  # optional dependency; only needed for this adapter
+        import mariadb  # MariaDB connector, required by this adapter
         self._cx = mariadb.connect(**conn)
 
     def _q(self, sql, args=()):
@@ -263,9 +263,10 @@ class OpcUaGateway:
             await self._refresh_loop()
 
 
-def seed_demo() -> InMemorySource:
-    """Representative device derived from Diego's PLC_config seed
-    (Aggregated_Plant_IO_2: 16 outputs + 8 safe states + WDT config)."""
+def seed_example() -> InMemorySource:
+    """Representative configuration for the in-memory example
+    (Aggregated Plant I/O: 16 outputs + 8 safe states + watchdog config,
+    plus a read-only measured value with engineering units)."""
     s = InMemorySource()
     s.add_object(1, "Plant_IO_2", "Aggregated_Plant_IO_2", "aggregated", connected=True)
     for i in range(16):                                   # standard outputs (bit, rw)
@@ -281,8 +282,8 @@ def seed_demo() -> InMemorySource:
 
 async def _amain(args):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    if args.demo:
-        source = seed_demo()
+    if args.example:
+        source = seed_example()
     else:
         source = MariaDBSource(host=args.db_host, port=args.db_port, user=args.db_user,
                                password=args.db_pass, database=args.db_name)
@@ -291,7 +292,8 @@ async def _amain(args):
 
 def main():
     p = argparse.ArgumentParser(description="OSOlogic OPC-UA gateway (reference)")
-    p.add_argument("--demo", action="store_true", help="run with the in-memory demo hub")
+    p.add_argument("--example", action="store_true",
+                   help="run the self-contained in-memory example")
     p.add_argument("--db-host", default="127.0.0.1")
     p.add_argument("--db-port", type=int, default=3306)
     p.add_argument("--db-user", default="plc")

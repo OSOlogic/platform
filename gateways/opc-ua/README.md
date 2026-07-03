@@ -41,7 +41,7 @@ The gateway talks to a `HubSource` abstraction, consistent with the platform
 principle that the **in-memory DB is the canonical hub** and other databases are
 adapters behind it:
 
-* `InMemorySource` — the `osodb`-style in-memory hub (used by the demo).
+* `InMemorySource` — the `osodb`-style in-memory hub (used by the in-memory example).
 * `MariaDBSource` — production adapter reading the `opcua_*` SQL views.
 
 ```
@@ -66,7 +66,7 @@ opc-ua/
 ```bash
 pip install --user asyncua
 cd reference
-python3 osologic_opcua_server.py --demo        # endpoint opc.tcp://0.0.0.0:4840/osologic/server/
+python3 osologic_opcua_server.py --example        # endpoint opc.tcp://0.0.0.0:4840/osologic/server/
 python3 verify_client.py                       # in another shell: browse, read, write round-trip
 ```
 

@@ -10,27 +10,26 @@ automation platform (AGPL-3.0). **OSOlogic Enterprise** adds optional, commercia
 licensed modules for organizations that need scale, certification, high availability,
 advanced security, or turnkey vertical solutions.
 
-> **How this works (open-core).** Enterprise features appear in the Community Edition
-> as **documented module stubs**: the directory and its public interface exist here,
-> the *implementation* ships with OSOlogic Enterprise. Each stub explains what the
-> feature does and includes **working examples of how to connect to it** from your
-> CE deployment — over the same open interfaces (OPC-UA, REST, MQTT, the `osodb` hub).
-> Nothing is locked away that you need to build real systems on CE; Enterprise is
-> additive.
+> **Open-core model.** Enterprise features are documented here in the Community Edition,
+> where their public interfaces are defined; the implementation is provided with
+> OSOlogic Enterprise. Each page describes what the feature does and includes working
+> examples of how to integrate with it from a Community Edition deployment — over the
+> same open interfaces (OPC-UA, REST, MQTT, and the `osodb` hub). The Community Edition
+> is fully capable on its own; Enterprise is additive.
 
 ## Enterprise add-ons
 
-| Add-on | What it adds | Teaser + connect example |
+| Add-on | What it adds | Learn more |
 |---|---|---|
 | **Computer Vision / Advanced AI** | Real-time inspection, defect detection, sorting, and on-edge inference; model training pipeline; vision→PLC actuation. | [vision-ai.md](vision-ai.md) |
 | **Advanced Real-Time Multi-Axis CNC** | Deterministic multi-axis motion, coordinated trajectory/interpolation, look-ahead, kinematics, G-code runtime. | [cnc-multiaxis.md](cnc-multiaxis.md) |
 | **OPC-UA Advanced** | Security (certificates, roles, auditing), Historical Access, Alarms & Conditions, aggregation, redundancy. | see [`gateways/opc-ua`](../../gateways/opc-ua/) |
-| **Certified Protocol Gateways** | PROFINET, EtherNet/IP, OPC-DA legacy — with conformance certification. | *(stub)* |
-| **High Availability / Redundancy** | Hot-standby runtime, redundant I/O, seamless failover. | *(stub)* |
-| **SCADA/Historian at scale** | Multi-station SCADA, time-series historian, alarm management, analytics. | *(stub)* |
-| **Fleet Management** | Central provisioning, fleet-wide OTA, device inventory. | *(stub)* |
-| **Security & Compliance** | RBAC, LDAP/AD/SSO, audit trails, IEC 62443 packs, secure-boot management. | *(stub)* |
-| **Functional Safety (certified)** | Certified safe-state / SIL-rated packages (the base `secure_state` mechanism is in CE). | *(stub)* |
+| **Certified Protocol Gateways** | PROFINET, EtherNet/IP, OPC-DA legacy — with conformance certification. | — |
+| **High Availability / Redundancy** | Hot-standby runtime, redundant I/O, seamless failover. | — |
+| **SCADA/Historian at scale** | Multi-station SCADA, time-series historian, alarm management, analytics. | — |
+| **Fleet Management** | Central provisioning, fleet-wide OTA, device inventory. | — |
+| **Security & Compliance** | RBAC, LDAP/AD/SSO, audit trails, IEC 62443 packs, secure-boot management. | — |
+| **Functional Safety (certified)** | Certified safe-state / SIL-rated packages (the base `secure_state` mechanism is in CE). | — |
 
 ## Connecting from Community Edition
 
