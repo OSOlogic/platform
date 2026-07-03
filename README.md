@@ -49,6 +49,7 @@ We want to help industry leap forward by adopting modern, flexible technologies,
 - **Secure by design** — Encryption, certificates, authentication, firewalls, and more.
 - **Universal gateway** — Communicates across industrial protocols (Modbus, CAN, EtherNet/IP, PROFINET, OPC-UA) and modern formats (JSON, XML, Protocol Buffers).
 - **Scalable for all** — From microcontrollers and single-board computers to industrial PCs, supercomputers and control rooms.
+- **SQL direct control** — read and control the plant with plain SQL (`SELECT` / `UPDATE`), from any language, no drivers or SDKs.
 - **Ready for AI** — Designed for the AI era: machine-readable, agent-friendly, and open to what comes next.
 
 > **Compatible with** Node-RED, REST, MQTT, WebSockets, GraphQL, gRPC, containers, time-series and
@@ -65,6 +66,27 @@ interface. No scraping, no brittle glue. The same hub is also reachable over RES
 OPC-UA and MQTT, with deterministic, reversible node IDs.
 
 → See [`api/mcp/`](api/mcp/) and [`api/rest/`](api/rest/).
+
+---
+
+## SQL direct control
+
+Because OSOLogic is data-centric, **every value is a row**. With the right database credentials
+you can read *and control* the plant with plain SQL — from any language, with **no drivers, no
+SDKs, no exotic libraries**:
+
+```sql
+-- Read the whole plant
+SELECT id, value, units FROM tags;
+
+-- Control it — write a set-point, applied by the scan cycle
+UPDATE tags SET required_value = 1450 WHERE id = '3.14';   -- module 3, I/O 14
+```
+
+Transparent and open to data capture (`SELECT` straight into any BI tool), dead-simple to
+control (`UPDATE`), and gated by MariaDB GRANTs — the same permission model that scopes every
+other surface. SQL is a first-class control interface, symmetric with OPC-UA, MQTT, REST and MCP.
+See [`core/osodb`](core/osodb).
 
 ---
 
