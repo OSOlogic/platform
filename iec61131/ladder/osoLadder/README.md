@@ -19,8 +19,39 @@ iec61131/ladder/osoLadder/
 ├── osological.js    ← editor engine (canvas, rungs, contacts, coils)
 ├── osological.css   ← design system styles (dark theme, CSS variables)
 ├── osoplc.js        ← PLC connection layer (REST, MQTT, Redis, DB bridge)
+├── osocompile.js    ← Ladder → Structured Text compiler (prototype; browser + Node)
+├── osocompile-cli.js← CLI wrapper: `.osol` → `.st` for the toolchain / CI
 └── LICENSE
 ```
+
+> **Status:** early prototype — the editor is not yet fully functional. The compile
+> path and live DB/osodb wiring below are tentative and evolving.
+
+## Compile → Structured Text / Compilar a ST  *(prototype)*
+
+Ladder compiles to **Structured Text**, the common intermediate form that feeds the
+[osoST toolchain](../../st/osoST/) → p-code → runtime — so Ladder gets a real compile
+path without a bespoke backend.
+
+- In the editor: **Compilar ST** in the toolbar generates and downloads the `.st`.
+- From the toolchain / CI:
+
+  ```bash
+  node osocompile-cli.js program.osol            # → program.st
+  node osocompile-cli.js program.osol -           # ST to stdout
+  ```
+
+Series contacts = `AND`, parallel branches = `OR`; the four coil types and the standard
+timers/counters/math/compare blocks are emitted. Nested branch re-joins are approximated
+(flagged as warnings).
+
+## Live values from osodb / the DB / Vía osodb o la DB
+
+In **REST** mode the editor polls each variable's live value through the osoLogic REST
+API — which fronts **osodb** (the in-memory hub) and, behind it, MariaDB. Each variable is
+read by its **`address`** (its osodb tag / NodeId) when set, otherwise by name; updates are
+broadcast as a `plc:update` DOM event. Direct DB/Redis sockets are not available from a
+browser, so "DB / osodb" goes through that same REST endpoint.
 
 > **osoLadder** is maintained as a standalone project and synchronised into this repository via `publish.sh`. Do not edit files here directly — submit changes upstream at `OSOLadder/`.
 

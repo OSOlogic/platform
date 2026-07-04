@@ -24,6 +24,7 @@
       <button class="tb-btn" id="btn-new">Nuevo</button>
       <button class="tb-btn" id="btn-import">Importar</button>
       <button class="tb-btn" id="btn-export">Exportar</button>
+      <button class="tb-btn" id="btn-compile" title="Compile to Structured Text">Compilar ST</button>
       <input type="file" id="file-input" accept=".osol,.json" style="display:none">
       <div class="toolbar-sep"></div>
       <button class="tb-btn" id="btn-undo">Deshacer</button>
@@ -409,5 +410,28 @@
 
 <script src="osological.js"></script>
 <script src="osoplc.js"></script>
+<script src="osocompile.js"></script>
+<script>
+  /* Compile → Structured Text (prototype). Generates ST from the current ladder
+     and downloads it; the ST feeds the osoST toolchain. */
+  document.addEventListener('DOMContentLoaded', () => {
+    const b = document.getElementById('btn-compile');
+    if (!b || typeof OsoCompile === 'undefined') return;
+    b.addEventListener('click', () => {
+      try {
+        const { st, warnings } = OsoCompile.compileLadderToST(state);
+        if (warnings.length) console.warn('[compile]\n' + warnings.join('\n'));
+        const blob = new Blob([st], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = ((state.meta && state.meta.name) || 'ladder').replace(/\s+/g, '_') + '.st';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        alert('Compile error: ' + (e.message || e));
+      }
+    });
+  });
+</script>
 </body>
 </html>

@@ -1,0 +1,200 @@
+/* ============================================================
+   OSOLadder — osocompile.js  (PROTOTYPE / tentative)
+   Ladder Diagram (osoLadder state model) → Structured Text (IEC 61131-3)
+
+   ST is the common intermediate form: it feeds the osoST toolchain
+   (iec61131/st/osoST → p-code → osoruntime), so Ladder gets a real compile
+   path without a bespoke backend. This is an early prototype — series/parallel
+   contact networks, the four coil types and the standard function blocks are
+   handled; complex nested branch re-joins are approximated (flagged in output).
+
+   Works in the browser (window.OsoCompile) and in Node (module.exports),
+   so it can be unit-tested headless.
+
+   Copyright (C) 2026 Jose Roig Borrell, Roig Borrell SL, Ibercomp SL
+   SPDX-License-Identifier: AGPL-3.0-or-later
+   ============================================================ */
+'use strict';
+
+(function (root) {
+
+  const CONTACTS = new Set(['NO_CONTACT', 'NC_CONTACT', 'POS_TRANSITION', 'NEG_TRANSITION']);
+  const COILS    = new Set(['COIL_NORMAL', 'COIL_NEGATED', 'COIL_SET', 'COIL_RESET']);
+  const TIMERS   = new Set(['FB_TON', 'FB_TOF', 'FB_TP']);
+  const COUNTERS = new Set(['FB_CTU', 'FB_CTD', 'FB_CTUD']);
+  const MATH_OP  = { FB_ADD: '+', FB_SUB: '-', FB_MUL: '*', FB_DIV: '/' };
+  const CMP_OP   = { FB_GT: '>', FB_LT: '<', FB_GE: '>=', FB_LE: '<=', FB_EQ: '=', FB_NE: '<>' };
+
+  // A ladder variable reference; fall back to a safe placeholder when unbound.
+  function ref(name) { return (name && String(name).trim()) || '_UNBOUND_'; }
+
+  // Boolean expression for a single contact cell.
+  function contactExpr(cell, edgeDecls) {
+    const v = ref(cell.variableName);
+    switch (cell.type) {
+      case 'NO_CONTACT': return v;
+      case 'NC_CONTACT': return 'NOT ' + v;
+      case 'POS_TRANSITION': {
+        const inst = 'R_' + sanitize(v);
+        edgeDecls.set(inst, 'R_TRIG');
+        return `(${inst}(CLK := ${v}), ${inst}.Q)`;   // rising edge
+      }
+      case 'NEG_TRANSITION': {
+        const inst = 'F_' + sanitize(v);
+        edgeDecls.set(inst, 'F_TRIG');
+        return `(${inst}(CLK := ${v}), ${inst}.Q)`;   // falling edge
+      }
+      default: return 'FALSE';
+    }
+  }
+
+  function sanitize(s) { return String(s).replace(/[^A-Za-z0-9_]/g, '_'); }
+
+  // Series AND of a list of boolean expressions.
+  function andJoin(list) {
+    const xs = list.filter(Boolean);
+    if (xs.length === 0) return 'TRUE';
+    if (xs.length === 1) return xs[0];
+    return xs.map(x => needsParen(x) ? `(${x})` : x).join(' AND ');
+  }
+  function orJoin(list) {
+    const xs = list.filter(Boolean);
+    if (xs.length === 0) return 'FALSE';
+    if (xs.length === 1) return xs[0];
+    return xs.map(x => needsParen(x) ? `(${x})` : x).join(' OR ');
+  }
+  function needsParen(x) { return /\bAND\b|\bOR\b/.test(x) && !/^\(.*\)$/.test(x); }
+
+  // Compile one rung to ST statements. Series within a row = AND, rows = OR.
+  // (Prototype: treats each row as an independent parallel branch feeding the
+  // outputs; nested mid-rung re-joins are approximated.)
+  function compileRung(rung, edgeDecls, warnings, idx) {
+    const outLines = [];
+    const contactRows = [];
+    const outputs = [];   // {cell, row, col}
+
+    for (let r = 0; r < rung.cells.length; r++) {
+      const row = rung.cells[r] || [];
+      const rowContacts = [];
+      for (let c = 0; c < row.length; c++) {
+        const cell = row[c];
+        if (!cell || !cell.type) continue;
+        if (CONTACTS.has(cell.type)) rowContacts.push(contactExpr(cell, edgeDecls));
+        else if (COILS.has(cell.type)) outputs.push({ cell, r, c });
+        else outputs.push({ cell, r, c });   // function block as an output-side element
+      }
+      if (rowContacts.length) contactRows.push(andJoin(rowContacts));
+    }
+
+    const cond = orJoin(contactRows);   // parallel branches OR-ed together
+
+    if (outputs.length === 0) {
+      warnings.push(`Rung ${idx + 1}${rung.label ? ` ("${rung.label}")` : ''}: no output — skipped.`);
+      return outLines;
+    }
+
+    for (const o of outputs) {
+      const cell = o.cell;
+      const v = ref(cell.variableName);
+      switch (cell.type) {
+        case 'COIL_NORMAL':  outLines.push(`${v} := ${cond};`); break;
+        case 'COIL_NEGATED': outLines.push(`${v} := NOT (${cond});`); break;
+        case 'COIL_SET':     outLines.push(`IF ${cond} THEN ${v} := TRUE; END_IF;`); break;
+        case 'COIL_RESET':   outLines.push(`IF ${cond} THEN ${v} := FALSE; END_IF;`); break;
+        default:
+          outLines.push(compileFB(cell, cond, edgeDecls, warnings, idx));
+      }
+    }
+    return outLines;
+  }
+
+  // Function-block call → ST. Timers/counters as instance calls; math/compare inline.
+  function compileFB(cell, cond, edgeDecls, warnings, idx) {
+    const p = cell.params || {};
+    const inst = p.instanceName || (cell.type.replace('FB_', '') + '_1');
+    if (TIMERS.has(cell.type)) {
+      const fb = cell.type.replace('FB_', '');           // TON/TOF/TP
+      edgeDecls.set(inst, fb);
+      const IN = ref(p.IN) === '_UNBOUND_' ? cond : ref(p.IN);
+      const out = p.Q ? `  ${ref(p.Q)} := ${inst}.Q;` : '';
+      const et  = p.ET ? `  ${ref(p.ET)} := ${inst}.ET;` : '';
+      return `${inst}(IN := ${IN}, PT := ${p.PT || 'T#0s'});${out ? '\n' + out : ''}${et ? '\n' + et : ''}`;
+    }
+    if (COUNTERS.has(cell.type)) {
+      const fb = cell.type.replace('FB_', '');           // CTU/CTD/CTUD
+      edgeDecls.set(inst, fb);
+      const args = [];
+      if (fb === 'CTU')  args.push(`CU := ${cond}`, `RESET := ${ref(p.R)}`, `PV := ${p.PV ?? 0}`);
+      if (fb === 'CTD')  args.push(`CD := ${cond}`, `LOAD := ${ref(p.LD)}`, `PV := ${p.PV ?? 0}`);
+      if (fb === 'CTUD') args.push(`CU := ${cond}`, `CD := ${ref(p.CD)}`, `RESET := ${ref(p.R)}`, `LOAD := ${ref(p.LD)}`, `PV := ${p.PV ?? 0}`);
+      const out = p.Q ? `\n  ${ref(p.Q)} := ${inst}.Q;` : '';
+      const cv  = p.CV ? `\n  ${ref(p.CV)} := ${inst}.CV;` : '';
+      return `${inst}(${args.join(', ')});${out}${cv}`;
+    }
+    if (cell.type in MATH_OP) {
+      const en = `IF ${cond} THEN `;
+      return `${en}${ref(p.OUT)} := ${ref(p.IN1)} ${MATH_OP[cell.type]} ${ref(p.IN2)}; END_IF;`;
+    }
+    if (cell.type === 'FB_MOV') {
+      return `IF ${cond} THEN ${ref(p.OUT)} := ${ref(p.IN1)}; END_IF;`;
+    }
+    if (cell.type in CMP_OP) {
+      return `${ref(p.OUT)} := (${ref(p.IN1)} ${CMP_OP[cell.type]} ${ref(p.IN2)});`;
+    }
+    warnings.push(`Rung ${idx + 1}: unsupported element '${cell.type}' — emitted as comment.`);
+    return `(* unsupported: ${cell.type} *)`;
+  }
+
+  // Map an osoLadder dataType to an ST type.
+  function stType(dt) {
+    const t = (dt || 'BOOL').toUpperCase();
+    const ok = new Set(['BOOL', 'BYTE', 'WORD', 'DWORD', 'INT', 'DINT', 'UINT', 'UDINT', 'REAL', 'LREAL', 'TIME', 'STRING']);
+    return ok.has(t) ? t : 'BOOL';
+  }
+
+  /**
+   * Compile an osoLadder `state` object to a Structured Text program (string).
+   * @returns {{ st:string, warnings:string[] }}
+   */
+  function compileLadderToST(state) {
+    const warnings = [];
+    const edgeDecls = new Map();   // instanceName -> FB type (R_TRIG/TON/...)
+    const name = sanitize((state.meta && state.meta.name) || 'LadderProgram') || 'LadderProgram';
+
+    const body = [];
+    const rungs = (state.rungs || []).filter(r => r.enabled !== false);
+    rungs.forEach((rung, i) => {
+      if (rung.label) body.push(`  (* Rung ${i + 1}: ${rung.label} *)`);
+      for (const line of compileRung(rung, edgeDecls, warnings, i)) {
+        body.push('  ' + line.replace(/\n/g, '\n  '));
+      }
+    });
+    if (!body.length) body.push('  (* empty program *)');
+
+    // VAR block: declared variables + auto edge/FB instances.
+    const decls = [];
+    for (const v of (state.variables || [])) {
+      const line = `  ${sanitize(v.name)} : ${stType(v.dataType)}` +
+        (v.initialValue != null && v.initialValue !== '' ? ` := ${v.initialValue}` : '') + ';' +
+        (v.address ? `   (* @ ${v.address} *)` : '') +
+        (v.comment ? `   (* ${v.comment} *)` : '');
+      decls.push(line);
+    }
+    for (const [inst, fb] of edgeDecls) decls.push(`  ${inst} : ${fb};`);
+
+    const st =
+      `(* Generated by osoLadder → osocompile.js (prototype) *)\n` +
+      `(* Source: ${(state.meta && state.meta.name) || 'untitled'} — IEC 61131-3 *)\n\n` +
+      `PROGRAM ${name}\n` +
+      `VAR\n${decls.length ? decls.join('\n') : '  (* no variables *)'}\nEND_VAR\n\n` +
+      body.join('\n') + '\n\n' +
+      `END_PROGRAM\n`;
+
+    return { st, warnings };
+  }
+
+  const api = { compileLadderToST };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.OsoCompile = api;
+
+})(typeof window !== 'undefined' ? window : globalThis);
