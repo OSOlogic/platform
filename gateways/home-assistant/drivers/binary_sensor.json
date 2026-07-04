@@ -1,0 +1,3 @@
+{ "domain":"binary_sensor", "label":"Binary sensor", "icon":"⚫",
+  "osodb":{"type":"Boolean","access":"ReadOnly"},
+  "state_map":{"on":1,"off":0} }

@@ -1,0 +1,2 @@
+{ "domain":"sensor", "label":"Sensor (analog)", "icon":"📈",
+  "osodb":{"type":"Float","access":"ReadOnly"}, "units_from":"unit_of_measurement" }

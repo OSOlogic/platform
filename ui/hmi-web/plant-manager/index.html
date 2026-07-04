@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Plant Manager</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --panel-2:#1c1f26; --line:#2a2e37; --ink:#ece9e3;
+    --muted:#8b8f99; --accent:#c23434; --accent-2:#e05a5a; --brand:#a11313; --good:#46d17f; --bad:#e5484d;
+    --mono:ui-monospace,Menlo,Consolas,monospace; --sans:"Segoe UI",system-ui,sans-serif;
+  }
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;overflow:hidden}
+  a{color:inherit;text-decoration:none}
+  header{display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}.brand img{width:30px;height:23px}.brand b{color:var(--accent)}
+  .grow{flex:1}.sep{width:1px;height:20px;background:var(--line)}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px}
+  .btn:hover{border-color:var(--accent)} .btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .btn.on{border-color:var(--good);color:var(--good)}
+  .palette{display:flex;gap:5px}.palette button{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}.palette button.on{outline:2px solid var(--ink);outline-offset:1px}
+  .toggle{width:34px;height:34px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer}
+  .pill{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:5px}.dot.ok{background:var(--good)}
+  main{flex:1;display:grid;grid-template-columns:290px 1fr 300px;min-height:0}
+  aside{background:var(--panel);overflow:auto;padding:12px}
+  aside.left{border-right:1px solid var(--line)} aside.right{border-left:1px solid var(--line)}
+  h3{margin:2px 0 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .drv{margin-bottom:10px}
+  .drv .dh{font-size:12px;color:var(--muted);font-weight:700;padding:4px 2px;display:flex;gap:7px;align-items:center}
+  .dev{display:flex;gap:8px;align-items:center;padding:7px 9px;border:1px solid var(--line);border-radius:8px;margin:4px 0;cursor:pointer;background:var(--panel-2)}
+  .dev:hover{border-color:var(--accent)} .dev.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .dev .nm{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dev .ty{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .dev .lv{font-family:var(--mono);font-size:11px;color:var(--good);min-width:26px;text-align:right}
+  .hint{color:var(--muted);font-size:12px;line-height:1.5}
+  .stage{display:grid;place-items:center;overflow:auto;padding:22px;background:radial-gradient(circle at 20% 10%,#14161c,var(--bg) 60%)}
+  #host{width:min(820px,94%)}#host svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:#0b0c10}
+  [data-mode="run"] main{grid-template-columns:290px 1fr}[data-mode="run"] aside.right{display:none}
+  [data-mode="edit"] .hmi-shape{cursor:pointer}.hmi-shape.sel{outline:2px dashed var(--accent);outline-offset:2px}
+  label.f{display:block;margin:8px 0 3px;color:var(--muted);font-size:12px}
+  input.f{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px}
+  .rule{display:flex;gap:8px;align-items:center;margin:6px 0}.sw{width:26px;height:26px;border-radius:6px;border:1px solid var(--line)}
+  .selrow{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:8px}
+  .bindbtn{width:100%;margin-top:8px}
+</style>
+</head>
+<body data-mode="edit">
+<header>
+  <a class="brand" href="/"><img src="../../shared/oso-mark.svg" alt="OSOLogic"><span>OSO<b>logic</b> · Plant Manager</span></a>
+  <span class="pill">HMI · osodb</span>
+  <div class="sep"></div>
+  <button class="btn" id="modeBtn">▶ Run</button>
+  <div class="grow"></div>
+  <div class="palette" id="palette" aria-label="Accent"><button data-accent="amber" style="background:#f48c06"></button><button data-accent="honey" style="background:#ffb300"></button><button data-accent="maroon" style="background:#c23434"></button><button data-accent="bootstrap" style="background:#0d6efd"></button></div>
+  <span class="pill"><span class="dot" id="cd"></span><span id="cl">offline</span></span>
+  <button class="btn" id="connBtn">⚙ osodb</button>
+  <button class="toggle" id="themeBtn">◐</button>
+</header>
+<main>
+  <!-- DEVICES / DRIVERS (from the Home Assistant mapper) -->
+  <aside class="left">
+    <h3>Devices &amp; drivers</h3>
+    <p class="hint" style="margin-bottom:10px">Devices mapped from <b>Home Assistant</b> drivers into osodb.
+      Pick one, then click a shape to bind it.</p>
+    <div id="tree"></div>
+    <button class="btn" id="reload" style="width:100%;margin-top:8px">↻ Reload devices</button>
+    <p class="hint" style="margin-top:8px">Live plant tags come from the osoLogic REST API; the HA
+      bridge feeds <span class="mono">hass.*</span> tags into it.</p>
+  </aside>
+
+  <section class="stage"><div id="host"></div></section>
+
+  <aside class="right">
+    <h3>Binding</h3>
+    <div id="bind"><p class="hint">Select a shape on the plant to bind a device to it.</p></div>
+  </aside>
+</main>
+
+<script src="../../shared/osodb-client.js"></script>
+<script>
+'use strict';
+const LS='osopm';
+let model = load() || { svg: DEMO(), bindings:{} };  // bindings[shapeId]={tag,type,onColor,offColor,default,label}
+let devices = [], selDev=null, selShape=null, running=false;
+
+function load(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(_){return null}}
+function persist(){localStorage.setItem(LS,JSON.stringify(model))}
+const ICON={light:'💡',switch:'🔌',fan:'🌀',cover:'🚪',lock:'🔒',binary_sensor:'⚫',sensor:'📈',number:'🎚️',climate:'🌡️'};
+
+// ---- devices tree (from the HA mapper output) ----
+async function loadDevices(){
+  try{ devices = await (await fetch('devices.example.json')).json(); }catch(_){ devices=[]; }
+  renderTree();
+}
+function renderTree(){
+  const t=document.getElementById('tree'); const byDom={};
+  devices.forEach(d=>{(byDom[d.domain]=byDom[d.domain]||[]).push(d)});
+  t.innerHTML = Object.keys(byDom).sort().map(dom=>`
+    <div class="drv"><div class="dh">${ICON[dom]||'🔧'} ${dom} <span style="color:var(--muted);font-weight:400">· ${byDom[dom].length}</span></div>
+      ${byDom[dom].map(d=>`<div class="dev" data-key="${d.key}">
+        <span class="nm" title="${d.key}">${d.name}</span>
+        <span class="ty">${d.type}${d.writable?'·rw':''}</span>
+        <span class="lv" data-lv="${d.key}">—</span></div>`).join('')}
+    </div>`).join('') || '<p class="hint">No devices. Run the HA mapper to populate.</p>';
+  t.querySelectorAll('.dev').forEach(el=>el.onclick=()=>{
+    selDev=devices.find(d=>d.key===el.dataset.key);
+    t.querySelectorAll('.dev.sel').forEach(x=>x.classList.remove('sel')); el.classList.add('sel');
+    renderBind();
+  });
+  updateLive();
+}
+
+// ---- plant SVG ----
+function renderSVG(){
+  const h=document.getElementById('host'); h.innerHTML=model.svg;
+  const svg=h.querySelector('svg'); if(!svg)return;
+  svg.querySelectorAll('[id]').forEach(el=>{ el.classList.add('hmi-shape');
+    el.onclick=()=>{ if(document.body.dataset.mode!=='edit')return; selShape=el.id;
+      h.querySelectorAll('.hmi-shape.sel').forEach(x=>x.classList.remove('sel'));
+      el.classList.add('sel'); renderBind(); }; });
+  applyColors();
+}
+function shapeEls(id){return document.querySelectorAll('#host [id="'+CSS.escape(id)+'"]')}
+
+// ---- binding ----
+function renderBind(){
+  const p=document.getElementById('bind');
+  if(!selShape){ p.innerHTML='<p class="hint">Select a shape to bind a device.</p>'; return; }
+  const b=model.bindings[selShape]||{};
+  const dev = b.tag ? devices.find(d=>d.key===b.tag) : null;
+  p.innerHTML = `<div class="selrow">shape #${selShape}</div>
+    <div class="hint">Bound tag: <b style="color:var(--ink)">${b.tag||'— none —'}</b>${dev?` <span class="mono">(${dev.domain})</span>`:''}</div>
+    ${selDev?`<button class="btn pri bindbtn" id="doBind">Bind “${selDev.name}” → this shape</button>`:'<p class="hint" style="margin-top:8px">Pick a device on the left to bind it here.</p>'}
+    ${b.tag?`<div class="rule"><span style="flex:1">On / true</span><input class="sw" type="color" id="onC" value="${b.onColor||'#46d17f'}"></div>
+      <div class="rule"><span style="flex:1">Off / false</span><input class="sw" type="color" id="offC" value="${b.offColor||'#3a3f4b'}"></div>
+      <label class="f"><input type="checkbox" id="lbl" ${b.label?'checked':''}> show live value</label>
+      <button class="btn bindbtn" id="unbind" style="color:var(--bad);border-color:var(--bad)">Unbind</button>`:''}`;
+  const bind=document.getElementById('doBind');
+  if(bind) bind.onclick=()=>{ model.bindings[selShape]={tag:selDev.key,type:selDev.type,onColor:'#46d17f',offColor:'#3a3f4b',default:'#3a3f4b',label:selDev.type==='Float'}; persist(); renderBind(); applyColors(); if(running)OsoDB.startPolling(tags); };
+  const on=document.getElementById('onC'); if(on)on.oninput=e=>{model.bindings[selShape].onColor=e.target.value;persist();applyColors()};
+  const off=document.getElementById('offC'); if(off)off.oninput=e=>{model.bindings[selShape].offColor=e.target.value;persist();applyColors()};
+  const lbl=document.getElementById('lbl'); if(lbl)lbl.onchange=e=>{model.bindings[selShape].label=e.target.checked;persist();applyColors()};
+  const ub=document.getElementById('unbind'); if(ub)ub.onclick=()=>{delete model.bindings[selShape];persist();renderBind();applyColors()};
+}
+
+// ---- live colouring ----
+function tags(){return Object.values(model.bindings).map(b=>b.tag).filter(Boolean)}
+function applyColors(){
+  for(const [id,b] of Object.entries(model.bindings)){
+    const v=b.tag?OsoDB.live[b.tag]:undefined;
+    let color=b.default||'#3a3f4b';
+    if(v!==undefined){
+      if(b.type==='Boolean') color=(v===true||v===1||v==='1'||v==='on')?b.onColor:b.offColor;
+      else color=b.onColor; // analog present → active tint
+    }
+    shapeEls(id).forEach(el=>el.style.fill=color);
+    if(b.label) setLabel(id, v===undefined?'—':String(v));
+  }
+}
+function setLabel(id,text){const h=document.getElementById('host');const svg=h.querySelector('svg');if(!svg)return;
+  let t=svg.querySelector('text[data-lbl="'+CSS.escape(id)+'"]');const s=h.querySelector('[id="'+CSS.escape(id)+'"]');if(!s)return;const bb=s.getBBox();
+  if(!t){t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('data-lbl',id);t.setAttribute('fill','#fff');t.setAttribute('font-size','13');t.setAttribute('font-family','monospace');t.setAttribute('text-anchor','middle');svg.appendChild(t);}
+  t.setAttribute('x',bb.x+bb.width/2);t.setAttribute('y',bb.y+bb.height/2+4);t.textContent=text;}
+function updateLive(){ document.querySelectorAll('[data-lv]').forEach(el=>{const v=OsoDB.live[el.dataset.lv];el.textContent=(v===undefined?'—':String(v));}); }
+
+// ---- run / conn ----
+function setMode(r){running=r;document.body.dataset.mode=r?'run':'edit';const b=document.getElementById('modeBtn');b.textContent=r?'■ Stop':'▶ Run';b.classList.toggle('on',r);if(r)OsoDB.startPolling(tags);else OsoDB.stop();}
+document.addEventListener('osodb:update',()=>{setConn(true);applyColors();updateLive();});
+function setConn(ok){document.getElementById('cd').className='dot '+(ok?'ok':'');document.getElementById('cl').textContent=ok?'live':(OsoDB.cfg.baseUrl?'…':'offline');}
+document.getElementById('modeBtn').onclick=()=>setMode(!running);
+document.getElementById('reload').onclick=loadDevices;
+document.getElementById('connBtn').onclick=()=>{const u=prompt('osoLogic REST base URL (fronts osodb + the HA bridge):',OsoDB.cfg.baseUrl||'https://plc.local:8080/api');if(u===null)return;OsoDB.cfg.baseUrl=u.trim();OsoDB.save();setConn(false);if(running)OsoDB.startPolling(tags);};
+
+// theme + palette
+const root=document.documentElement; const th=localStorage.getItem('oso-theme'); if(th)root.setAttribute('data-theme',th);
+document.getElementById('themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']};
+function setAcc(n){const a=ACC[n]||ACC.maroon;root.style.setProperty('--accent',a[0]);root.style.setProperty('--accent-2',a[1]);localStorage.setItem('oso-accent',n);document.querySelectorAll('#palette button').forEach(b=>b.classList.toggle('on',b.dataset.accent===n));}
+setAcc(localStorage.getItem('oso-accent')||'maroon');document.querySelectorAll('#palette button').forEach(b=>b.onclick=()=>setAcc(b.dataset.accent));
+
+function DEMO(){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
+  <rect width="640" height="420" fill="#0e0f12"/>
+  <rect id="tank" x="70" y="90" width="150" height="200" rx="10" fill="#3a3f4b" stroke="#5a6"/>
+  <rect id="pipe" x="220" y="250" width="230" height="24" fill="#3a3f4b" stroke="#556"/>
+  <circle id="pump" cx="470" cy="262" r="34" fill="#3a3f4b" stroke="#556"/>
+  <polygon id="gate" points="300,180 340,160 340,200" fill="#3a3f4b" stroke="#556"/>
+  <circle id="lamp" cx="560" cy="70" r="20" fill="#3a3f4b" stroke="#556"/>
+  <text x="145" y="315" fill="#8b8f99" font-size="12" text-anchor="middle" font-family="monospace">TANK</text>
+  <text x="470" y="315" fill="#8b8f99" font-size="12" text-anchor="middle" font-family="monospace">PUMP</text>
+</svg>`;}
+
+renderSVG(); loadDevices(); setConn(false);
+</script>
+</body>
+</html>

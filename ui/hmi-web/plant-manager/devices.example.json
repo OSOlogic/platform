@@ -1,0 +1,10 @@
+[
+  { "key": "hass.switch.pump",        "name": "Water Pump",   "domain": "switch",        "type": "Boolean", "access": "ReadWrite", "writable": true },
+  { "key": "hass.sensor.tank_level",  "name": "Tank Level",   "domain": "sensor",        "type": "Float",   "access": "ReadOnly",  "units": "%" },
+  { "key": "hass.sensor.temperature", "name": "Ambient Temp", "domain": "sensor",        "type": "Float",   "access": "ReadOnly",  "units": "°C" },
+  { "key": "hass.binary_sensor.jam",  "name": "Jam Detector", "domain": "binary_sensor", "type": "Boolean", "access": "ReadOnly" },
+  { "key": "hass.light.hall",         "name": "Hall Light",   "domain": "light",         "type": "Boolean", "access": "ReadWrite", "writable": true },
+  { "key": "hass.cover.gate",         "name": "Loading Gate", "domain": "cover",         "type": "Boolean", "access": "ReadWrite", "writable": true },
+  { "key": "hass.climate.hvac",       "name": "HVAC",         "domain": "climate",       "type": "Float",   "access": "ReadOnly",  "units": "°C" },
+  { "key": "hass.lock.door",          "name": "Access Door",  "domain": "lock",          "type": "Boolean", "access": "ReadWrite", "writable": true }
+]

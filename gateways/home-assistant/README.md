@@ -53,6 +53,16 @@ rename, whitelist domains, set units and pick which entities are writable.
    integration directly (no separate HA process). Much deeper; a subset of pure-Python,
    API-based integrations first.
 
+## Pieces
+
+| Piece | Role |
+|---|---|
+| [`reference/hass_discover.py`](reference/hass_discover.py) | **Crawler + sniffer** — enumerate all HA entities/services, auto-generate a mapping (`--out`), or live-tail events (`--sniff`). |
+| [`drivers/`](drivers/) | **Driver library** — one JSON per HA domain: how it maps to an osodb tag (type/access/units/write service). |
+| [`reference/hass_mapper.py`](reference/hass_mapper.py) | **Mapper** — HA entities + drivers → typed **osodb tags** (JSON) and **DB SQL** (`hass_tags` registry). |
+| [`reference/hass_bridge.py`](reference/hass_bridge.py) | **Runtime bridge** — mirror HA states → osodb; osodb set-points → HA service calls. |
+| [`ui/hmi-web/plant-manager`](../../ui/hmi-web/plant-manager/) | **Plant Manager** — drops the mapped devices onto a plant mimic. |
+
 ## Try it
 
 ```bash
@@ -60,7 +70,11 @@ pip install --user aiohttp
 export HASS_URL=http://homeassistant.local:8123
 export HASS_TOKEN=<long-lived access token>
 export OSO_REST=http://localhost:8080/api        # osoLogic REST (fronts osodb)
-python3 reference/hass_bridge.py --map reference/mapping.example.json
+
+python3 reference/hass_discover.py                # crawl: what does HA expose?
+python3 reference/hass_discover.py --sniff        # live event tail
+python3 reference/hass_mapper.py --live --out-json devices.json --out-sql hass_tags.sql
+python3 reference/hass_bridge.py --map reference/mapping.example.json   # live bridge
 ```
 
 ## Status
