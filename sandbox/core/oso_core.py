@@ -19,6 +19,7 @@ import os
 import socket
 import threading
 import time
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote
@@ -44,6 +45,15 @@ _conn = None
 _t0 = time.time()
 RUNNING = True             # scan-cycle state (osoadmin Runtime module)
 CYCLES = 0                 # scan cycle counter
+
+LOGS = deque(maxlen=5000)          # in-memory log ring (osoadmin Logs module)
+LOG_CFG = {"level": "info", "max_lines": 2000, "persistent": False}
+_LEVELS = {"debug": 0, "info": 1, "warn": 2, "error": 3}
+
+
+def log(level, msg):
+    LOGS.append({"time": time.strftime("%H:%M:%S"), "level": level, "msg": msg})
+    print(f"[{level}] {msg}", flush=True)
 
 
 def tag_pub(r):
@@ -227,6 +237,12 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
             return self._json(scan_tcp(q.get("subnet", ["192.168.1"])[0],
                                        q.get("ports", ["502,102,44818,4840,1883,80"])[0]))
+        if path == "/api/v1/logs":
+            q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            n = int((q.get("n", ["300"])[0]) or 300)
+            thr = _LEVELS.get(q.get("level", [""])[0], 0)
+            lines = [ln for ln in LOGS if _LEVELS.get(ln["level"], 1) >= thr]
+            return self._json({"config": LOG_CFG, "lines": lines[-n:]})
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -246,13 +262,29 @@ class Handler(BaseHTTPRequestHandler):
                 RUNNING = True
             elif action in ("stop", "pause"):
                 RUNNING = False
+            log("warn", f"scan cycle {'started' if RUNNING else 'stopped'}")
             return self._json({"state": "running" if RUNNING else "stopped", "ok": True})
+        if path == "/api/v1/logs/clear":
+            LOGS.clear()
+            return self._json({"ok": True})
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)
 
     def do_PUT(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/v1/logs/config":
+            global LOGS
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            for k in ("level", "max_lines", "persistent"):
+                if k in body:
+                    LOG_CFG[k] = body[k]
+            LOGS = deque(LOGS, maxlen=int(LOG_CFG["max_lines"]))
+            log("info", "log configuration updated")
+            return self._json({"config": LOG_CFG, "ok": True})
         if not (path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/")):
             return self._json({"error": "not found"}, 404)
         key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
@@ -273,6 +305,7 @@ class Handler(BaseHTTPRequestHandler):
             num = 1.0 if str(val).lower() in ("1", "true", "on") else 0.0
         r["required_value"] = num
         db_exec("UPDATE tags SET required_value=%s WHERE id=%s", (num, key))
+        log("info", f"set-point {key} = {num}")
         return self._json({"id": key, "required_value": num, "ok": True})
 
     def _static(self, path):
@@ -357,7 +390,7 @@ def main():
     load_cache()
     threading.Thread(target=scan_loop, daemon=True).start()
     threading.Thread(target=run_http, daemon=True).start()
-    print(f"[core] osologic sandbox up — {len(CACHE)} tags", flush=True)
+    log("info", f"OSOLogic sandbox core up — {len(CACHE)} tags, db {'up' if _conn else 'seed'}, scan {SCAN_MS}ms")
     if OPC_ENABLE:
         run_opc()
     else:
