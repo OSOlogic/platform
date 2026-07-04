@@ -75,6 +75,28 @@ HIST_CFG = {"backend": "in-memory", "host": "localhost", "port": 8086,
 _hist_last = 0.0
 
 
+# ---- users & roles (osoadmin — maps to MariaDB users + GRANTs) ----
+ROLES = {
+    "viewer":   {"label": "Viewer",   "privileges": ["SELECT"],                               "scope": "osodb.*",
+                 "about": "read tags, dashboards, trends"},
+    "operator": {"label": "Operator", "privileges": ["SELECT", "UPDATE"],                      "scope": "osodb.tags",
+                 "about": "read + write set-points"},
+    "engineer": {"label": "Engineer", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"],  "scope": "osodb.*",
+                 "about": "edit tags, config, programs"},
+    "admin":    {"label": "Admin",    "privileges": ["ALL PRIVILEGES"],                        "scope": "*.*",
+                 "about": "full control"},
+}
+USERS = [
+    {"user": "root",     "host": "localhost", "role": "admin",    "privileges": ["ALL PRIVILEGES"],           "scope": "*.*"},
+    {"user": "osoapp",   "host": "%",         "role": "operator", "privileges": ["SELECT", "INSERT", "UPDATE"], "scope": "osodb.*"},
+    {"user": "plc_view", "host": "%",         "role": "viewer",   "privileges": ["SELECT"],                    "scope": "osodb.*"},
+]
+
+
+def grant_sql(u):
+    return f"GRANT {', '.join(u['privileges'])} ON {u['scope']} TO '{u['user']}'@'{u['host']}';"
+
+
 def _cmp(v, op, val):
     try:
         v = float(v)
@@ -314,6 +336,8 @@ class Handler(BaseHTTPRequestHandler):
             tag = q.get("tag", [""])[0]
             n = int((q.get("n", ["400"])[0]) or 400)
             return self._json({"tag": tag, "samples": list(HISTORY.get(tag, []))[-n:]})
+        if path == "/api/v1/users":
+            return self._json({"users": USERS, "roles": ROLES})
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -362,6 +386,60 @@ class Handler(BaseHTTPRequestHandler):
                 if rid in ALARM_ACTIVE:
                     ALARM_ACTIVE[rid]["acked"] = True
                 return self._json({"ok": True})
+        if path.startswith("/api/v1/users/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+
+            def _find(u, h):
+                return next((x for x in USERS if x["user"] == u and x["host"] == h), None)
+
+            if act == "create":
+                role = body.get("role", "viewer")
+                rp = ROLES.get(role, ROLES["viewer"])
+                u = {"user": body.get("user", ""), "host": body.get("host", "%"), "role": role,
+                     "privileges": body.get("privileges", rp["privileges"]), "scope": body.get("scope", rp["scope"])}
+                if not u["user"]:
+                    return self._json({"error": "user required"}, 400)
+                USERS[:] = [x for x in USERS if not (x["user"] == u["user"] and x["host"] == u["host"])]
+                USERS.append(u)
+                sql = f"CREATE USER IF NOT EXISTS '{u['user']}'@'{u['host']}' IDENTIFIED BY '****';\n" + grant_sql(u)
+                if _conn:
+                    try:
+                        db_exec(f"CREATE USER IF NOT EXISTS '{u['user']}'@'{u['host']}' IDENTIFIED BY %s", (body.get("password", ""),))
+                        db_exec(f"GRANT {', '.join(u['privileges'])} ON {u['scope']} TO '{u['user']}'@'{u['host']}'")
+                    except Exception as e:
+                        log("warn", f"grant failed: {e}")
+                log("info", f"user {u['user']}@{u['host']} → {role}")
+                return self._json({"ok": True, "sql": sql, "user": u})
+            if act == "role":
+                u = _find(body.get("user"), body.get("host"))
+                if not u:
+                    return self._json({"error": "not found"}, 404)
+                role = body.get("role")
+                if role in ROLES:
+                    u["role"] = role
+                    u["privileges"] = ROLES[role]["privileges"]
+                    u["scope"] = ROLES[role]["scope"]
+                sql = f"REVOKE ALL PRIVILEGES, GRANT OPTION FROM '{u['user']}'@'{u['host']}';\n" + grant_sql(u)
+                if _conn:
+                    try:
+                        db_exec(f"REVOKE ALL PRIVILEGES, GRANT OPTION FROM '{u['user']}'@'{u['host']}'")
+                        db_exec(f"GRANT {', '.join(u['privileges'])} ON {u['scope']} TO '{u['user']}'@'{u['host']}'")
+                    except Exception as e:
+                        log("warn", f"regrant failed: {e}")
+                return self._json({"ok": True, "sql": sql, "user": u})
+            if act == "delete":
+                USERS[:] = [x for x in USERS if not (x["user"] == body.get("user") and x["host"] == body.get("host"))]
+                sql = f"DROP USER IF EXISTS '{body.get('user')}'@'{body.get('host')}';"
+                if _conn:
+                    try:
+                        db_exec(f"DROP USER IF EXISTS '{body.get('user')}'@'{body.get('host')}'")
+                    except Exception as e:
+                        log("warn", f"drop failed: {e}")
+                return self._json({"ok": True, "sql": sql})
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)

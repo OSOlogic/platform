@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Users &amp; Roles</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:24px;margin:22px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 16px;max-width:74ch}
+  h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px}
+  .roles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+  @media(max-width:760px){.roles{grid-template-columns:1fr 1fr}}
+  .role{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .role h3{margin:0 0 3px;font-size:14px}.role .p{font-family:var(--mono);font-size:11px;color:var(--accent);margin:2px 0}.role .a{color:var(--muted);font-size:12px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:11px;text-transform:uppercase}
+  td.mono{font-family:var(--mono)}
+  select,input{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:12.5px}
+  .rolepill{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+  .rolepill.admin{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+  .rolepill.engineer{color:var(--accent)}.rolepill.operator{color:#e6a417}.rolepill.viewer{color:var(--good)}
+  .btn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12.5px}
+  .btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}.btn.del:hover{border-color:var(--bad);color:var(--bad)}
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 14px}
+  .sql{font-family:var(--mono);font-size:12px;background:#0b0c10;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px;white-space:pre-wrap;color:var(--good);display:none}
+  .sql.show{display:block}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 40px}
+  .note{color:var(--muted);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+      <span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Users &amp; Roles</span>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Users &amp; <em>Roles</em></h1>
+  <p class="lede">Access is enforced by the <b>database</b>: each role maps to MariaDB <span style="font-family:var(--mono)">GRANT</span>s.
+    A Viewer can only <span style="font-family:var(--mono)">SELECT</span> (read); an Operator can also
+    <span style="font-family:var(--mono)">UPDATE</span> set-points; Engineers edit config; Admins have full control —
+    across every surface (SQL, REST, OPC-UA).</p>
+
+  <h2>Roles</h2>
+  <div class="roles" id="roles"></div>
+
+  <h2>Users</h2>
+  <div class="panel">
+    <table><thead><tr><th>User</th><th>Role</th><th>Privileges</th><th>Scope</th><th></th></tr></thead><tbody id="users"></tbody></table>
+    <div class="addrow">
+      <input id="uName" placeholder="username" size="14">
+      <span style="color:var(--muted)">@</span>
+      <input id="uHost" placeholder="%" size="8" value="%">
+      <input id="uPass" type="password" placeholder="password" size="14">
+      <select id="uRole"></select>
+      <button class="btn pri" id="add">＋ Create user</button>
+    </div>
+  </div>
+  <div class="sql" id="sql"></div>
+  <p class="note" id="note"></p>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s);let ROLES={};
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function post(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
+function showSql(r){ if(r&&r.sql){$('#sql').textContent=r.sql;$('#sql').classList.add('show');} }
+
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/users')).json(); }catch(e){ $('#users').innerHTML='<tr><td colspan=5>core offline</td></tr>'; return; }
+  ROLES=d.roles;
+  $('#roles').innerHTML=Object.entries(ROLES).map(([k,r])=>`<div class="role"><h3><span class="rolepill ${k}">${esc(r.label)}</span></h3><div class="p">${esc(r.privileges.join(', '))}</div><div class="a">${esc(r.about)} · <span style="font-family:var(--mono)">${esc(r.scope)}</span></div></div>`).join('');
+  $('#uRole').innerHTML=Object.entries(ROLES).map(([k,r])=>`<option value="${k}">${esc(r.label)}</option>`).join('');
+  $('#users').innerHTML=d.users.map(u=>`<tr>
+    <td class="mono">${esc(u.user)}<span style="color:var(--muted)">@${esc(u.host)}</span></td>
+    <td><select data-u="${esc(u.user)}" data-h="${esc(u.host)}" class="roleSel">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${u.role===k?'selected':''}>${esc(r.label)}</option>`).join('')}</select></td>
+    <td class="mono" style="color:var(--accent)">${esc(u.privileges.join(', '))}</td>
+    <td class="mono">${esc(u.scope)}</td>
+    <td>${(u.user==='root')?'':`<button class="btn del" data-du="${esc(u.user)}" data-dh="${esc(u.host)}">✕</button>`}</td></tr>`).join('');
+  document.querySelectorAll('.roleSel').forEach(s=>s.onchange=async()=>{ showSql(await post('/api/v1/users/role',{user:s.dataset.u,host:s.dataset.h,role:s.value})); load(); });
+  document.querySelectorAll('.btn.del').forEach(b=>b.onclick=async()=>{ if(confirm('Drop user '+b.dataset.du+'?')){ showSql(await post('/api/v1/users/delete',{user:b.dataset.du,host:b.dataset.dh})); load(); } });
+}
+$('#add').onclick=async()=>{
+  const user=$('#uName').value.trim(); if(!user){$('#note').textContent='username required';return;}
+  const r=await post('/api/v1/users/create',{user,host:$('#uHost').value||'%',password:$('#uPass').value,role:$('#uRole').value});
+  showSql(r); $('#uName').value=$('#uPass').value=''; $('#note').textContent='Created '+user; load();
+};
+
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
+load();
+</script>
+</body>
+</html>
