@@ -29,6 +29,13 @@
   .out .err{color:var(--bad)}.out .meta{color:var(--muted)}.out .ok{color:var(--good)}
   .warn{font-size:12px;color:var(--muted);margin-top:8px}.warn b{color:var(--accent)}
   footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:22px;padding:16px 0 40px}
+  .tcpanel{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+  .tchead{display:flex;align-items:center;gap:8px;margin-bottom:6px}.tchead b{font-size:14px}
+  .tcrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+  .tcrow .nm{width:74px;font-family:var(--mono)}.tcrow .st{flex:1;color:var(--muted);font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dotc{width:8px;height:8px;border-radius:50%;background:var(--bad);flex:0 0 auto}.dotc.on{background:var(--good)}
+  .tcbtn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:11.5px}.tcbtn:hover{border-color:var(--accent)}
+  .kindtag{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
 </style>
 </head>
 <body>
@@ -60,6 +67,13 @@
 
   <div class="out" id="out"><span class="meta">Output appears here. Press ▶ Run.</span></div>
 
+  <div class="tcpanel">
+    <div class="tchead"><b>Toolchains</b><span class="grow"></span>
+      <span class="warn" style="margin:0">install missing runtimes — <b>apt</b> (bare-metal Pi) or <b>Docker</b></span>
+      <button class="tcbtn" id="tcRefresh">↻</button></div>
+    <div id="tclist"><span class="meta" style="font-family:var(--mono);font-size:12px;color:var(--muted)">…</span></div>
+  </div>
+
   <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
 </div>
 
@@ -87,7 +101,25 @@ const TPL={
 function load(){try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(_){return {}}}
 function store(o){localStorage.setItem(LS,JSON.stringify(o))}
 function refreshSaved(){const o=load();$('#saved').innerHTML='<option value="">— saved —</option>'+Object.keys(o).map(k=>`<option>${k}</option>`).join('');}
-$('#lang').innerHTML=LANGS.map(l=>`<option value="${l}"${RUNNABLE.includes(l)?'':' data-nr="1"'}>${l}${RUNNABLE.includes(l)?'':' (needs toolchain)'}</option>`).join('');
+$('#lang').innerHTML=LANGS.map(l=>`<option value="${l}">${l}</option>`).join('');
+async function loadTC(){
+  const el=$('#tclist');
+  try{ const d=await (await fetch(BASE+'/api/v1/toolchains')).json();
+    el.innerHTML=d.toolchains.map(t=>`<div class="tcrow"><span class="dotc ${t.present?'on':''}"></span>
+      <span class="nm">${t.lang}</span><span class="kindtag">${t.kind}</span>
+      <span class="st">${t.present?esc(t.version||'installed'):('missing · apt '+esc(t.apt)+' · docker '+esc(t.docker))}</span>
+      ${t.present?'':`<button class="tcbtn" onclick="installTC('${t.lang}','apt')">apt</button> <button class="tcbtn" onclick="installTC('${t.lang}','docker')">docker</button>`}</div>`).join('');
+  }catch(e){ el.innerHTML='<span class="meta">core offline</span>'; }
+}
+window.installTC=async(lang,method)=>{
+  const out=$('#out'); out.innerHTML='<span class="meta">installing '+esc(lang)+' via '+method+'… (needs sudo/root on the device)</span>';
+  try{ const r=await (await fetch(BASE+'/api/v1/toolchains/install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lang,method})})).json();
+    if(r.error){ out.innerHTML='<span class="meta">'+esc(r.cmd||'')+'</span>\n<span class="err">'+esc(r.error)+'</span>'; }
+    else{ out.innerHTML='<span class="meta">'+esc(r.cmd)+'</span>\n'+esc((r.stdout||'')+(r.stderr||''))+'\n<span class="meta">exit </span><span class="'+(r.code===0?'ok':'err')+'">'+r.code+'</span>'; }
+    loadTC();
+  }catch(e){ out.innerHTML='<span class="err">install request failed: '+esc(e.message)+'</span>'; }
+};
+$('#tcRefresh').onclick=loadTC;
 function setTpl(){ $('#code').value=TPL[$('#lang').value]||''; }
 $('#lang').onchange=()=>{ if(!$('#code').value.trim()||confirm('Load the template for '+$('#lang').value+'?')) setTpl(); };
 $('#saved').onchange=()=>{const o=load();const s=o[$('#saved').value];if(s){$('#lang').value=s.lang;$('#name').value=$('#saved').value;$('#code').value=s.code;}};
@@ -111,7 +143,7 @@ const root=document.documentElement;const th=localStorage.getItem('oso-theme');i
 $('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
 const a=(localStorage.getItem('oso-accent')||'bootstrap');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#0d6efd','#3d8bfd'];
 root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
-refreshSaved();setTpl();
+refreshSaved();setTpl();loadTC();
 </script>
 </body>
 </html>

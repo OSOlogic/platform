@@ -16,7 +16,10 @@ import glob
 import json
 import math
 import os
+import shutil
 import socket
+import subprocess
+import tempfile
 import threading
 import time
 from collections import deque
@@ -252,28 +255,99 @@ def scan_loop():
 # authenticated, authorised per user/role, sandboxed (restricted user, cgroups,
 # no host escalation) and audited. Toggle with OSO_EXEC_ENABLE=0.
 EXEC_ENABLE = os.environ.get("OSO_EXEC_ENABLE", "1") == "1"
-INTERP = {"bash": ["bash", "-c"], "sh": ["sh", "-c"],
-          "python": ["python3", "-c"], "python3": ["python3", "-c"],
-          "node": ["node", "-e"], "javascript": ["node", "-e"],
-          "php": ["php", "-r"], "ruby": ["ruby", "-e"], "perl": ["perl", "-e"], "lua": ["lua", "-e"]}
+INTERP = {"bash": ["bash", "-c"], "sh": ["sh", "-c"], "python": ["python3", "-c"], "python3": ["python3", "-c"],
+          "node": ["node", "-e"], "javascript": ["node", "-e"], "php": ["php", "-r"], "ruby": ["ruby", "-e"],
+          "perl": ["perl", "-e"], "lua": ["lua", "-e"], "r": ["Rscript", "-e"]}
+COMPILE = {
+    "cpp":    {"file": "main.cpp",  "build": lambda d, s: ["g++", s, "-O0", "-o", d + "/a.out"], "run": lambda d, s: [d + "/a.out"]},
+    "rust":   {"file": "main.rs",   "build": lambda d, s: ["rustc", s, "-o", d + "/a.out"],      "run": lambda d, s: [d + "/a.out"]},
+    "go":     {"file": "main.go",   "build": None,                                               "run": lambda d, s: ["go", "run", s]},
+    "java":   {"file": "Main.java", "build": lambda d, s: ["javac", s],                          "run": lambda d, s: ["java", "-cp", d, "Main"]},
+    "csharp": {"file": "main.cs",   "build": lambda d, s: ["mcs", s, "-out:" + d + "/a.exe"],    "run": lambda d, s: ["mono", d + "/a.exe"]},
+}
+TOOLCHAINS = {
+    "bash":   {"check": "bash",    "apt": "bash",      "docker": "bash",                 "kind": "interpreted"},
+    "python": {"check": "python3", "apt": "python3",   "docker": "python:3",             "kind": "interpreted"},
+    "node":   {"check": "node",    "apt": "nodejs",    "docker": "node:20",              "kind": "interpreted"},
+    "php":    {"check": "php",     "apt": "php-cli",   "docker": "php:8",                "kind": "interpreted"},
+    "ruby":   {"check": "ruby",    "apt": "ruby",      "docker": "ruby:3",               "kind": "interpreted"},
+    "perl":   {"check": "perl",    "apt": "perl",      "docker": "perl",                 "kind": "interpreted"},
+    "lua":    {"check": "lua",     "apt": "lua5.4",    "docker": "nickblah/lua",         "kind": "interpreted"},
+    "r":      {"check": "Rscript", "apt": "r-base",    "docker": "r-base",               "kind": "interpreted"},
+    "cpp":    {"check": "g++",     "apt": "g++",       "docker": "gcc",                  "kind": "compiled"},
+    "rust":   {"check": "rustc",   "apt": "rustc",     "docker": "rust",                 "kind": "compiled"},
+    "go":     {"check": "go",      "apt": "golang-go", "docker": "golang",               "kind": "compiled"},
+    "java":   {"check": "javac",   "apt": "default-jdk", "docker": "eclipse-temurin:21", "kind": "compiled"},
+    "csharp": {"check": "mcs",     "apt": "mono-mcs",  "docker": "mono",                 "kind": "compiled"},
+}
 
 
 def run_script(lang, code):
     if not EXEC_ENABLE:
         return {"error": "script execution is disabled on this instance"}
-    cmd = INTERP.get(lang)
-    if not cmd:
-        return {"error": f"'{lang}' needs an interpreter/compiler not runnable inline here"}
-    import subprocess
+    if lang in INTERP:
+        cmd = INTERP[lang]
+        try:
+            p = subprocess.run(cmd + [code], capture_output=True, text=True, timeout=20)
+            return {"lang": lang, "stdout": p.stdout, "stderr": p.stderr, "code": p.returncode}
+        except FileNotFoundError:
+            return {"error": f"{cmd[0]} not installed — install its toolchain"}
+        except subprocess.TimeoutExpired:
+            return {"error": "script timed out (20s limit)"}
+        except Exception as e:
+            return {"error": str(e)}
+    if lang in COMPILE:
+        spec = COMPILE[lang]
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                src = os.path.join(d, spec["file"])
+                open(src, "w").write(code)
+                if spec["build"]:
+                    b = subprocess.run(spec["build"](d, src), capture_output=True, text=True, timeout=45, cwd=d)
+                    if b.returncode != 0:
+                        return {"lang": lang, "stdout": b.stdout, "stderr": "[compile]\n" + b.stderr, "code": b.returncode}
+                r = subprocess.run(spec["run"](d, src), capture_output=True, text=True, timeout=20, cwd=d)
+                return {"lang": lang, "stdout": r.stdout, "stderr": r.stderr, "code": r.returncode}
+        except FileNotFoundError as e:
+            return {"error": f"toolchain missing ({e}) — install it in Toolchains"}
+        except subprocess.TimeoutExpired:
+            return {"error": "compile/run timed out"}
+        except Exception as e:
+            return {"error": str(e)}
+    return {"error": f"'{lang}' has no runner configured"}
+
+
+def toolchain_status():
+    out = []
+    for lang, tc in TOOLCHAINS.items():
+        path = shutil.which(tc["check"])
+        ver = ""
+        if path:
+            try:
+                lines = (subprocess.run([tc["check"], "--version"], capture_output=True, text=True, timeout=4).stdout or "").splitlines()
+                ver = lines[0][:70] if lines else ""
+            except Exception:
+                ver = ""
+        out.append({"lang": lang, "check": tc["check"], "present": bool(path), "version": ver,
+                    "kind": tc["kind"], "apt": tc["apt"], "docker": tc["docker"]})
+    return out
+
+
+def toolchain_install(lang, method):
+    tc = TOOLCHAINS.get(lang)
+    if not tc:
+        return {"error": "unknown toolchain"}
+    cmd = ["docker", "pull", tc["docker"]] if method == "docker" else ["sudo", "-n", "apt-get", "install", "-y", tc["apt"]]
+    log("info", f"toolchain install {lang} via {method}: {' '.join(cmd)}")
     try:
-        p = subprocess.run(cmd + [code], capture_output=True, text=True, timeout=20)
-        return {"lang": lang, "stdout": p.stdout, "stderr": p.stderr, "code": p.returncode}
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        return {"cmd": " ".join(cmd), "stdout": p.stdout[-4000:], "stderr": p.stderr[-4000:], "code": p.returncode}
     except FileNotFoundError:
-        return {"error": f"{cmd[0]} is not installed on this device"}
+        return {"cmd": " ".join(cmd), "error": f"{cmd[0]} not available on this device"}
     except subprocess.TimeoutExpired:
-        return {"error": "script timed out (20s limit)"}
+        return {"cmd": " ".join(cmd), "error": "install timed out"}
     except Exception as e:
-        return {"error": str(e)}
+        return {"cmd": " ".join(cmd), "error": str(e)}
 
 
 # ---- network / serial discovery ----------------------------
@@ -386,6 +460,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"users": USERS, "roles": ROLES})
         if path == "/api/v1/hass/config":
             return self._json({"config": HASS_CFG, "drivers": hass_drivers()})
+        if path == "/api/v1/toolchains":
+            return self._json({"toolchains": toolchain_status()})
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -506,6 +582,12 @@ class Handler(BaseHTTPRequestHandler):
             lang = body.get("lang", "bash")
             log("info", f"exec {lang} script ({len(body.get('code',''))} chars)")
             return self._json(run_script(lang, body.get("code", "")))
+        if path == "/api/v1/toolchains/install":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            return self._json(toolchain_install(body.get("lang", ""), body.get("method", "apt")))
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)
