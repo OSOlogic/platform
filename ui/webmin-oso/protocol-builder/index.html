@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Protocol builder</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;--accent:#c23434;--brand:#a11313;--good:#46d17f;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:22px;margin:18px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 14px;max-width:80ch;font-size:13.5px}.lede a{color:var(--accent)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:820px){.cols{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .f{margin-bottom:10px}.f label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+  .f input,.f select,.f textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:7px 9px;font-size:12.5px;font-family:var(--mono)}
+  .f textarea{min-height:120px;resize:vertical}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .prev{background:#0b0c10;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-family:var(--mono);font-size:11.5px;white-space:pre;overflow:auto;max-height:520px;color:var(--good)}
+  .bar{display:flex;gap:8px;margin-top:12px}
+  .btn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 13px;cursor:pointer;font-size:13px}.btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .warn{color:var(--muted);font-size:12px;margin-top:8px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:20px;padding:16px 0 40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Protocol builder</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>Protocol <em>builder</em></h1>
+  <p class="lede">Declare a custom serial/TCP protocol (<a href="https://github.com/OSOlogic/platform/blob/main/standard/rfcs/0001-protocol-builder-and-integrations.md">RFC 0001</a>):
+    transport, echo, framing, CRC and request/field maps — no code for the common cases. Low-cadence polling, not hard-real-time. Exports a driver-ready <span style="font-family:var(--mono)">protocol.json</span>.</p>
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <h2>Identity &amp; transport</h2>
+        <div class="two"><div class="f"><label>id</label><input id="id" value="acme-rs485-tank"></div><div class="f"><label>name</label><input id="name" value="ACME RS-485 Tank"></div></div>
+        <div class="two"><div class="f"><label>transport</label><select id="transport"><option>serial</option><option>tcp</option><option>udp</option></select></div>
+          <div class="f"><label>echo (RS-485)</label><select id="echo"><option>none</option><option>discard</option><option>verify</option></select></div></div>
+        <div id="serialF"><div class="two"><div class="f"><label>port</label><input id="port" value="/dev/ttyUSB0"></div><div class="f"><label>baud</label><input id="baud" value="9600"></div></div>
+          <div class="two"><div class="f"><label>parity</label><select id="parity"><option>none</option><option>even</option><option>odd</option></select></div><div class="f"><label>framing</label><select id="framing"><option>silence-gap</option><option>delimiter</option><option>fixed-length</option><option>length-prefixed</option></select></div></div></div>
+        <div id="tcpF" style="display:none"><div class="two"><div class="f"><label>host</label><input id="host" value="192.168.1.50"></div><div class="f"><label>tcp port</label><input id="tport" value="502"></div></div></div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <h2>CRC &amp; cadence</h2>
+        <div class="two"><div class="f"><label>CRC</label><select id="crc"><option>crc16-modbus</option><option>crc16-ccitt</option><option>crc8</option><option>crc32</option><option>lrc</option><option>xor</option><option>sum</option><option>none</option><option>script</option></select></div>
+          <div class="f"><label>poll (ms)</label><input id="poll" value="1000"></div></div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <h2>Requests &amp; fields (JSON)</h2>
+        <div class="f"><textarea id="requests">[
+  { "name":"read_status", "poll_ms":1000,
+    "tx":[{"const":"0x01"},{"const":"0x03"},{"const":"0x00"},{"const":"0x00"},{"const":"0x00"},{"const":"0x02"}],
+    "rx":{ "match":[{"offset":1,"equals":"0x03"}],
+      "fields":[
+        {"tag":"tank.level","offset":3,"size":2,"type":"uint16","endian":"big","scale":0.1,"units":"%"},
+        {"offset":5,"size":1,"type":"bits","bits":[{"bit":0,"tag":"tank.high"},{"bit":1,"tag":"tank.low"}]}
+      ]}}
+]</textarea></div>
+      </div>
+      <div class="bar"><button class="btn pri" id="save">Save</button><button class="btn" id="dl">Export protocol.json</button><button class="btn" id="tpl">Reset</button></div>
+      <p class="warn" id="warn"></p>
+    </div>
+    <div class="panel"><h2>protocol.json preview</h2><div class="prev" id="prev"></div></div>
+  </div>
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+function build(){
+  const t=$('#transport').value;
+  const def={id:$('#id').value,name:$('#name').value,cadence:'low',
+    transport:t==='serial'?{type:'serial',serial:{port:$('#port').value,baud:Number($('#baud').value),parity:$('#parity').value},echo:$('#echo').value,framing:{mode:$('#framing').value}}
+      :{type:t,tcp:{host:$('#host').value,port:Number($('#tport').value)},echo:$('#echo').value},
+    crc:{type:$('#crc').value}};
+  let reqs=[]; let ok=true;
+  try{ reqs=JSON.parse($('#requests').value); $('#warn').textContent=''; }
+  catch(e){ ok=false; $('#warn').textContent='requests JSON: '+e.message; }
+  if(ok) def.requests=reqs;
+  return def;
+}
+function render(){ $('#prev').textContent=JSON.stringify(build(),null,2); }
+document.querySelectorAll('input,select,textarea').forEach(e=>{e.oninput=render;e.onchange=render;});
+$('#transport').onchange=()=>{const s=$('#transport').value==='serial';$('#serialF').style.display=s?'':'none';$('#tcpF').style.display=s?'none':'';render();};
+$('#save').onclick=()=>{try{localStorage.setItem('oso-proto-'+$('#id').value,JSON.stringify(build()));$('#warn').textContent='saved as oso-proto-'+$('#id').value;}catch(e){$('#warn').textContent=e.message;}};
+$('#dl').onclick=()=>{const b=new Blob([JSON.stringify(build(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='protocol.json';a.click();};
+$('#tpl').onclick=()=>location.reload();
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);
+render();
+</script>
+</body>
+</html>
