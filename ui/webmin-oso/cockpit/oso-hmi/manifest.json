@@ -1,0 +1,14 @@
+{
+  "version": 0,
+  "name": "oso-hmi",
+  "description": "OSOlogic HMI Screens",
+  "menu": {
+    "display": "HMI",
+    "keyword": ["hmi", "scada", "svg", "screens", "mimic", "operator"],
+    "order": 61
+  },
+  "requires": {
+    "cockpit": "195"
+  },
+  "enter-page": "index.html"
+}

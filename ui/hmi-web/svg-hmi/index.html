@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — SVG HMI</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --panel-2:#1c1f26; --line:#2a2e37; --ink:#ece9e3;
+    --muted:#8b8f99; --accent:#f48c06; --accent-2:#ffb64d; --good:#46d17f; --bad:#e5484d;
+    --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace; --sans:"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);font-size:14px;overflow:hidden}
+  a{color:var(--accent)}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .logo{font-weight:800;letter-spacing:-.02em}.logo b{color:var(--accent)}
+  .brand-mark{width:26px;height:20px;flex:0 0 auto}
+  .sep{width:1px;height:22px;background:var(--line)}
+  .grow{flex:1}
+  button,select,input{font-family:inherit;font-size:13px}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn.pri{background:var(--accent);color:#161007;border-color:var(--accent);font-weight:700}
+  .btn.on{border-color:var(--good);color:var(--good)}
+  .pill{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:5px}
+  .dot.ok{background:var(--good)} .dot.err{background:var(--bad)}
+  main{flex:1;display:grid;grid-template-columns:300px 1fr 320px;min-height:0}
+  [data-mode="run"] main{grid-template-columns:1fr}
+  [data-mode="run"] aside{display:none}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
+  aside.right{border-right:none;border-left:1px solid var(--line)}
+  aside h3{margin:0 0 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .stage{position:relative;display:grid;place-items:center;overflow:auto;padding:24px;background:
+    radial-gradient(circle at 20% 10%, #14161c, var(--bg) 60%)}
+  #svgHost{width:min(860px,94%)}
+  #svgHost svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;
+    background:#0b0c10;box-shadow:0 20px 50px -30px #000}
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.5}
+  label.f{display:block;margin:9px 0 3px;color:var(--muted);font-size:12px}
+  input.f,select.f,textarea.f{width:100%;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--ink);border-radius:7px;padding:7px 9px}
+  textarea.f{font-family:var(--mono);font-size:12px;min-height:150px;resize:vertical;white-space:pre}
+  .rule{display:grid;grid-template-columns:1fr 1fr 34px 24px;gap:6px;align-items:center;margin-bottom:6px}
+  .rule .sw{width:24px;height:24px;border-radius:6px;border:1px solid var(--line)}
+  .muted{color:var(--muted)} .mono{font-family:var(--mono)}
+  .selrow{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:6px}
+  [data-mode="run"] .edit-only{display:none}
+  [data-mode="edit"] .hmi-shape{cursor:pointer}
+  .hmi-shape.sel{outline:2px dashed var(--accent);outline-offset:2px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .small{font-size:12px;padding:5px 9px}
+</style>
+</head>
+<body data-mode="edit">
+
+<header>
+  <img class="brand-mark" src="../../shared/oso-mark.svg" alt="OSOLogic">
+  <span class="logo">OSO<b>logic</b> · SVG HMI</span>
+  <span class="pill edit-only">editor</span>
+  <div class="sep"></div>
+  <button class="btn" id="modeBtn">▶ Run</button>
+  <div class="sep edit-only"></div>
+  <button class="btn small edit-only" id="loadDemo">Load demo</button>
+  <label class="btn small edit-only">Open SVG…<input type="file" id="fileIn" accept=".svg,image/svg+xml" hidden></label>
+  <div class="grow"></div>
+  <span class="pill"><span class="dot" id="connDot"></span><span id="connLabel">offline</span></span>
+  <button class="btn small" id="connBtn">⚙ osodb</button>
+  <button class="btn small" id="saveBtn">Save</button>
+  <button class="btn small" id="exportBtn">Export</button>
+  <label class="btn small">Import<input type="file" id="importIn" accept=".json" hidden></label>
+</header>
+
+<main>
+  <!-- LEFT: SVG source / editor -->
+  <aside class="edit-only">
+    <h3>SVG source</h3>
+    <p class="hint">Paste or edit the SVG mimic. Every element with an <span class="mono">id</span>
+      becomes bindable. Click a shape on the stage to bind it to a tag.</p>
+    <textarea class="f" id="svgSrc" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn small pri" id="applySrc">Apply SVG</button>
+      <button class="btn small" id="addRect">+ rect</button>
+      <button class="btn small" id="addCircle">+ circle</button>
+    </div>
+  </aside>
+
+  <!-- CENTER: stage -->
+  <section class="stage" id="stage"><div id="svgHost"></div></section>
+
+  <!-- RIGHT: binding panel -->
+  <aside class="right">
+    <h3>Binding</h3>
+    <div id="bindPanel"><p class="hint">Select a shape on the stage (edit mode) to bind it to an
+      osodb tag and colour rules.</p></div>
+  </aside>
+</main>
+
+<script src="../../shared/osodb-client.js"></script>
+<script>
+'use strict';
+
+// ---- state ---------------------------------------------------------------
+const LS = 'osohmi_svg';
+let model = load() || { svg: DEMO_SVG(), bindings: {} };  // bindings[shapeId] = {tag,default,label,rules[]}
+let selected = null;
+
+function load(){ try{ return JSON.parse(localStorage.getItem(LS)||'null'); }catch(_){ return null; } }
+function persist(){ localStorage.setItem(LS, JSON.stringify(model)); }
+
+// ---- render SVG ----------------------------------------------------------
+function renderSVG(){
+  const host = document.getElementById('svgHost');
+  host.innerHTML = model.svg;
+  const svg = host.querySelector('svg');
+  if(!svg) return;
+  svg.querySelectorAll('[id]').forEach(el=>{
+    el.classList.add('hmi-shape');
+    el.addEventListener('click', ()=>{
+      if(document.body.dataset.mode!=='edit') return;
+      selectShape(el.id);
+    });
+  });
+  applyLiveColors();
+  document.getElementById('svgSrc').value = model.svg;
+}
+
+function shapeEls(id){ return document.querySelectorAll('#svgHost [id="'+CSS.escape(id)+'"]'); }
+
+function selectShape(id){
+  selected = id;
+  document.querySelectorAll('#svgHost .hmi-shape.sel').forEach(e=>e.classList.remove('sel'));
+  shapeEls(id).forEach(e=>e.classList.add('sel'));
+  renderBindPanel();
+}
+
+// ---- binding panel -------------------------------------------------------
+function renderBindPanel(){
+  const p = document.getElementById('bindPanel');
+  if(!selected){ p.innerHTML = '<p class="hint">Select a shape to bind it.</p>'; return; }
+  const b = model.bindings[selected] || (model.bindings[selected] = { tag:'', default:'#3a3f4b', label:false, rules:[] });
+  const ruleRows = b.rules.map((r,i)=>`
+    <div class="rule">
+      <select class="f rop" data-i="${i}">
+        ${['==','!=','>','<','>=','<=','true','false'].map(o=>`<option${r.op===o?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <input class="f rval" data-i="${i}" value="${r.val??''}" placeholder="value">
+      <input class="sw rcol" data-i="${i}" type="color" value="${r.color||'#46d17f'}">
+      <button class="btn small rdel" data-i="${i}">✕</button>
+    </div>`).join('');
+  p.innerHTML = `
+    <div class="selrow">#${selected}</div>
+    <label class="f">osodb tag <span class="muted">(pick or type — NodeId/name)</span></label>
+    <input class="f" id="bTag" list="tagList" value="${b.tag||''}" placeholder="2.5 or hass.light.kitchen">
+    <datalist id="tagList"></datalist>
+    <label class="f">Default colour</label>
+    <input class="sw" id="bDefault" type="color" value="${b.default||'#3a3f4b'}" style="width:100%;height:30px">
+    <label class="f"><input type="checkbox" id="bLabel" ${b.label?'checked':''}> show value as text</label>
+    <h3 style="margin-top:14px">Colour rules <span class="muted">(first match wins)</span></h3>
+    ${ruleRows||'<p class="hint">No rules — shape stays default colour.</p>'}
+    <button class="btn small" id="addRule">+ rule</button>
+    <p class="hint" style="margin-top:12px">Example: BOOL → rule <span class="mono">== 1 → green</span>,
+      default grey. Analog → <span class="mono">&gt; 80 → red</span>.</p>`;
+
+  document.getElementById('bTag').onchange = e=>{ b.tag=e.target.value.trim(); persist(); if(running) OsoDB.startPolling(boundTags); };
+  // Populate the tag picker from osodb (includes hass.* tags from the HA bridge).
+  if(OsoDB.cfg.baseUrl) OsoDB.listTags().then(tags=>{ const dl=document.getElementById('tagList');
+    if(dl) dl.innerHTML=tags.map(t=>`<option value="${t.key}">${t.label}</option>`).join(''); }).catch(()=>{});
+  document.getElementById('bDefault').oninput = e=>{ b.default=e.target.value; persist(); applyLiveColors(); };
+  document.getElementById('bLabel').onchange = e=>{ b.label=e.target.checked; persist(); applyLiveColors(); };
+  document.getElementById('addRule').onclick = ()=>{ b.rules.push({op:'==',val:1,color:'#46d17f'}); persist(); renderBindPanel(); };
+  p.querySelectorAll('.rop').forEach(s=>s.onchange=e=>{ b.rules[+e.target.dataset.i].op=e.target.value; persist(); });
+  p.querySelectorAll('.rval').forEach(s=>s.onchange=e=>{ b.rules[+e.target.dataset.i].val=e.target.value; persist(); });
+  p.querySelectorAll('.rcol').forEach(s=>s.oninput=e=>{ b.rules[+e.target.dataset.i].color=e.target.value; persist(); applyLiveColors(); });
+  p.querySelectorAll('.rdel').forEach(s=>s.onclick=e=>{ b.rules.splice(+e.target.dataset.i,1); persist(); renderBindPanel(); });
+}
+
+// ---- live colouring ------------------------------------------------------
+function boundTags(){ return Object.values(model.bindings).map(b=>b.tag).filter(Boolean); }
+
+function evalRules(b, value){
+  for(const r of b.rules){
+    const v = Number(r.val);
+    const n = Number(value);
+    let hit=false;
+    switch(r.op){
+      case '==': hit = String(value)==String(r.val) || n===v; break;
+      case '!=': hit = String(value)!=String(r.val); break;
+      case '>':  hit = n> v; break;  case '<':  hit = n< v; break;
+      case '>=': hit = n>=v; break;  case '<=': hit = n<=v; break;
+      case 'true':  hit = value===true||value===1||value==='1'||value==='true'; break;
+      case 'false': hit = value===false||value===0||value==='0'||value==='false'; break;
+    }
+    if(hit) return r.color;
+  }
+  return b.default;
+}
+
+function applyLiveColors(){
+  for(const [id,b] of Object.entries(model.bindings)){
+    const val = b.tag ? OsoDB.live[b.tag] : undefined;
+    const color = (val===undefined) ? b.default : evalRules(b, val);
+    shapeEls(id).forEach(el=>{ el.style.fill = color; });
+    if(b.label) setShapeLabel(id, (val===undefined?'—':String(val)));
+  }
+}
+
+function setShapeLabel(id, text){
+  const host=document.getElementById('svgHost'); const svg=host.querySelector('svg'); if(!svg) return;
+  let t=svg.querySelector('text[data-lbl="'+CSS.escape(id)+'"]');
+  const shape=host.querySelector('[id="'+CSS.escape(id)+'"]'); if(!shape) return;
+  const bb=shape.getBBox();
+  if(!t){ t=document.createElementNS('http://www.w3.org/2000/svg','text'); t.setAttribute('data-lbl',id);
+    t.setAttribute('fill','#fff'); t.setAttribute('font-size','12'); t.setAttribute('font-family','monospace');
+    t.setAttribute('text-anchor','middle'); svg.appendChild(t); }
+  t.setAttribute('x', bb.x+bb.width/2); t.setAttribute('y', bb.y+bb.height/2+4); t.textContent=text;
+}
+
+// ---- run / connect -------------------------------------------------------
+let running=false;
+function setMode(run){
+  running=run;
+  document.body.dataset.mode = run?'run':'edit';
+  document.getElementById('modeBtn').textContent = run?'■ Stop':'▶ Run';
+  document.getElementById('modeBtn').classList.toggle('on',run);
+  if(run){ OsoDB.startPolling(boundTags); } else { OsoDB.stop(); applyLiveColors(); }
+}
+
+document.addEventListener('osodb:update', ()=>{ setConn(true); applyLiveColors(); });
+function setConn(ok){ const d=document.getElementById('connDot'), l=document.getElementById('connLabel');
+  d.className='dot '+(ok?'ok':(OsoDB.cfg.baseUrl?'err':'')); l.textContent = ok?'live':(OsoDB.cfg.baseUrl?'…':'offline'); }
+
+// ---- toolbar wiring ------------------------------------------------------
+document.getElementById('modeBtn').onclick = ()=> setMode(!running);
+document.getElementById('loadDemo').onclick = ()=>{ model.svg=DEMO_SVG(); persist(); renderSVG(); };
+document.getElementById('applySrc').onclick = ()=>{ model.svg=document.getElementById('svgSrc').value; persist(); renderSVG(); };
+document.getElementById('fileIn').onchange = e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ model.svg=r.result; persist(); renderSVG(); }; r.readAsText(f); };
+document.getElementById('addRect').onclick = ()=> injectShape('<rect id="shape_'+rid()+'" x="40" y="40" width="90" height="60" rx="6" fill="#3a3f4b" stroke="#556"/>');
+document.getElementById('addCircle').onclick = ()=> injectShape('<circle id="shape_'+rid()+'" cx="90" cy="80" r="34" fill="#3a3f4b" stroke="#556"/>');
+document.getElementById('saveBtn').onclick = ()=>{ persist(); toast('Saved to browser'); };
+document.getElementById('exportBtn').onclick = ()=>{ dl('hmi.json', JSON.stringify(model,null,2)); };
+document.getElementById('importIn').onchange = e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ try{ model=JSON.parse(r.result); persist(); renderSVG(); renderBindPanel(); }catch(err){ alert('Bad file: '+err.message); } }; r.readAsText(f); };
+document.getElementById('connBtn').onclick = connectDialog;
+
+function connectDialog(){
+  const url = prompt('osoLogic REST base URL (fronts osodb):', OsoDB.cfg.baseUrl || 'https://plc.local:8080/api');
+  if(url===null) return;
+  OsoDB.cfg.baseUrl = url.trim(); OsoDB.save(); setConn(false);
+  if(running) OsoDB.startPolling(boundTags);
+}
+
+function injectShape(svgFrag){
+  const host=document.getElementById('svgHost'); const svg=host.querySelector('svg');
+  if(!svg){ model.svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">'+svgFrag+'</svg>'; }
+  else { svg.insertAdjacentHTML('beforeend', svgFrag); model.svg = host.innerHTML; }
+  persist(); renderSVG();
+}
+function rid(){ return Math.random().toString(36).slice(2,6); }
+function dl(name,txt){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+function toast(m){ const el=document.getElementById('connLabel'); const old=el.textContent; el.textContent=m; setTimeout(()=>el.textContent=old,1200); }
+
+// ---- demo plant mimic ----------------------------------------------------
+function DEMO_SVG(){ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
+  <rect x="0" y="0" width="640" height="420" fill="#0e0f12"/>
+  <rect id="tank" x="70" y="90" width="150" height="200" rx="10" fill="#3a3f4b" stroke="#5a6"/>
+  <rect id="pipe" x="220" y="250" width="230" height="24" fill="#3a3f4b" stroke="#556"/>
+  <circle id="pump" cx="470" cy="262" r="34" fill="#3a3f4b" stroke="#556"/>
+  <polygon id="valve" points="300,180 340,160 340,200" fill="#3a3f4b" stroke="#556"/>
+  <circle id="lamp" cx="560" cy="70" r="20" fill="#3a3f4b" stroke="#556"/>
+  <text x="145" y="315" fill="#8b8f99" font-size="12" text-anchor="middle" font-family="monospace">TANK</text>
+  <text x="470" y="315" fill="#8b8f99" font-size="12" text-anchor="middle" font-family="monospace">PUMP</text>
+  <text x="560" y="105" fill="#8b8f99" font-size="12" text-anchor="middle" font-family="monospace">RUN</text>
+</svg>`; }
+
+// ---- init ----------------------------------------------------------------
+renderSVG(); setConn(false);
+</script>
+</body>
+</html>

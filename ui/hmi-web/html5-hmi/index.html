@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — HTML5 HMI</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --panel-2:#1c1f26; --line:#2a2e37; --ink:#ece9e3;
+    --muted:#8b8f99; --accent:#f48c06; --good:#46d17f; --bad:#e5484d;
+    --mono:ui-monospace,Menlo,Consolas,monospace; --sans:"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);font-size:14px;overflow:hidden}
+  header{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+  .logo{font-weight:800}.logo b{color:var(--accent)}
+  .brand-mark{width:26px;height:20px;flex:0 0 auto}
+  .grow{flex:1}.sep{width:1px;height:22px;background:var(--line)}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px}
+  .btn:hover{border-color:var(--accent)} .btn.on{border-color:var(--good);color:var(--good)}
+  .pill{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:5px}
+  .dot.ok{background:var(--good)}
+  main{flex:1;display:grid;grid-template-columns:1fr 280px;min-height:0}
+  #board{position:relative;overflow:auto;background:#0b0c10 var(--bgimg,none) center/contain no-repeat}
+  aside{background:var(--panel);border-left:1px solid var(--line);padding:14px;overflow:auto}
+  aside h3{margin:14px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  aside h3:first-child{margin-top:0}
+  .paldef{display:flex;flex-wrap:wrap;gap:6px}
+  .paldef button{flex:1 1 46%}
+  label.f{display:block;margin:8px 0 3px;color:var(--muted);font-size:12px}
+  input.f,select.f{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:13px}
+  .w{position:absolute;user-select:none}
+  [data-mode="edit"] .w{cursor:move;outline:1px dashed #3a3f4b}
+  .w.sel{outline:2px dashed var(--accent)!important}
+  .w-lamp{width:40px;height:40px;border-radius:50%;border:2px solid #333;background:#3a3f4b}
+  .w-value{font-family:var(--mono);background:#000a;border:1px solid var(--line);border-radius:6px;padding:6px 10px;min-width:70px;text-align:right}
+  .w-btn{background:var(--accent);color:#161007;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer}
+  .w-gauge{width:150px;height:16px;border:1px solid var(--line);border-radius:8px;background:#000a;overflow:hidden}
+  .w-gauge>i{display:block;height:100%;width:0;background:var(--accent)}
+  .w-label{font-size:13px;color:var(--ink)}
+  .hint{color:var(--muted);font-size:12px;line-height:1.5}
+</style>
+</head>
+<body data-mode="edit">
+<header>
+  <img class="brand-mark" src="../../shared/oso-mark.svg" alt="OSOLogic">
+  <span class="logo">OSO<b>logic</b> · HTML5 HMI</span>
+  <span class="pill">controls + images</span>
+  <div class="sep"></div>
+  <button class="btn" id="modeBtn">▶ Run</button>
+  <div class="grow"></div>
+  <span class="pill"><span class="dot" id="connDot"></span><span id="connLabel">offline</span></span>
+  <button class="btn" id="connBtn">⚙ osodb</button>
+  <button class="btn" id="bgBtn">Background…</button>
+  <button class="btn" id="exportBtn">Export</button>
+  <label class="btn">Import<input type="file" id="importIn" accept=".json" hidden></label>
+</header>
+<main>
+  <section id="board"></section>
+  <aside>
+    <h3>Add widget</h3>
+    <div class="paldef">
+      <button class="btn" data-add="lamp">Lamp</button>
+      <button class="btn" data-add="value">Value</button>
+      <button class="btn" data-add="gauge">Gauge</button>
+      <button class="btn" data-add="button">Button</button>
+      <button class="btn" data-add="label">Label</button>
+    </div>
+    <h3>Properties</h3>
+    <div id="props"><p class="hint">Add a widget, then select it to bind a tag.</p></div>
+  </aside>
+</main>
+
+<script src="../../shared/osodb-client.js"></script>
+<script>
+'use strict';
+const LS='osohmi_html5';
+// widget: {id,type,x,y,tag,text,min,max,onColor,offColor,setValue}
+let model = load() || { bg:'', widgets:[
+  {id:'w_lab', type:'label',  x:44, y:36,  text:'Motor 1'},
+  {id:'w_lmp', type:'lamp',   x:48, y:70,  tag:'2.5', onColor:'#46d17f', offColor:'#3a3f4b'},
+  {id:'w_val', type:'value',  x:120,y:74,  tag:'3.14'},
+  {id:'w_gau', type:'gauge',  x:48, y:140, tag:'3.14', min:0, max:2000},
+  {id:'w_btn', type:'button', x:48, y:180, tag:'2.5', text:'START', setValue:'1'},
+] };
+let sel=null, running=false;
+
+function load(){ try{ return JSON.parse(localStorage.getItem(LS)||'null'); }catch(_){ return null; } }
+function persist(){ localStorage.setItem(LS, JSON.stringify(model)); }
+function rid(){ return 'w'+Math.random().toString(36).slice(2,6); }
+
+// ---- render --------------------------------------------------------------
+function render(){
+  const b=document.getElementById('board');
+  document.documentElement.style.setProperty('--bgimg', model.bg?`url("${model.bg}")`:'none');
+  b.innerHTML='';
+  model.widgets.forEach(w=>{
+    const el=document.createElement('div'); el.className='w w-'+w.type; el.dataset.id=w.id;
+    el.style.left=(w.x||20)+'px'; el.style.top=(w.y||20)+'px';
+    if(w.type==='value') el.textContent='—';
+    if(w.type==='label') { el.classList.add('w-label'); el.textContent=w.text||'Label'; }
+    if(w.type==='gauge') el.innerHTML='<i></i>';
+    if(w.type==='button'){ el.classList.add('w-btn'); el.textContent=w.text||'SET'; }
+    b.appendChild(el);
+    makeInteractive(el,w);
+  });
+  applyLive();
+}
+
+function makeInteractive(el,w){
+  el.addEventListener('mousedown',ev=>{
+    if(document.body.dataset.mode==='edit'){
+      selectWidget(w.id);
+      const sx=ev.clientX-el.offsetLeft, sy=ev.clientY-el.offsetTop;
+      const move=e=>{ w.x=Math.max(0,e.clientX-sx); w.y=Math.max(0,e.clientY-sy); el.style.left=w.x+'px'; el.style.top=w.y+'px'; };
+      const up=()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); persist(); };
+      document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+      ev.preventDefault();
+    }
+  });
+  if(w.type==='button'){
+    el.addEventListener('click',()=>{ if(running && w.tag){ OsoDB.writeVar(w.tag, parse(w.setValue)).catch(e=>alert('Write failed: '+e.message)); } });
+  }
+}
+function parse(v){ if(v==='true')return true; if(v==='false')return false; const n=Number(v); return isNaN(n)?v:n; }
+
+function selectWidget(id){
+  sel=id; document.querySelectorAll('#board .w.sel').forEach(e=>e.classList.remove('sel'));
+  document.querySelector('#board .w[data-id="'+id+'"]')?.classList.add('sel');
+  renderProps();
+}
+
+// ---- properties ----------------------------------------------------------
+function renderProps(){
+  const p=document.getElementById('props'); const w=model.widgets.find(x=>x.id===sel);
+  if(!w){ p.innerHTML='<p class="hint">Select a widget.</p>'; return; }
+  let extra='';
+  if(w.type==='lamp') extra=`
+    <label class="f">On colour</label><input class="f" id="pOn" type="color" value="${w.onColor||'#46d17f'}">
+    <label class="f">Off colour</label><input class="f" id="pOff" type="color" value="${w.offColor||'#3a3f4b'}">`;
+  if(w.type==='gauge') extra=`
+    <label class="f">Min</label><input class="f" id="pMin" value="${w.min??0}">
+    <label class="f">Max</label><input class="f" id="pMax" value="${w.max??100}">`;
+  if(w.type==='button') extra=`
+    <label class="f">Button text</label><input class="f" id="pText" value="${w.text||'SET'}">
+    <label class="f">Write value on click</label><input class="f" id="pSet" value="${w.setValue??'1'}">`;
+  if(w.type==='label') extra=`<label class="f">Text</label><input class="f" id="pText" value="${w.text||'Label'}">`;
+  p.innerHTML=`
+    <div style="font-family:var(--mono);color:var(--accent);font-size:12px;margin-bottom:6px">${w.type} · ${w.id}</div>
+    ${w.type!=='label'?`<label class="f">osodb tag</label><input class="f" id="pTag" value="${w.tag||''}" placeholder="2.5">`:''}
+    ${extra}
+    <button class="btn" id="delW" style="margin-top:12px;color:var(--bad);border-color:var(--bad)">Delete widget</button>`;
+  const on=(id,f)=>{ const e=document.getElementById(id); if(e) e.oninput=()=>{ f(e.value); persist(); render(); selectWidget(w.id); }; };
+  on('pTag',v=>w.tag=v.trim()); on('pOn',v=>w.onColor=v); on('pOff',v=>w.offColor=v);
+  on('pMin',v=>w.min=Number(v)); on('pMax',v=>w.max=Number(v)); on('pText',v=>w.text=v); on('pSet',v=>w.setValue=v);
+  document.getElementById('delW').onclick=()=>{ model.widgets=model.widgets.filter(x=>x.id!==w.id); sel=null; persist(); render(); renderProps(); };
+}
+
+// ---- live ----------------------------------------------------------------
+function boundTags(){ return model.widgets.map(w=>w.tag).filter(Boolean); }
+function applyLive(){
+  model.widgets.forEach(w=>{
+    const el=document.querySelector('#board .w[data-id="'+w.id+'"]'); if(!el) return;
+    const v=w.tag?OsoDB.live[w.tag]:undefined;
+    if(w.type==='lamp'){ const on=(v===true||v===1||v==='1'||v==='true'); el.style.background=on?(w.onColor||'#46d17f'):(w.offColor||'#3a3f4b'); }
+    if(w.type==='value'){ el.textContent=(v===undefined?'—':String(v)); }
+    if(w.type==='gauge'){ const mn=w.min??0,mx=w.max??100; const pct=Math.max(0,Math.min(100,((Number(v)-mn)/(mx-mn))*100))||0; el.querySelector('i').style.width=pct+'%'; }
+  });
+}
+
+// ---- run / conn ----------------------------------------------------------
+function setMode(run){ running=run; document.body.dataset.mode=run?'run':'edit';
+  const b=document.getElementById('modeBtn'); b.textContent=run?'■ Stop':'▶ Run'; b.classList.toggle('on',run);
+  if(run) OsoDB.startPolling(boundTags); else { OsoDB.stop(); } }
+document.addEventListener('osodb:update',()=>{ setConn(true); applyLive(); });
+function setConn(ok){ document.getElementById('connDot').className='dot '+(ok?'ok':''); document.getElementById('connLabel').textContent=ok?'live':(OsoDB.cfg.baseUrl?'…':'offline'); }
+
+// ---- toolbar -------------------------------------------------------------
+document.getElementById('modeBtn').onclick=()=>setMode(!running);
+document.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=()=>{
+  const w={id:rid(),type:btn.dataset.add,x:40,y:40,tag:'',setValue:'1'}; model.widgets.push(w); persist(); render(); selectWidget(w.id);
+});
+document.getElementById('connBtn').onclick=()=>{ const u=prompt('osoLogic REST base URL (fronts osodb):',OsoDB.cfg.baseUrl||'https://plc.local:8080/api'); if(u===null)return; OsoDB.cfg.baseUrl=u.trim(); OsoDB.save(); setConn(false); if(running)OsoDB.startPolling(boundTags); };
+document.getElementById('bgBtn').onclick=()=>{ const u=prompt('Background image URL (data: URIs allowed):',model.bg||''); if(u===null)return; model.bg=u.trim(); persist(); render(); };
+document.getElementById('exportBtn').onclick=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(model,null,2)],{type:'application/json'})); a.download='hmi-html5.json'; a.click(); URL.revokeObjectURL(a.href); };
+document.getElementById('importIn').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ model=JSON.parse(r.result); persist(); render(); }catch(err){ alert('Bad file: '+err.message); } }; r.readAsText(f); };
+
+render(); setConn(false);
+</script>
+</body>
+</html>

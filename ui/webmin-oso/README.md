@@ -11,6 +11,21 @@
 
 ---
 
+## Admin — two flavours
+
+[![OSOLogic system administration](screenshot.png)](index.html)
+
+Two admin flavours over the same system, both configuring the device **and** how the
+HMI is shown and configured — pick one at [`index.html`](index.html):
+
+- **Webmin style** — a Webmin-inspired panel ([`public/`](public/)), lightweight and form-driven.
+- **Cockpit style** — Cockpit modules ([`cockpit/`](cockpit/), PatternFly): `oso-runtime`,
+  `oso-plc-projects`, `oso-gateways`, `oso-iotags`, and **[`oso-hmi`](cockpit/oso-hmi/)** (HMI screens).
+
+Plus a multi-language **[scripting console](scripting/)**.
+
+---
+
 ## Overview / Descripción
 
 **webmin-oso** provides the browser-based administration layer for OSOlogic targets.  
