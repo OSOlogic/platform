@@ -28,6 +28,16 @@ esac
 
 info "OSOLogic sandbox installer ($OS)"
 
+# --- Licence & warranty disclaimer -----------------------------------------
+c '1;36' "==> Licence"
+echo "  OSOLogic is free software, licensed under the GNU AGPL-3.0-or-later."
+echo "  It is provided \"AS IS\", WITHOUT WARRANTY OF ANY KIND, express or implied,"
+echo "  to the maximum extent permitted by applicable law. You assume all risk."
+echo "  Full terms: https://github.com/OSOlogic/platform/blob/main/LICENSE"
+if [ -e /dev/tty ]; then
+  read -r -p "  Press Enter to accept and continue, or Ctrl-C to abort… " _ </dev/tty || die "Aborted."
+fi
+
 # --- Docker ----------------------------------------------------------------
 if ! command -v docker >/dev/null 2>&1; then
   warn "Docker not found."
@@ -41,6 +51,14 @@ if ! command -v docker >/dev/null 2>&1; then
       die "Install Docker, then re-run. See https://docs.docker.com/engine/install/"
     fi
   else
+    if command -v brew >/dev/null 2>&1; then
+      read -r -p "  Install Docker Desktop now (via Homebrew)? [y/N] " a </dev/tty || a=n
+      if [ "${a:-n}" = y ] || [ "${a:-n}" = Y ]; then
+        brew install --cask docker
+        ok "Docker Desktop installed — open it once (whale in the menu bar), then re-run this."
+        exit 0
+      fi
+    fi
     die "Install Docker Desktop for Mac (https://www.docker.com/products/docker-desktop/) and re-run."
   fi
 fi

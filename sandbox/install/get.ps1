@@ -20,9 +20,25 @@ function Die($m)  { Write-Host "  x $m"   -ForegroundColor Red; exit 1 }
 
 Info 'OSOLogic sandbox installer (Windows)'
 
+# --- Licence & warranty disclaimer ------------------------------------------
+Info 'Licence'
+Write-Host '  OSOLogic is free software, licensed under the GNU AGPL-3.0-or-later.'
+Write-Host '  It is provided "AS IS", WITHOUT WARRANTY OF ANY KIND, express or implied,'
+Write-Host '  to the maximum extent permitted by applicable law. You assume all risk.'
+Write-Host '  Full terms: https://github.com/OSOlogic/platform/blob/main/LICENSE'
+Read-Host '  Press Enter to accept and continue (Ctrl-C to abort)' | Out-Null
+
 # --- Docker Desktop ---------------------------------------------------------
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-  Die 'Docker Desktop not found. Install it (with the WSL2 backend) from https://www.docker.com/products/docker-desktop/ and re-run.'
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    $a = Read-Host '  Docker Desktop not found. Install it now via winget? [y/N]'
+    if ($a -eq 'y' -or $a -eq 'Y') {
+      winget install -e --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements
+      Warn 'Docker Desktop installed — start it once (enable the WSL2 backend), then re-run this.'
+      exit 0
+    }
+  }
+  Die 'Install Docker Desktop (WSL2 backend) from https://www.docker.com/products/docker-desktop/ and re-run.'
 }
 try { docker info *> $null } catch { Die 'Docker Desktop is installed but not running. Start Docker Desktop and re-run.' }
 $Compose = 'docker compose'

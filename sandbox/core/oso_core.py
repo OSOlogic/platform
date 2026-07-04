@@ -79,12 +79,21 @@ def db_exec(sql, args=None):
 
 def load_cache():
     rows = db_query("SELECT * FROM tags")
-    if not rows:   # no DB: seed a minimal plant so the UIs still work
+    if not rows:   # no DB (e.g. quick test without Docker): seed the demo plant so the UIs still work
+        def T(i, n, dt, v, u, ac, sim):
+            return {"id": i, "name": n, "data_type": dt, "value": v, "value_s": None,
+                    "required_value": None, "units": u, "access": ac, "sim": sim}
         rows = [
-            {"id": "hass.switch.pump", "name": "Water Pump", "data_type": "Boolean",
-             "value": 0, "required_value": None, "units": None, "access": "ReadWrite", "sim": "follow"},
-            {"id": "hass.sensor.tank_level", "name": "Tank Level", "data_type": "Float",
-             "value": 42, "required_value": None, "units": "%", "access": "ReadOnly", "sim": "sine"},
+            T("2.1", "Machine run", "Boolean", 0, None, "ReadWrite", "follow"),
+            T("2.5", "Motor speed", "Float", 0, "rpm", "ReadWrite", "follow"),
+            T("hass.switch.pump", "Water Pump", "Boolean", 0, None, "ReadWrite", "follow"),
+            T("hass.light.hall", "Hall Light", "Boolean", 0, None, "ReadWrite", "follow"),
+            T("hass.cover.gate", "Loading Gate", "Boolean", 0, None, "ReadWrite", "follow"),
+            T("hass.lock.door", "Access Door", "Boolean", 0, None, "ReadWrite", "follow"),
+            T("hass.sensor.tank_level", "Tank Level", "Float", 42, "%", "ReadOnly", "sine"),
+            T("hass.sensor.temperature", "Ambient Temp", "Float", 21, "°C", "ReadOnly", "sine"),
+            T("hass.climate.hvac", "HVAC", "Float", 22, "°C", "ReadOnly", "ramp"),
+            T("hass.binary_sensor.jam", "Jam Detector", "Boolean", 0, None, "ReadOnly", None),
         ]
     for r in rows:
         CACHE[r["id"]] = r
