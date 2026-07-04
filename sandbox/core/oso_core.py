@@ -195,10 +195,16 @@ class Handler(BaseHTTPRequestHandler):
         # serve the mounted ui/ tree; default landing is a small index
         full = os.path.realpath(os.path.join(UI_DIR, path.lstrip("/")))
         if not full.startswith(os.path.realpath(UI_DIR)) or not os.path.isfile(full):
-            # fall back to the sandbox landing page
-            land = os.path.join(UI_DIR, "_sandbox.html")
-            if os.path.isfile(land) and path == "/index.html":
-                full = land
+            # serve the sandbox landing at "/" — works whether UI_DIR is the repo root
+            # (dev / bare-metal) or has the landing bind-mounted at /index.html (docker)
+            if path == "/index.html":
+                for cand in (os.path.join(UI_DIR, "sandbox", "web", "index.html"),
+                             os.path.join(UI_DIR, "_sandbox.html")):
+                    if os.path.isfile(cand):
+                        full = cand
+                        break
+                else:
+                    return self._json({"error": "not found", "path": path}, 404)
             else:
                 return self._json({"error": "not found", "path": path}, 404)
         ctype = {

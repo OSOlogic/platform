@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Services / Launcher</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--warn:#e6a417;--bad:#e5484d;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:24px;margin:24px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 18px;max-width:70ch}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 13px;cursor:pointer;font-size:13px}
+  .btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .cat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+  .cat .chd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .cat .chd input{flex:1;background:none;border:none;color:var(--ink);font-size:15px;font-weight:700;border-bottom:1px solid transparent;padding:3px 0}
+  .cat .chd input:focus{outline:none;border-bottom-color:var(--accent)}
+  .app{display:grid;grid-template-columns:34px 1.4fr 2fr 1.1fr 92px 34px;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+  @media(max-width:760px){.app{grid-template-columns:1fr 1fr;}.app .lbl{display:block}}
+  .app input,.app select{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:12.5px;width:100%}
+  .app .ico{text-align:center;font-size:16px;padding:0}.app .ico input{text-align:center;padding:6px 2px}
+  .app .del{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:7px;height:30px;cursor:pointer}.app .del:hover{border-color:var(--bad);color:var(--bad)}
+  .addapp{margin-top:8px;font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:none;padding:4px 0}
+  .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:18px 0 44px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:8px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+      <span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Services · Launcher</span>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Services &amp; <em>Launcher</em></h1>
+  <p class="lede">Configure the OSOLogic home launcher — which apps and admin tools appear, their links
+    and whether each is <b>available</b>, a <b>mockup</b> (coming) or an <b>external</b> service. Saved
+    settings drive <a href="/" style="color:var(--accent)">the home page</a> on this instance.</p>
+
+  <div class="bar">
+    <button class="btn pri" id="save">Save</button>
+    <button class="btn" id="addCat">＋ Category</button>
+    <button class="btn" id="export">Export JSON</button>
+    <button class="btn danger" id="reset">Reset to defaults</button>
+    <a class="btn" href="/" style="margin-left:auto">Open home ↗</a>
+  </div>
+
+  <div id="cats"></div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<div class="toast" id="toast">Saved</div>
+
+<script>
+'use strict';
+const LS='oso-launcher';
+const DEFAULT={categories:[
+  {name:'Start here',apps:[
+    {icon:'🚀',name:'Get started',desc:'Docs & examples',url:'/ui/get-started/index.html',status:'available'},
+    {icon:'📖',name:'Documentation',desc:'Guides & API reference',url:'https://github.com/OSOlogic/platform',status:'external'},
+  ]},
+  {name:'HMI & Operations',apps:[
+    {icon:'🏭',name:'Plant Manager',desc:'Device tree + plant mimic',url:'/ui/hmi-web/plant-manager/index.html',status:'available'},
+    {icon:'🖼️',name:'HMI · SVG',desc:'SVG mimic bound to tags',url:'/ui/hmi-web/svg-hmi/index.html',status:'available'},
+    {icon:'🎛️',name:'HMI · HTML5',desc:'Widget board',url:'/ui/hmi-web/html5-hmi/index.html',status:'available'},
+    {icon:'📊',name:'Dashboards',desc:'Trends & reports',url:'#',status:'mockup'},
+    {icon:'🔔',name:'Alarms & Events',desc:'Live alarms + history',url:'#',status:'mockup'},
+  ]},
+  {name:'Engineering',apps:[
+    {icon:'🗂️',name:'Programs & Scripts',desc:'Ladder · ST · scripts · Node-RED',url:'/ui/webmin-oso/programs/index.html',status:'available'},
+    {icon:'🪜',name:'Ladder editor',desc:'osoLadder',url:'/iec61131/ladder/osoLadder/index.html',status:'available'},
+    {icon:'📐',name:'Structured Text',desc:'ST editor',url:'#',status:'mockup'},
+    {icon:'🔴',name:'Node-RED',desc:'Flow editor',url:'http://localhost:1880',status:'external'},
+    {icon:'🧩',name:'Protocol builder',desc:'Custom serial/TCP protocols',url:'#',status:'mockup'},
+  ]},
+  {name:'Administration',apps:[
+    {icon:'⚙️',name:'osowebmin',desc:'System & HMI admin',url:'/ui/webmin-oso/index.html',status:'available'},
+    {icon:'📜',name:'Scripting',desc:'Admin scripts',url:'/ui/webmin-oso/scripting/index.html',status:'available'},
+    {icon:'🏷️',name:'I/O Tags',desc:'Browse osodb',url:'/ui/webmin-oso/cockpit/oso-iotags/index.html',status:'available'},
+    {icon:'▶️',name:'Runtime',desc:'Scan cycle',url:'/ui/webmin-oso/cockpit/oso-runtime/index.html',status:'available'},
+    {icon:'📦',name:'PLC Projects',desc:'Deploy compiled projects',url:'/ui/webmin-oso/cockpit/oso-plc-projects/index.html',status:'available'},
+    {icon:'👥',name:'Users & Roles',desc:'DB roles & permissions',url:'#',status:'mockup'},
+    {icon:'📁',name:'Logs',desc:'Detail, logrotate, RAM/persistent',url:'#',status:'mockup'},
+  ]},
+  {name:'Networking & Gateways',apps:[
+    {icon:'🔌',name:'Gateways',desc:'Modbus · OPC-UA · MQTT · HA',url:'/ui/webmin-oso/cockpit/oso-gateways/index.html',status:'available'},
+    {icon:'🏠',name:'Home Assistant',desc:'Compatibility gateway',url:'#',status:'mockup'},
+    {icon:'📡',name:'Network scanner',desc:'Discover TCP/IP & serial devices',url:'#',status:'mockup'},
+    {icon:'🧱',name:'Firewall',desc:'iptables editor',url:'#',status:'mockup'},
+    {icon:'🛡️',name:'fail2ban',desc:'Intrusion protection',url:'#',status:'mockup'},
+  ]},
+]};
+const DOT={available:'var(--good)',mockup:'var(--warn)',external:'var(--muted)'};
+const $=s=>document.querySelector(s);
+let model=load();
+function load(){try{const v=JSON.parse(localStorage.getItem(LS));if(v&&v.categories)return v;}catch(_){}
+  return JSON.parse(JSON.stringify(DEFAULT));}
+
+function render(){
+  const root=$('#cats');root.innerHTML='';
+  model.categories.forEach((cat,ci)=>{
+    const el=document.createElement('div');el.className='cat';
+    el.innerHTML=`<div class="chd"><input value="${esc(cat.name)}" data-ci="${ci}" data-k="cat">
+      <button class="btn danger" data-ci="${ci}" data-act="delcat">Delete category</button></div>
+      <div class="rows"></div>
+      <button class="addapp" data-ci="${ci}" data-act="addapp">＋ Add app</button>`;
+    const rows=el.querySelector('.rows');
+    cat.apps.forEach((a,ai)=>{
+      const r=document.createElement('div');r.className='app';
+      r.innerHTML=`<div class="ico"><input value="${esc(a.icon||'')}" data-ci="${ci}" data-ai="${ai}" data-k="icon" maxlength="3"></div>
+        <input value="${esc(a.name||'')}" data-ci="${ci}" data-ai="${ai}" data-k="name" placeholder="Name">
+        <input value="${esc(a.url||'')}" data-ci="${ci}" data-ai="${ai}" data-k="url" placeholder="/path or https://">
+        <input value="${esc(a.desc||'')}" data-ci="${ci}" data-ai="${ai}" data-k="desc" placeholder="Description">
+        <select data-ci="${ci}" data-ai="${ai}" data-k="status">
+          ${['available','mockup','external'].map(s=>`<option${a.status===s?' selected':''}>${s}</option>`).join('')}</select>
+        <button class="del" data-ci="${ci}" data-ai="${ai}" data-act="delapp" title="Remove">🗑</button>`;
+      rows.appendChild(r);
+    });
+    root.appendChild(el);
+  });
+  // wire inputs
+  root.querySelectorAll('input,select').forEach(inp=>inp.onchange=e=>{
+    const {ci,ai,k}=e.target.dataset;
+    if(k==='cat') model.categories[ci].name=e.target.value;
+    else model.categories[ci].apps[ai][k]=e.target.value;
+  });
+  root.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>{
+    const {ci,ai,act}=e.target.dataset;
+    if(act==='delcat'){ if(confirm('Delete this category?')){model.categories.splice(ci,1);render();} }
+    else if(act==='addapp'){ model.categories[ci].apps.push({icon:'🔧',name:'New app',desc:'',url:'#',status:'mockup'});render(); }
+    else if(act==='delapp'){ model.categories[ci].apps.splice(ai,1);render(); }
+  });
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1400);}
+
+$('#save').onclick=()=>{ localStorage.setItem(LS,JSON.stringify(model)); toast('Saved — the home launcher is updated'); };
+$('#addCat').onclick=()=>{ model.categories.push({name:'New category',apps:[]}); render(); };
+$('#reset').onclick=()=>{ if(confirm('Reset the launcher to defaults?')){ model=JSON.parse(JSON.stringify(DEFAULT)); localStorage.removeItem(LS); render(); toast('Reset to defaults'); } };
+$('#export').onclick=()=>{ const blob=new Blob([JSON.stringify(model,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='services.json';a.click(); };
+
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
+
+render();
+</script>
+</body>
+</html>

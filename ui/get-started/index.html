@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Get started</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6}
+  a{color:inherit;text-decoration:none}.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
+  header img{width:32px;height:24px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:12px}
+  h1{font-size:30px;letter-spacing:-.02em;margin:28px 0 6px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);max-width:70ch;margin:0 0 6px}
+  h2{font-size:19px;margin:34px 0 8px;display:flex;align-items:center;gap:10px}h2 .n{font-family:var(--mono);font-size:13px;color:var(--accent);border:1px solid var(--line);border-radius:7px;width:26px;height:26px;display:grid;place-items:center}
+  p{margin:0 0 10px}.muted{color:var(--muted)}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto;position:relative;margin:10px 0}
+  code{font-family:var(--mono);font-size:12.5px}pre code{color:var(--ink);white-space:pre}
+  .cp{position:absolute;top:8px;right:8px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:11px}
+  .cp:hover{border-color:var(--accent);color:var(--accent)}
+  .try{display:inline-flex;gap:7px;align-items:center;font-weight:700;font-size:13.5px;color:var(--accent);margin:2px 0 6px}
+  .kw{color:var(--accent-2)}.cm{color:var(--muted)}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
+  @media(max-width:640px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 4px;font-size:14px}.card p{margin:0;color:var(--muted);font-size:12.5px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:34px;padding:20px 0 46px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:8px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="/" style="display:flex;gap:10px;align-items:center"><img src="/ui/shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+      <span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Get started</span>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Build <em>cool things</em> on OSOLogic</h1>
+  <p class="lede">One idea powers everything: <b>every value is a tag</b> in the in-memory hub
+    (<span style="font-family:var(--mono)">osodb</span>), backed by the database. Read it or command it
+    from SQL, REST, OPC-UA, MQTT or an AI agent — and every HMI, script and dashboard uses the same tags.</p>
+  <p class="muted">These examples target a running instance (e.g. the sandbox at
+    <span style="font-family:var(--mono)">http://localhost:8080</span>). Copy, paste, tweak.</p>
+
+  <h2><span class="n">1</span> Control a tag — three ways, same result</h2>
+  <p class="muted">Turn the demo pump on. Pick your protocol:</p>
+  <pre><button class="cp">copy</button><code><span class="cm"># REST — from any language</span>
+curl http://localhost:8080/var/hass.switch.pump
+curl -X PUT http://localhost:8080/var/hass.switch.pump -d '{"value":1}'</code></pre>
+  <pre><button class="cp">copy</button><code><span class="cm">-- SQL — the database is the plant</span>
+<span class="kw">UPDATE</span> tags <span class="kw">SET</span> required_value = 1 <span class="kw">WHERE</span> id = 'hass.switch.pump';
+<span class="kw">SELECT</span> id, value, units <span class="kw">FROM</span> tags;</code></pre>
+  <pre><button class="cp">copy</button><code><span class="cm"># OPC-UA — point any client at the server</span>
+opc.tcp://localhost:4840/osologic/   <span class="cm"># ns: urn:osologic:sandbox</span></code></pre>
+
+  <h2><span class="n">2</span> Make an HMI</h2>
+  <p>Open an HMI engine, drop a shape/widget, bind it to a tag, hit <b>Run</b> — it goes live.</p>
+  <div class="cards">
+    <a class="card" href="/ui/hmi-web/plant-manager/index.html"><h3>🏭 Plant Manager</h3><p>Device tree + SVG mimic. Bind a device to a shape.</p></a>
+    <a class="card" href="/ui/hmi-web/svg-hmi/index.html"><h3>🖼️ SVG HMI</h3><p>Import an SVG, bind shape colours to tag state.</p></a>
+    <a class="card" href="/ui/hmi-web/html5-hmi/index.html"><h3>🎛️ HTML5 HMI</h3><p>Lamps, values, gauges, buttons on a board.</p></a>
+  </div>
+  <p class="muted">In the tools, click <b>⚙</b> and set the REST base to <span style="font-family:var(--mono)">http://localhost:8080</span> (the sandbox home already does this for you).</p>
+
+  <h2><span class="n">3</span> Automate — Ladder / Structured Text</h2>
+  <p>Draw a rung (tap a contact, tap a cell), compile to Structured Text, run it in the scan.</p>
+  <a class="try" href="/iec61131/ladder/osoLadder/index.html">Open the Ladder editor →</a>
+  <pre><button class="cp">copy</button><code><span class="cm">(* Structured Text: pump on while level below set-point *)</span>
+pump := (tank_level &lt; setpoint) <span class="kw">AND</span> machine_run;</code></pre>
+
+  <h2><span class="n">4</span> Script it</h2>
+  <p>Read and drive tags from a script (shell, Python, Node… in the Scripting console).</p>
+  <a class="try" href="/ui/webmin-oso/scripting/index.html">Open Scripting →</a>
+  <pre><button class="cp">copy</button><code><span class="kw">import</span> urllib.request, json
+base = <span class="kw">"http://localhost:8080"</span>
+lvl = json.load(urllib.request.urlopen(base+<span class="kw">"/var/hass.sensor.tank_level"</span>))[<span class="kw">"value"</span>]
+<span class="kw">if</span> lvl &lt; 30:
+    urllib.request.urlopen(urllib.request.Request(base+<span class="kw">"/var/hass.switch.pump"</span>,
+        data=b'{"value":1}', method=<span class="kw">"PUT"</span>))   <span class="cm"># top up</span></code></pre>
+
+  <h2><span class="n">5</span> Dashboards &amp; flows</h2>
+  <p>Point Node-RED or any BI/dashboard tool at the same tags — REST for live values, SQL for history.</p>
+  <div class="cards">
+    <a class="card" href="/ui/webmin-oso/programs/index.html"><h3>🗂️ Programs &amp; Scripts</h3><p>Manage Ladder/ST/scripts and Node-RED flows.</p></a>
+    <a class="card" href="http://localhost:1880" target="_blank"><h3>🔴 Node-RED</h3><p>Flow-based dashboards (if installed).</p></a>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® ·
+    <a href="/">← Home</a> · <a href="https://github.com/OSOlogic/platform">GitHub docs</a></footer>
+</div>
+<div class="toast" id="toast">Copied</div>
+<script>
+  const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+  document.getElementById('themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+  const root2=document.documentElement;const a=(localStorage.getItem('oso-accent')||'maroon');
+  const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+  root2.style.setProperty('--accent',ACC[0]);root2.style.setProperty('--accent-2',ACC[1]);
+  const toast=document.getElementById('toast');
+  document.querySelectorAll('.cp').forEach(b=>b.onclick=()=>{const t=b.parentElement.querySelector('code').innerText;navigator.clipboard&&navigator.clipboard.writeText(t);toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1300);});
+</script>
+</body>
+</html>

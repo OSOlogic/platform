@@ -3,77 +3,159 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OSOLogic Sandbox — x86_64</title>
+<title>OSOLogic — Home</title>
 <style>
   :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
-    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--warn:#e6a417;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
   *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
-  a{color:inherit;text-decoration:none}.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
   header{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
-  header img{width:34px;height:26px}.logo{font-weight:800;font-size:19px}.logo b{color:var(--accent)}
-  .reg{font-size:.55em;vertical-align:super;color:var(--muted)}
-  .pill{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  header img{width:34px;height:26px}.logo{font-weight:800;font-size:19px}.logo b{color:var(--accent)}.reg{font-size:.55em;vertical-align:super;color:var(--muted)}
+  .pill{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}.dot.ok{background:var(--good)}
-  h1{font-size:30px;letter-spacing:-.02em;margin:30px 0 6px}h1 em{font-style:normal;color:var(--accent)}
-  .lede{color:var(--muted);max-width:70ch;margin:0 0 8px}
-  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin:28px 0 12px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:480px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 18px;transition:transform .14s,border-color .14s}
-  .card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
-  .card .ic{font-size:22px}.card h3{margin:8px 0 3px;font-size:15px}.card span{color:var(--muted);font-size:12.5px}
-  .ep{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:8px 0 0;font-family:var(--mono);font-size:13px;line-height:1.9}
-  .ep b{color:var(--accent)}.ep .k{color:var(--muted)}
-  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:34px;padding:20px 0 44px}
-  .note{color:var(--muted);font-size:12.5px;margin-top:6px}
+  .grow{flex:1}
+  .palette{display:flex;gap:5px}.palette button{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}.palette button.on{outline:2px solid var(--ink);outline-offset:1px}
+  .toggle,.cfg{height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer}.toggle{width:32px}.cfg{padding:0 12px;font-size:13px}
+  .cfg:hover{border-color:var(--accent)}
+  h1{font-size:26px;letter-spacing:-.02em;margin:26px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 8px;max-width:72ch}
+  .filters{display:flex;gap:6px;margin:20px 0 6px;flex-wrap:wrap}
+  .filters button{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px}
+  .filters button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .cat{margin:22px 0 0}.cat h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:820px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:520px){.grid{grid-template-columns:1fr}}
+  .app{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;gap:13px;align-items:flex-start;transition:transform .14s,border-color .14s}
+  .app.ok:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+  .app.mock{opacity:.62}.app.mock:hover{opacity:.85}
+  .app .ic{font-size:24px;line-height:1;flex:0 0 auto}
+  .app h3{margin:0 0 3px;font-size:15px;display:flex;align-items:center;gap:8px}.app p{margin:0;color:var(--muted);font-size:12.5px}
+  .tag{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;padding:2px 6px;border-radius:999px;border:1px solid var(--line)}
+  .tag.available{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+  .tag.mockup{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+  .tag.external{color:var(--muted)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:30px;padding:20px 0 46px}
+  footer a:hover{color:var(--accent)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <img src="/ui/shared/oso-mark.svg" alt="OSOLogic">
-    <span class="logo">OSO<b>logic</b><span class="reg">®</span> Sandbox</span>
-    <span class="pill"><span class="dot" id="dot"></span><span id="stat">checking…</span></span>
+    <img src="/ui/shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+    <span class="logo">OSO<b>logic</b><span class="reg">®</span></span>
+    <span class="pill" style="margin-left:6px"><span class="dot" id="dot"></span><span id="stat">checking…</span></span>
+    <div class="grow"></div>
+    <div class="palette" id="palette">
+      <button data-accent="amber" style="background:#f48c06"></button><button data-accent="honey" style="background:#ffb300"></button>
+      <button data-accent="maroon" style="background:#c23434"></button><button data-accent="bootstrap" style="background:#0d6efd"></button>
+    </div>
+    <a class="cfg" href="/ui/webmin-oso/services/index.html" title="Configure this launcher">⚙ Services</a>
+    <button class="toggle" id="themeBtn">◐</button>
   </header>
 
-  <h1>OSOLogic on <em>x86_64</em> — running.</h1>
-  <p class="lede">One <span style="font-family:var(--mono)">docker compose up</span> and you have a live OSOLogic:
-    a MariaDB source-of-truth, the <b>osodb</b> hub, a REST API, an OPC-UA server and every web interface —
-    all wired together. Control anything over the network and watch it move in the UIs below.</p>
-  <p class="note">The UIs on this page are pre-pointed at this sandbox's REST API (same origin), so they connect out of the box.</p>
+  <h1>Welcome to <em>OSOLogic</em></h1>
+  <p class="lede">Your automation platform and every interface, in one place. Open an app below — or
+    <a href="/ui/webmin-oso/services/index.html" style="color:var(--accent)">configure this launcher</a>
+    (what shows here, and each service) from osoadmin.</p>
 
-  <p class="eyebrow">Interfaces</p>
-  <div class="grid">
-    <a class="card" href="/ui/hmi-web/plant-manager/index.html"><div class="ic">🏭</div><h3>Plant Manager</h3><span>Device tree + plant mimic, live</span></a>
-    <a class="card" href="/ui/webmin-oso/programs/index.html"><div class="ic">🗂️</div><h3>Programs &amp; Scripts</h3><span>Ladder · ST · scripts · Node-RED</span></a>
-    <a class="card" href="/iec61131/ladder/osoLadder/index.html"><div class="ic">🪜</div><h3>Ladder editor</h3><span>osoLadder — visual LD → ST</span></a>
-    <a class="card" href="/ui/hmi-web/svg-hmi/index.html"><div class="ic">🖼️</div><h3>HMI · SVG</h3><span>SVG mimic bound to tags</span></a>
-    <a class="card" href="/ui/hmi-web/html5-hmi/index.html"><div class="ic">🎛️</div><h3>HMI · HTML5</h3><span>Widget board</span></a>
-    <a class="card" href="/ui/webmin-oso/index.html"><div class="ic">⚙️</div><h3>osowebmin</h3><span>System &amp; HMI admin</span></a>
+  <div class="filters" id="filters">
+    <button data-f="all" class="on">All</button>
+    <button data-f="available">Available</button>
+    <button data-f="mockup">Coming / mockup</button>
   </div>
 
-  <p class="eyebrow">Endpoints</p>
-  <div class="ep">
-    <div><span class="k">Web UI + REST</span> &nbsp; <b>http://localhost:8080</b></div>
-    <div><span class="k">REST tags</span> &nbsp;&nbsp;&nbsp;&nbsp; <b>GET /tags</b> · <b>GET /var/{id}</b> · <b>PUT /var/{id}</b> <span class="k">{"value":1}</span></div>
-    <div><span class="k">OPC-UA</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>opc.tcp://localhost:4840/osologic/</b></div>
-    <div><span class="k">MariaDB</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>localhost:3306</b> <span class="k">— UPDATE tags SET required_value=1 WHERE id='hass.switch.pump';</span></div>
-  </div>
+  <div id="cats"></div>
 
-  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® Sandbox · AGPL-3.0</footer>
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® ·
+    <a href="https://osologic.com">osologic.com</a> · <a href="https://github.com/OSOlogic/platform">GitHub</a></footer>
 </div>
 
 <script>
-  // Point every same-origin web tool at this sandbox's REST API automatically.
-  try{
-    const cfg = JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}');
-    cfg.baseUrl = location.origin; cfg.authType = cfg.authType||'none'; cfg.pollMs = cfg.pollMs||750;
-    localStorage.setItem('osodb_client_cfg', JSON.stringify(cfg));
-  }catch(_){}
-  // Health check
-  fetch('/healthz').then(r=>r.json()).then(d=>{
-    document.getElementById('dot').className='dot ok';
-    document.getElementById('stat').textContent = `live · ${d.tags} tags · db ${d.db?'up':'seed'}`;
-  }).catch(()=>{ document.getElementById('stat').textContent='core offline'; });
+'use strict';
+// Point every same-origin web tool at this instance's REST API.
+try{ const c=JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}'); c.baseUrl=location.origin; c.authType=c.authType||'none'; c.pollMs=c.pollMs||750; localStorage.setItem('osodb_client_cfg',JSON.stringify(c)); }catch(_){}
+
+// Default service catalog (osoadmin's Services page edits localStorage 'oso-launcher',
+// or the instance can serve /services.json). status: available | mockup | external.
+const DEFAULT = { categories: [
+  { name:'HMI & Operations', apps:[
+    { icon:'🏭', name:'Plant Manager', desc:'Device tree + plant mimic, live', url:'/ui/hmi-web/plant-manager/index.html', status:'available' },
+    { icon:'🖼️', name:'HMI · SVG', desc:'SVG mimic bound to tags', url:'/ui/hmi-web/svg-hmi/index.html', status:'available' },
+    { icon:'🎛️', name:'HMI · HTML5', desc:'Widget board', url:'/ui/hmi-web/html5-hmi/index.html', status:'available' },
+    { icon:'📊', name:'Dashboards', desc:'Trends & reports', url:'#', status:'mockup' },
+    { icon:'🔔', name:'Alarms & Events', desc:'Live alarm list + history', url:'#', status:'mockup' },
+  ]},
+  { name:'Start here', apps:[
+    { icon:'🚀', name:'Get started', desc:'Docs & examples — HMIs, automations, scripting, dashboards', url:'/ui/get-started/index.html', status:'available' },
+    { icon:'📖', name:'Documentation', desc:'Guides & API reference', url:'https://github.com/OSOlogic/platform', status:'external' },
+  ]},
+  { name:'Engineering', apps:[
+    { icon:'🗂️', name:'Programs & Scripts', desc:'Ladder · ST · scripts · Node-RED', url:'/ui/webmin-oso/programs/index.html', status:'available' },
+    { icon:'🪜', name:'Ladder editor', desc:'osoLadder — visual LD → ST', url:'/iec61131/ladder/osoLadder/index.html', status:'available' },
+    { icon:'📐', name:'Structured Text', desc:'ST editor / toolchain', url:'#', status:'mockup' },
+    { icon:'🔴', name:'Node-RED', desc:'Flow editor (if installed)', url:'http://localhost:1880', status:'external' },
+    { icon:'🧩', name:'Protocol builder', desc:'Define custom serial/TCP protocols', url:'#', status:'mockup' },
+  ]},
+  { name:'Administration', apps:[
+    { icon:'⚙️', name:'osowebmin', desc:'System & HMI admin', url:'/ui/webmin-oso/index.html', status:'available' },
+    { icon:'📜', name:'Scripting', desc:'Multi-language admin scripts', url:'/ui/webmin-oso/scripting/index.html', status:'available' },
+    { icon:'🏷️', name:'I/O Tags', desc:'Browse osodb, read/write', url:'/ui/webmin-oso/cockpit/oso-iotags/index.html', status:'available' },
+    { icon:'▶️', name:'Runtime', desc:'Scan cycle, start/stop', url:'/ui/webmin-oso/cockpit/oso-runtime/index.html', status:'available' },
+    { icon:'📦', name:'PLC Projects', desc:'Deploy compiled projects', url:'/ui/webmin-oso/cockpit/oso-plc-projects/index.html', status:'available' },
+    { icon:'👥', name:'Users & Roles', desc:'DB roles & permissions', url:'#', status:'mockup' },
+    { icon:'📁', name:'Logs', desc:'Detail, logrotate, RAM/persistent', url:'#', status:'mockup' },
+  ]},
+  { name:'Networking & Gateways', apps:[
+    { icon:'🔌', name:'Gateways', desc:'Modbus · OPC-UA · MQTT · HA (server+client)', url:'/ui/webmin-oso/cockpit/oso-gateways/index.html', status:'available' },
+    { icon:'🏠', name:'Home Assistant', desc:'Compatibility gateway', url:'#', status:'mockup' },
+    { icon:'📡', name:'Network scanner', desc:'Discover TCP/IP & serial devices', url:'#', status:'mockup' },
+    { icon:'🧱', name:'Firewall', desc:'iptables editor', url:'#', status:'mockup' },
+    { icon:'🛡️', name:'fail2ban', desc:'Intrusion protection', url:'#', status:'mockup' },
+  ]},
+]};
+
+let model = load(); let filter='all';
+function load(){ try{const v=JSON.parse(localStorage.getItem('oso-launcher'));if(v&&v.categories)return v;}catch(_){}
+  return DEFAULT; }
+
+function render(){
+  const root=document.getElementById('cats'); root.innerHTML='';
+  model.categories.forEach(cat=>{
+    const apps=cat.apps.filter(a=> filter==='all' || (filter==='available'? a.status==='available' : a.status!=='available'));
+    if(!apps.length) return;
+    const sec=document.createElement('div'); sec.className='cat';
+    sec.innerHTML=`<h2>${esc(cat.name)}</h2><div class="grid"></div>`;
+    const g=sec.querySelector('.grid');
+    apps.forEach(a=>{
+      const ok=a.status==='available'||a.status==='external';
+      const el=document.createElement(ok&&a.url&&a.url!=='#'?'a':'div');
+      el.className='app '+(a.status==='available'?'ok':(a.status==='external'?'ok':'mock'));
+      if(ok&&a.url&&a.url!=='#'){ el.href=a.url; if(a.status==='external')el.target='_blank'; }
+      el.innerHTML=`<div class="ic">${a.icon||'🔧'}</div>
+        <div><h3>${esc(a.name)} <span class="tag ${a.status}">${a.status}</span></h3><p>${esc(a.desc||'')}</p></div>`;
+      g.appendChild(el);
+    });
+    root.appendChild(sec);
+  });
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+document.querySelectorAll('#filters button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#filters button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); filter=b.dataset.f; render();
+});
+
+// theme + palette
+const root=document.documentElement; const th=localStorage.getItem('oso-theme'); if(th)root.setAttribute('data-theme',th);
+document.getElementById('themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']};
+function setAcc(n){const a=ACC[n]||ACC.maroon;root.style.setProperty('--accent',a[0]);root.style.setProperty('--accent-2',a[1]);localStorage.setItem('oso-accent',n);document.querySelectorAll('#palette button').forEach(b=>b.classList.toggle('on',b.dataset.accent===n));}
+setAcc(localStorage.getItem('oso-accent')||'maroon');document.querySelectorAll('#palette button').forEach(b=>b.onclick=()=>setAcc(b.dataset.accent));
+
+// try a served catalog, then health
+fetch('/services.json').then(r=>r.ok?r.json():null).then(j=>{ if(j&&j.categories&&!localStorage.getItem('oso-launcher')){ model=j; render(); } }).catch(()=>{});
+fetch('/healthz').then(r=>r.json()).then(d=>{ document.getElementById('dot').className='dot ok'; document.getElementById('stat').textContent=`live · ${d.tags} tags · db ${d.db?'up':'seed'}`; }).catch(()=>{ document.getElementById('stat').textContent='core offline'; });
+
+render();
 </script>
 </body>
 </html>
