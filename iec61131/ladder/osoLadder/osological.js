@@ -262,6 +262,28 @@ function ensureVar(name, dataType) {
   return v;
 }
 
+// --- osodb tag browser: pull live tags (incl. hass.* devices) for auto-fill ---
+let osodbTags = [];
+const OSODB_TYPEMAP = { Boolean:'BOOL', Float:'REAL', Int:'INT', UInt:'UINT', Long:'DINT', String:'STRING' };
+async function fetchOsodbTags() {
+  let base='';
+  try { base = (JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl) || ''; } catch(_) {}
+  if (!base) base = location.origin;
+  base = base.replace(/\/$/,'');
+  for (const path of ['/api/v1/tags','/tags']) {
+    try {
+      const r = await fetch(base+path); if(!r.ok) continue;
+      const j = await r.json(); const arr = Array.isArray(j) ? j : (j.tags||[]);
+      osodbTags = arr.map(t => typeof t==='string'
+        ? { name:t, dataType:'BOOL' }
+        : { name:(t.id||t.key||t.name), dataType:(OSODB_TYPEMAP[t.type||t.data_type]||'BOOL'), units:t.units, access:t.access })
+        .filter(x => x.name);
+      return osodbTags.length;
+    } catch(_) {}
+  }
+  return 0;
+}
+
 // ============================================================
 // SECTION 6: UNDO/REDO
 // ============================================================
@@ -947,19 +969,28 @@ function onCellDrop(e) {
 
 function showAC(input, rungId, row, col, pinMode) {
   const q=input.value.toLowerCase();
-  const matches=state.variables.filter(v=>v.name.toLowerCase().includes(q)).slice(0,10);
+  const declared=new Set(state.variables.map(v=>v.name));
+  const matches=[];
+  for(const v of state.variables) if(v.name.toLowerCase().includes(q)) matches.push({name:v.name,dataType:v.dataType,src:'var'});
+  for(const t of osodbTags) if(!declared.has(t.name) && t.name.toLowerCase().includes(q))
+    matches.push({name:t.name,dataType:t.dataType,src:t.name.startsWith('hass.')?'device':'osodb'});
+  matches.splice(12);
   const ul=document.getElementById('var-autocomplete');
   if(!matches.length){ ul.classList.add('hidden'); return; }
   ul.innerHTML='';
   matches.forEach(v=>{
     const li=document.createElement('li');
-    li.innerHTML=`${escH(v.name)} <span class="ac-type">${v.dataType}</span>`;
+    const badge = v.src==='device' ? '🔌 device' : (v.src==='osodb' ? 'osodb' : v.dataType);
+    li.innerHTML=`${escH(v.name)} <span class="ac-type">${escH(badge)}</span>`;
     li.addEventListener('mousedown',()=>{
       pushUndo();
       const cell=getRung(rungId)?.cells[row]?.[col];
       if(!cell) return;
+      // osodb tag / device → auto-declare a variable wired by address = tag id
+      if(v.src!=='var'){ const nv=ensureVar(v.name, v.dataType); if(nv && !nv.address){ nv.address=v.name; renderTagTable(); } }
+      const dv=state.variables.find(x=>x.name===v.name);
       if(pinMode){ cell.params[input.dataset.pin]=v.name; }
-      else { cell.variableName=v.name; cell.variableId=v.id; }
+      else { cell.variableName=v.name; cell.variableId=dv?dv.id:undefined; }
       input.value=v.name;
       hideAC(); rerenderRung(rungId);
     });
@@ -1221,6 +1252,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   state.rungs.push(createRung(DEF_COLS));
   renderAll();
   syncUndoBtns();
+
+  // Pull osodb tags (incl. hass.* devices) so the variable field auto-fills from the plant
+  fetchOsodbTags().then(n => { if(n) console.log('[ladder] '+n+' osodb tags available for auto-fill'); });
+  setInterval(fetchOsodbTags, 30000);
 
   // Toolbar
   document.getElementById('btn-undo').addEventListener('click',undo);
