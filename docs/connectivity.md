@@ -53,6 +53,7 @@ osodb is the in-memory hub; the database behind it is an **adapter**, so several
 | **MariaDB / MySQL** | ✅ Native | source-of-truth, SQL direct control |
 | **PostgreSQL** | 🔜 Roadmap *(priority)* | SQL backend; drops into the data-centric model; pairs with TimescaleDB |
 | **SQLite** | 🔜 Roadmap | embedded / internal (not networked) — small boards, local state |
+| **MS SQL Server** | 🔜 Roadmap | **client** — read/write an existing SQL Server (enterprise MES/ERP integration) |
 
 ## Via gateway — third-party ecosystems (compatibility)
 
