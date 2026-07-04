@@ -183,10 +183,11 @@ const ELEMENT_LABELS = {
   FB_TON:'TON', FB_TOF:'TOF', FB_TP:'TP',
   FB_CTU:'CTU', FB_CTD:'CTD', FB_CTUD:'CTUD',
   FB_ADD:'ADD', FB_SUB:'SUB', FB_MUL:'MUL', FB_DIV:'DIV', FB_MOV:'MOV',
+  FB_PID:'PID',
   FB_GT:'GT', FB_LT:'LT', FB_GE:'GE', FB_LE:'LE', FB_EQ:'EQ', FB_NE:'NE',
 };
 
-const FB_TYPES      = new Set(['FB_TON','FB_TOF','FB_TP','FB_CTU','FB_CTD','FB_CTUD','FB_ADD','FB_SUB','FB_MUL','FB_DIV','FB_MOV','FB_GT','FB_LT','FB_GE','FB_LE','FB_EQ','FB_NE']);
+const FB_TYPES      = new Set(['FB_TON','FB_TOF','FB_TP','FB_CTU','FB_CTD','FB_CTUD','FB_ADD','FB_SUB','FB_MUL','FB_DIV','FB_MOV','FB_GT','FB_LT','FB_GE','FB_LE','FB_EQ','FB_NE','FB_PID']);
 const TIMER_TYPES   = new Set(['FB_TON','FB_TOF','FB_TP']);
 const COUNTER_TYPES = new Set(['FB_CTU','FB_CTD','FB_CTUD']);
 const MATH_TYPES    = new Set(['FB_ADD','FB_SUB','FB_MUL','FB_DIV','FB_MOV']);
@@ -246,6 +247,7 @@ function defaultFbParams(type) {
   if (type==='FB_CTD')         return { instanceName:inst, CD:'', LD:'', PV:10, Q:'', CV:'' };
   if (type==='FB_CTUD')        return { instanceName:inst, CU:'', CD:'', R:'', LD:'', PV:10, QU:'', QD:'', CV:'' };
   if (type==='FB_MOV')         return { instanceName:inst, EN:'', IN1:'', ENO:'', OUT:'' };
+  if (type==='FB_PID')         return { instanceName:inst, EN:'', PV:'', SP:'', Kp:'1.0', Ki:'0.1', Kd:'0', OUT:'' };
   return { instanceName:inst, EN:'', IN1:'', IN2:'', ENO:'', OUT:'' };
 }
 
@@ -389,6 +391,9 @@ function getFbPins(type) {
   if(type==='FB_MOV') return {
     left:[{name:'EN',key:'EN'},{name:'IN',key:'IN1'}],
     right:[{name:'ENO',key:'ENO'},{name:'OUT',key:'OUT'}]};
+  if(type==='FB_PID') return {
+    left:[{name:'EN',key:'EN'},{name:'PV',key:'PV'},{name:'SP',key:'SP'},{name:'Kp',key:'Kp'},{name:'Ki',key:'Ki'},{name:'Kd',key:'Kd'}],
+    right:[{name:'OUT',key:'OUT'}]};
   return {
     left:[{name:'EN',key:'EN'},{name:'IN1',key:'IN1'},{name:'IN2',key:'IN2'}],
     right:[{name:'ENO',key:'ENO'},{name:'OUT',key:'OUT'}]};
@@ -1188,8 +1193,53 @@ function simFB(cell, cond, dt) {
                    out(!!cell._pulse, Math.min(cell._et||0,PT)); break;
     case 'FB_CTU': { const CU = (p.CU!=null&&p.CU!=='')?!!simState[p.CU]:cond; if (p.R && simState[p.R]) cell._cv = 0; else if (CU && !cell._prevCU) cell._cv = (cell._cv||0)+1; cell._prevCU = CU; const PV = Number(p.PV)||0; if (p.CV) simState[p.CV] = cell._cv||0; cell._q = (cell._cv||0) >= PV; if (p.Q) simState[p.Q] = cell._q; break; }
     case 'FB_CTD': { const CD = (p.CD!=null&&p.CD!=='')?!!simState[p.CD]:cond; const PV = Number(p.PV)||0; if (p.LD && simState[p.LD]) cell._cv = PV; else if (CD && !cell._prevCD) cell._cv = (cell._cv||0)-1; cell._prevCD = CD; if (p.CV) simState[p.CV] = cell._cv||0; cell._q = (cell._cv||0) <= 0; if (p.Q) simState[p.Q] = cell._q; break; }
-    default: cell._q = cond; // math/compare/mov not simulated (v1)
+    default: simFBMathCmp(cell, cond); break;
   }
+}
+function simNum(x) {
+  if (x == null || x === '') return 0;
+  const n = Number(x);
+  return isNaN(n) ? (Number(simState[x]) || 0) : n;
+}
+function simFBMathCmp(cell, cond) {
+  const p = cell.params || {};
+  const en = (p.EN != null && p.EN !== '') ? !!simState[p.EN] : cond;
+  const a = simNum(p.IN1), b = simNum(p.IN2);
+  let res, isBool = false;
+  switch (cell.type) {
+    case 'FB_ADD': res = a + b; break;
+    case 'FB_SUB': res = a - b; break;
+    case 'FB_MUL': res = a * b; break;
+    case 'FB_DIV': res = b !== 0 ? a / b : 0; break;
+    case 'FB_MOV': res = a; break;
+    case 'FB_GT': res = a > b;  isBool = true; break;
+    case 'FB_LT': res = a < b;  isBool = true; break;
+    case 'FB_GE': res = a >= b; isBool = true; break;
+    case 'FB_LE': res = a <= b; isBool = true; break;
+    case 'FB_EQ': res = a === b; isBool = true; break;
+    case 'FB_NE': res = a !== b; isBool = true; break;
+    case 'FB_PID': res = simPID(cell, p, en); break;
+    default: cell._q = cond; return;
+  }
+  if (en) {
+    if (isBool) { if (p.OUT) simState[p.OUT] = res; cell._q = res; }
+    else { if (p.OUT) simState[p.OUT] = Math.round(res * 1000) / 1000; cell._q = true; }
+    if (p.ENO) simState[p.ENO] = true;
+  } else { cell._q = isBool ? false : false; if (p.ENO) simState[p.ENO] = false; }
+}
+function simPID(cell, p, en) {
+  const pv = simNum(p.PV), sp = simNum(p.SP);
+  const kp = simNum(p.Kp) || 1, ki = simNum(p.Ki), kd = simNum(p.Kd);
+  const dt = SIM_SCAN_MS / 1000;
+  if (!en) { cell._pidI = 0; cell._pidPrev = undefined; return 0; }
+  const err = sp - pv;
+  cell._pidI = (cell._pidI || 0) + err * dt;
+  const der = (cell._pidPrev === undefined) ? 0 : (err - cell._pidPrev) / dt;
+  cell._pidPrev = err;
+  let out = kp * err + ki * cell._pidI + kd * der;
+  out = Math.max(0, Math.min(100, out));   // clamp 0..100
+  if (p.OUT) simState[p.OUT] = Math.round(out * 100) / 100;
+  return out;
 }
 function simRung(rung, dt) {
   if (rung.enabled === false) { rung._energized = false; return; }
