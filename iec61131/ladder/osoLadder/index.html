@@ -424,24 +424,54 @@
 <script src="osoplc.js"></script>
 <script src="osocompile.js"></script>
 <script>
-  /* Compile → Structured Text (prototype). Generates ST from the current ladder
-     and downloads it; the ST feeds the osoST toolchain. */
+  /* Compile → Structured Text (prototype). Shows the ST for the whole project
+     (main + every sub-ladder) so you can see exactly what gets deployed — the ST
+     feeds the osoST toolchain → p-code → osoruntime. Copy or download from the viewer. */
   document.addEventListener('DOMContentLoaded', () => {
     const b = document.getElementById('btn-compile');
     if (!b || typeof OsoCompile === 'undefined') return;
+    const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
     b.addEventListener('click', () => {
-      try {
-        const { st, warnings } = OsoCompile.compileLadderToST(state);
-        if (warnings.length) console.warn('[compile]\n' + warnings.join('\n'));
+      let res;
+      try { res = OsoCompile.compileLadderToST(state); }
+      catch (e) { alert('Compile error: ' + (e.message || e)); return; }
+      const st = res.st, warnings = res.warnings || [];
+      const name = (state.meta && state.meta.name) || 'ladder';
+      const pous = state.subroutines ? Object.keys(state.subroutines) : ['main'];
+      document.getElementById('st-modal')?.remove();
+      const ov = document.createElement('div');
+      ov.id = 'st-modal';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px';
+      const warnHtml = warnings.length
+        ? `<div style="background:#5a4a1a;color:#ffd479;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:12px">⚠ ${warnings.length} aviso(s):<br>${warnings.map(w=>'• '+esc(w)).join('<br>')}</div>`
+        : `<div style="background:#1e3a24;color:#8fe0a4;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:12px">✓ Compilado sin avisos</div>`;
+      ov.innerHTML =
+        `<div style="background:#16181d;border:1px solid #2a2e37;border-radius:12px;max-width:920px;width:100%;max-height:86vh;display:flex;flex-direction:column;padding:18px;color:#ece9e3;font-family:system-ui,sans-serif">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <b style="font-size:16px;flex:1">Structured Text — ${esc(name)}</b>
+            <button id="st-copy" class="tb-btn">Copiar</button>
+            <button id="st-dl" class="tb-btn">Descargar .st</button>
+            <button id="st-x" class="tb-btn">✕</button>
+          </div>
+          <div style="font-size:11.5px;color:#8b8f99;margin-bottom:10px">POUs: ${pous.map(esc).join(' · ')} &nbsp;→&nbsp; osoST → p-code → osoruntime (C++)</div>
+          ${warnHtml}
+          <pre style="flex:1;overflow:auto;background:#0e0f12;border:1px solid #2a2e37;border-radius:8px;padding:14px;margin:0;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.5;white-space:pre;color:#d7d3cb"></pre>
+        </div>`;
+      ov.querySelector('pre').textContent = st;
+      document.body.appendChild(ov);
+      const close = () => ov.remove();
+      ov.addEventListener('click', e => { if (e.target === ov) close(); });
+      ov.querySelector('#st-x').addEventListener('click', close);
+      document.addEventListener('keydown', function esckey(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown', esckey); } });
+      ov.querySelector('#st-copy').addEventListener('click', () => {
+        navigator.clipboard?.writeText(st);
+        const c = ov.querySelector('#st-copy'); c.textContent = '¡Copiado!'; setTimeout(()=>c.textContent='Copiar', 1200);
+      });
+      ov.querySelector('#st-dl').addEventListener('click', () => {
         const blob = new Blob([st], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = ((state.meta && state.meta.name) || 'ladder').replace(/\s+/g, '_') + '.st';
-        a.click();
-        URL.revokeObjectURL(a.href);
-      } catch (e) {
-        alert('Compile error: ' + (e.message || e));
-      }
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = name.replace(/\s+/g, '_') + '.st'; a.click(); URL.revokeObjectURL(a.href);
+      });
     });
   });
 </script>
