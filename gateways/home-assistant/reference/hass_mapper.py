@@ -7,9 +7,10 @@
 #   • osodb tag definitions (JSON)   — key, type, access, units, write service
 #   • SQL for the database            — a hass_tags registry (upsert)
 #
-# So HA's ~2000 integrations become typed osodb tags with no bespoke drivers:
-# the driver library says how each HA domain maps, this mapper applies it per
-# entity. Feed it a states dump (from hass_discover.py) or a live instance.
+# Devices Home Assistant already supports become typed osodb tags via HA's public
+# API: the driver library says how each HA domain maps, this mapper applies it per
+# entity. Interoperability, not a re-implementation. Feed it a states dump (from
+# hass_discover.py) or a live instance you own.
 #
 #   python3 hass_mapper.py --states states.json --out-json tags.json --out-sql tags.sql
 #   HASS_URL=... HASS_TOKEN=... python3 hass_mapper.py --live --out-json tags.json

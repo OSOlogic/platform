@@ -3,9 +3,10 @@
 **© 2026 Roig Borrell S.L. · Ibercomp S.L.** · Part of [OSOLogic](https://github.com/OSOlogic/platform) · AGPL-3.0-or-later
 
 One JSON per Home Assistant **domain**, describing how that class of device maps to an
-[`osodb`](../../../core/osodb) tag. The [mapper](../reference/hass_mapper.py) reads these +
-the live entities and emits typed osodb tags (and DB SQL) — so HA's whole device ecosystem
-becomes OSOLogic tags without writing native drivers.
+[`osodb`](../../../core/osodb) tag. The [mapper](../reference/hass_mapper.py) reads these + the entities from a Home Assistant
+instance and emits typed osodb tags (and DB SQL) — an interoperability layer that lets devices
+HA already supports appear as OSOLogic tags. It reads HA over its public API; it does not
+re-implement or embed HA's drivers.
 
 ## Driver schema
 

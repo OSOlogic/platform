@@ -8,9 +8,9 @@ A web Plant Manager (in the spirit of Borrell Plant Manager): a **device/driver 
 left, a **plant mimic** in the middle, and **bindings** on the right — all backed by
 [`osodb`](../../../core/osodb).
 
-The device tree is populated from **Home Assistant** through the driver mapper, so any HA-supported
-device (Zigbee, Z-Wave, Matter, MQTT, …) shows up as a typed osodb tag you can drop onto the plant —
-no bespoke drivers.
+The device tree can be populated from **Home Assistant** through the compatibility gateway, so a
+device HA already supports (Zigbee, Z-Wave, Matter, MQTT, …) shows up as a typed osodb tag you can
+drop onto the plant — alongside OSOLogic's own native I/O.
 
 ## Flow
 
