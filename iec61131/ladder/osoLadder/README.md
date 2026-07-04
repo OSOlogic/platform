@@ -13,10 +13,10 @@
 
 ![osoLadder editor](screenshot.png)
 
-> **⚠ Work in progress — not yet fully functional.** The layout, palette, variable
-> table (with a live **Valor**/value column) and the **Compilar ST** action are in
-> place, but editor interactions (drag-drop placement, branch editing) are still being
-> hardened. Treat as a prototype.
+> **⚠ Work in progress.** The layout, palette, variable table (with a live **Valor**/value
+> column) and the **Compilar ST** action are in place. Element placement now works two ways —
+> **drag-and-drop** *and* touch-friendly **click-to-place** (tap a tool to arm it, tap a cell to
+> drop it; `Esc` disarms) — while branch editing is still being hardened. Treat as a prototype.
 
 ---
 
@@ -68,7 +68,8 @@ browser, so "DB / osodb" goes through that same REST endpoint.
 
 ## Features / Características
 
-- **Visual Ladder editor** — drag-and-drop NO/NC contacts, output coils, function blocks, math blocks
+- **Visual Ladder editor** — place NO/NC contacts, output coils, function blocks and math blocks by
+  **drag-and-drop** or **click-to-place** (tap-to-arm, tap-to-drop — works on touch panels)
 - **IEC 61131-3 LD elements** — SR/RS latches, TON/TOF timers, CTU/CTD counters
 - **Variable table** — declare and manage PLC variables with types
 - **PLC connection** — prototype live I/O via REST API, MQTT (WebSocket), Redis bridge, DB bridge

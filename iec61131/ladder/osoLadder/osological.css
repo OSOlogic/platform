@@ -146,6 +146,14 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
 .palette-item:hover { background: var(--bg-tertiary); border-color: var(--accent); }
 .palette-item:active { cursor: grabbing; }
 .palette-item span { font-size: 10px; color: var(--text-secondary); font-family: monospace; }
+/* click-to-place: armed tool + placing cursor (touch-friendly) */
+.palette-item.armed {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-cell));
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px -2px var(--accent);
+}
+body.placing .rung-svg,
+body.placing .cell-hit { cursor: copy; }
 .palette-svg { width: 54px; height: 28px; }
 
 /* ===== EDITOR ===== */
