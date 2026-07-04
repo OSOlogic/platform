@@ -87,9 +87,22 @@ Home Assistant has ~2000 **integrations**. We don't want the whole runtime — w
 - **Auditable & portable** — a driver is data + optional sandboxed hooks, not linked binary.
 - **Safe** — drivers run off the hard-RT path; a bad driver can't stall the scan cycle.
 
+## Driver registry (database)
+
+Drivers live in a **registry** with three tiers, all resolving to the same tag hub:
+
+1. **Core-native** — a small set compiled into the OSO core (the hard/real-time fieldbus + the base ones).
+2. **`oso-driver` loaded** — file-defined drivers loaded at runtime from the `drivers/` tree (this RFC),
+   including the ones *stripped* from HA integrations.
+3. **User-custom** — a user's own drivers/protocols (Protocol builder output, private folders).
+
+On top of that, a **public catalog** — a browsable listing on **GitHub** and **osologic.com** (name,
+transport, kind, coverage, status) so people can find and contribute drivers. The registry is the
+source for that catalog.
+
 ## Open questions
 
-- Driver registry & versioning; a signed community driver index.
+- Driver registry & versioning; a signed community driver index; catalog generation from the registry.
 - Hook sandbox (WASM? restricted Python/JS?) — shared with RFC 0001.
 - The `strip` tool: where it lives (`cli/`), and how it reads HA manifests without importing HA.
 - Schema for `driver.json` / `map.json` under [`standard/schema`](../schema/).
