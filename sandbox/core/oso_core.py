@@ -282,14 +282,26 @@ TOOLCHAINS = {
 }
 
 
-def run_script(lang, code):
+def run_script(lang, code, debug=False):
+    # Pseudo-debug: with debug=True we export OSO_DEBUG=1 so a script can gate its own
+    # trace output ("hidden flags"), and we report elapsed time + the exact command run.
     if not EXEC_ENABLE:
         return {"error": "script execution is disabled on this instance"}
+    env = dict(os.environ)
+    if debug:
+        env["OSO_DEBUG"] = "1"
+    t0 = time.monotonic()
+
+    def done(res):
+        res["elapsed_ms"] = int((time.monotonic() - t0) * 1000)
+        res["debug"] = debug
+        return res
+
     if lang in INTERP:
         cmd = INTERP[lang]
         try:
-            p = subprocess.run(cmd + [code], capture_output=True, text=True, timeout=20)
-            return {"lang": lang, "stdout": p.stdout, "stderr": p.stderr, "code": p.returncode}
+            p = subprocess.run(cmd + [code], capture_output=True, text=True, timeout=20, env=env)
+            return done({"lang": lang, "cmd": " ".join(cmd), "stdout": p.stdout, "stderr": p.stderr, "code": p.returncode})
         except FileNotFoundError:
             return {"error": f"{cmd[0]} not installed — install its toolchain"}
         except subprocess.TimeoutExpired:
@@ -303,11 +315,12 @@ def run_script(lang, code):
                 src = os.path.join(d, spec["file"])
                 open(src, "w").write(code)
                 if spec["build"]:
-                    b = subprocess.run(spec["build"](d, src), capture_output=True, text=True, timeout=45, cwd=d)
+                    b = subprocess.run(spec["build"](d, src), capture_output=True, text=True, timeout=45, cwd=d, env=env)
                     if b.returncode != 0:
-                        return {"lang": lang, "stdout": b.stdout, "stderr": "[compile]\n" + b.stderr, "code": b.returncode}
-                r = subprocess.run(spec["run"](d, src), capture_output=True, text=True, timeout=20, cwd=d)
-                return {"lang": lang, "stdout": r.stdout, "stderr": r.stderr, "code": r.returncode}
+                        return done({"lang": lang, "stdout": b.stdout, "stderr": "[compile]\n" + b.stderr, "code": b.returncode})
+                run_cmd = spec["run"](d, src)
+                r = subprocess.run(run_cmd, capture_output=True, text=True, timeout=20, cwd=d, env=env)
+                return done({"lang": lang, "cmd": " ".join(run_cmd), "stdout": r.stdout, "stderr": r.stderr, "code": r.returncode})
         except FileNotFoundError as e:
             return {"error": f"toolchain missing ({e}) — install it in Toolchains"}
         except subprocess.TimeoutExpired:
@@ -638,8 +651,9 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             lang = body.get("lang", "bash")
-            log("info", f"exec {lang} script ({len(body.get('code',''))} chars)")
-            return self._json(run_script(lang, body.get("code", "")))
+            dbg = bool(body.get("debug"))
+            log("info", f"exec {lang} script ({len(body.get('code',''))} chars){' [debug]' if dbg else ''}")
+            return self._json(run_script(lang, body.get("code", ""), debug=dbg))
         if path == "/api/v1/toolchains/install":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")

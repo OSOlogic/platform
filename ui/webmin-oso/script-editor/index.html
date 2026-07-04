@@ -58,6 +58,7 @@
     <button class="btn" id="save">Save</button>
     <button class="btn" id="del">Delete</button>
     <div class="grow"></div>
+    <label class="btn" style="cursor:pointer" title="Sets OSO_DEBUG=1 and reports timing — your script can gate trace output on it"><input type="checkbox" id="debug" style="vertical-align:-1px"> Debug</label>
     <button class="btn run" id="run">▶ Run</button>
   </div>
 
@@ -126,14 +127,17 @@ $('#saved').onchange=()=>{const o=load();const s=o[$('#saved').value];if(s){$('#
 $('#save').onclick=()=>{const n=$('#name').value.trim();if(!n)return alert('name?');const o=load();o[n]={lang:$('#lang').value,code:$('#code').value};store(o);refreshSaved();$('#saved').value=n;};
 $('#del').onclick=()=>{const n=$('#name').value.trim();const o=load();if(o[n]){delete o[n];store(o);refreshSaved();}};
 $('#run').onclick=async()=>{
-  const out=$('#out');out.innerHTML='<span class="meta">running…</span>';
+  const out=$('#out');const dbg=$('#debug').checked;
+  out.innerHTML='<span class="meta">running'+(dbg?' (debug)':'')+'…</span>';
   try{
-    const r=await (await fetch(BASE+'/api/v1/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lang:$('#lang').value,code:$('#code').value})})).json();
+    const r=await (await fetch(BASE+'/api/v1/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lang:$('#lang').value,code:$('#code').value,debug:dbg})})).json();
     if(r.error){ out.innerHTML='<span class="err">'+esc(r.error)+'</span>'; return; }
     let h='';
+    if(dbg && r.cmd) h+='<span class="meta">$ '+esc(r.cmd)+'   (OSO_DEBUG=1)</span>\n';
     if(r.stdout) h+=esc(r.stdout);
     if(r.stderr) h+='<span class="err">'+esc(r.stderr)+'</span>';
     h+='\n<span class="meta">exit code </span><span class="'+(r.code===0?'ok':'err')+'">'+r.code+'</span>';
+    if(r.elapsed_ms!==undefined) h+='<span class="meta">   ·   '+r.elapsed_ms+' ms</span>';
     out.innerHTML=h||'<span class="meta">(no output)</span>';
   }catch(e){ out.innerHTML='<span class="err">request failed: '+esc(e.message)+'</span>'; }
 };
