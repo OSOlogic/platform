@@ -201,6 +201,7 @@ let undoStack = [], redoStack = [];
 let selectedCell  = null;  // { rungId, row, col }
 let clipboard     = null;
 let dragType      = null;
+let armedType     = null;  // click-to-place: a palette tool armed by tapping it
 
 function createDefaultProject() {
   return {
@@ -784,7 +785,13 @@ function selectCellAt(rungId, row, col) {
 function onCellClick(e) {
   const hit=e.target.closest('.cell-hit');
   if(!hit) return;
-  selectCellAt(hit.dataset.rungId, +hit.dataset.row, +hit.dataset.col);
+  const rungId=hit.dataset.rungId, row=+hit.dataset.row, col=+hit.dataset.col;
+  // If a palette tool is armed, tapping a valid cell drops it (stays armed for repeats).
+  if(armedType && col>=1 && col<=DEF_COLS-2){
+    placeElement(rungId,row,col,armedType);
+    return;
+  }
+  selectCellAt(rungId, row, col);
 }
 
 function onCellRightClick(e) {
@@ -885,7 +892,23 @@ function initDnD() {
       e.dataTransfer.setData('text/plain',dragType);
     });
     item.addEventListener('dragend',()=>{ dragType=null; });
+    // Click-to-place (touch-friendly): tap a tool to arm it, tap a cell to drop it.
+    item.addEventListener('click',()=>armTool(item.dataset.type,item));
   });
+}
+
+function armTool(type,item){
+  const already = armedType===type;
+  document.querySelectorAll('.palette-item.armed').forEach(el=>el.classList.remove('armed'));
+  armedType = already ? null : type;
+  if(armedType && item) item.classList.add('armed');
+  document.body.classList.toggle('placing', !!armedType);
+}
+function disarmTool(){
+  if(!armedType) return;
+  armedType=null;
+  document.querySelectorAll('.palette-item.armed').forEach(el=>el.classList.remove('armed'));
+  document.body.classList.remove('placing');
 }
 
 function onCellDragOver(e) {
@@ -1167,7 +1190,7 @@ function initKeyboard() {
     if((e.key==='Delete'||e.key==='Backspace')&&!inInput&&selectedCell){
       deleteElement(selectedCell.rungId,selectedCell.row,selectedCell.col);
     }
-    if(e.key==='Escape'){ hideCtxMenu(); hideAC(); }
+    if(e.key==='Escape'){ hideCtxMenu(); hideAC(); disarmTool(); }
   });
 }
 
