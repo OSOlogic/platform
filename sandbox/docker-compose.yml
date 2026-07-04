@@ -1,0 +1,41 @@
+# OSOLogic sandbox — one command, same result on Linux, Windows (Docker Desktop / WSL2) and macOS.
+#   docker compose up --build      → UI+REST http://localhost:8080 · OPC-UA opc.tcp://localhost:4840 · DB :3306
+name: osologic-sandbox
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: osoroot
+      MARIADB_DATABASE: osodb
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - osodb-data:/var/lib/mysql
+    ports:
+      - "3306:3306"          # control the plant with plain SQL from anywhere
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  core:
+    build: ./core
+    environment:
+      OSO_DB_HOST: db
+      OSO_DB_USER: osoapp
+      OSO_DB_PASS: osoapp
+      OSO_DB_NAME: osodb
+      OSO_UI_DIR: /repo
+    ports:
+      - "8080:8080"          # web UI + REST API
+      - "4840:4840"          # OPC-UA server
+    volumes:
+      - ../:/repo:ro                         # serve the whole frontend (ui/ + iec61131/ editors)
+      - ./web/index.html:/repo/index.html:ro # sandbox landing page
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  osodb-data:

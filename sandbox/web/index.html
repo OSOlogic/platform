@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic Sandbox — x86_64</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
+  header img{width:34px;height:26px}.logo{font-weight:800;font-size:19px}.logo b{color:var(--accent)}
+  .reg{font-size:.55em;vertical-align:super;color:var(--muted)}
+  .pill{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}.dot.ok{background:var(--good)}
+  h1{font-size:30px;letter-spacing:-.02em;margin:30px 0 6px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);max-width:70ch;margin:0 0 8px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin:28px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:480px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 18px;transition:transform .14s,border-color .14s}
+  .card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+  .card .ic{font-size:22px}.card h3{margin:8px 0 3px;font-size:15px}.card span{color:var(--muted);font-size:12.5px}
+  .ep{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:8px 0 0;font-family:var(--mono);font-size:13px;line-height:1.9}
+  .ep b{color:var(--accent)}.ep .k{color:var(--muted)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:34px;padding:20px 0 44px}
+  .note{color:var(--muted);font-size:12.5px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="/ui/shared/oso-mark.svg" alt="OSOLogic">
+    <span class="logo">OSO<b>logic</b><span class="reg">®</span> Sandbox</span>
+    <span class="pill"><span class="dot" id="dot"></span><span id="stat">checking…</span></span>
+  </header>
+
+  <h1>OSOLogic on <em>x86_64</em> — running.</h1>
+  <p class="lede">One <span style="font-family:var(--mono)">docker compose up</span> and you have a live OSOLogic:
+    a MariaDB source-of-truth, the <b>osodb</b> hub, a REST API, an OPC-UA server and every web interface —
+    all wired together. Control anything over the network and watch it move in the UIs below.</p>
+  <p class="note">The UIs on this page are pre-pointed at this sandbox's REST API (same origin), so they connect out of the box.</p>
+
+  <p class="eyebrow">Interfaces</p>
+  <div class="grid">
+    <a class="card" href="/ui/hmi-web/plant-manager/index.html"><div class="ic">🏭</div><h3>Plant Manager</h3><span>Device tree + plant mimic, live</span></a>
+    <a class="card" href="/ui/webmin-oso/programs/index.html"><div class="ic">🗂️</div><h3>Programs &amp; Scripts</h3><span>Ladder · ST · scripts · Node-RED</span></a>
+    <a class="card" href="/iec61131/ladder/osoLadder/index.html"><div class="ic">🪜</div><h3>Ladder editor</h3><span>osoLadder — visual LD → ST</span></a>
+    <a class="card" href="/ui/hmi-web/svg-hmi/index.html"><div class="ic">🖼️</div><h3>HMI · SVG</h3><span>SVG mimic bound to tags</span></a>
+    <a class="card" href="/ui/hmi-web/html5-hmi/index.html"><div class="ic">🎛️</div><h3>HMI · HTML5</h3><span>Widget board</span></a>
+    <a class="card" href="/ui/webmin-oso/index.html"><div class="ic">⚙️</div><h3>osowebmin</h3><span>System &amp; HMI admin</span></a>
+  </div>
+
+  <p class="eyebrow">Endpoints</p>
+  <div class="ep">
+    <div><span class="k">Web UI + REST</span> &nbsp; <b>http://localhost:8080</b></div>
+    <div><span class="k">REST tags</span> &nbsp;&nbsp;&nbsp;&nbsp; <b>GET /tags</b> · <b>GET /var/{id}</b> · <b>PUT /var/{id}</b> <span class="k">{"value":1}</span></div>
+    <div><span class="k">OPC-UA</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>opc.tcp://localhost:4840/osologic/</b></div>
+    <div><span class="k">MariaDB</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>localhost:3306</b> <span class="k">— UPDATE tags SET required_value=1 WHERE id='hass.switch.pump';</span></div>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® Sandbox · AGPL-3.0</footer>
+</div>
+
+<script>
+  // Point every same-origin web tool at this sandbox's REST API automatically.
+  try{
+    const cfg = JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}');
+    cfg.baseUrl = location.origin; cfg.authType = cfg.authType||'none'; cfg.pollMs = cfg.pollMs||750;
+    localStorage.setItem('osodb_client_cfg', JSON.stringify(cfg));
+  }catch(_){}
+  // Health check
+  fetch('/healthz').then(r=>r.json()).then(d=>{
+    document.getElementById('dot').className='dot ok';
+    document.getElementById('stat').textContent = `live · ${d.tags} tags · db ${d.db?'up':'seed'}`;
+  }).catch(()=>{ document.getElementById('stat').textContent='core offline'; });
+</script>
+</body>
+</html>
