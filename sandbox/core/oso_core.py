@@ -67,6 +67,13 @@ ALARM_ACTIVE = {}
 ALARM_EVENTS = deque(maxlen=500)
 _arc = 4
 
+# ---- historian (osoadmin Historian / time-series module) ----
+HISTORY = {}   # tag -> deque[[t, value]]  (in-memory trend buffer)
+HIST_CFG = {"backend": "in-memory", "host": "localhost", "port": 8086,
+            "database": "osodb_hist", "token": "", "sample_ms": 1000, "retention_s": 600,
+            "tags": ["hass.sensor.tank_level", "hass.sensor.temperature", "hass.climate.hvac", "2.5"]}
+_hist_last = 0.0
+
 
 def _cmp(v, op, val):
     try:
@@ -168,7 +175,7 @@ def tag_value(r):
 
 # ---- scan loop ---------------------------------------------
 def scan_loop():
-    global CYCLES
+    global CYCLES, _hist_last
     while True:
         CYCLES += 1
         t = time.time() - _t0
@@ -191,6 +198,13 @@ def scan_loop():
             eval_alarms()
         except Exception:
             pass
+        # historian sampling
+        if (time.time() - _hist_last) * 1000 >= HIST_CFG["sample_ms"]:
+            _hist_last = time.time()
+            for tid in HIST_CFG["tags"]:
+                r = CACHE.get(tid)
+                if r is not None:
+                    HISTORY.setdefault(tid, deque(maxlen=1000)).append([round(t, 1), r.get("value")])
         time.sleep(SCAN_MS / 1000.0)
 
 
@@ -293,6 +307,13 @@ class Handler(BaseHTTPRequestHandler):
                        "tag": v["rule"]["tag"], "since": v["since"], "value": v["value"], "acked": v["acked"]}
                       for k, v in ALARM_ACTIVE.items()]
             return self._json({"rules": ALARM_RULES, "active": active, "events": list(ALARM_EVENTS)[-100:]})
+        if path == "/api/v1/historian/config":
+            return self._json(HIST_CFG)
+        if path == "/api/v1/history":
+            q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            tag = q.get("tag", [""])[0]
+            n = int((q.get("n", ["400"])[0]) or 400)
+            return self._json({"tag": tag, "samples": list(HISTORY.get(tag, []))[-n:]})
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -359,6 +380,16 @@ class Handler(BaseHTTPRequestHandler):
             LOGS = deque(LOGS, maxlen=int(LOG_CFG["max_lines"]))
             log("info", "log configuration updated")
             return self._json({"config": LOG_CFG, "ok": True})
+        if path == "/api/v1/historian/config":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            for k in list(HIST_CFG.keys()):
+                if k in body:
+                    HIST_CFG[k] = body[k]
+            log("info", f"historian → {HIST_CFG['backend']} ({len(HIST_CFG['tags'])} tags @ {HIST_CFG['sample_ms']}ms)")
+            return self._json({"config": HIST_CFG, "ok": True})
         if not (path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/")):
             return self._json({"error": "not found"}, 404)
         key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
