@@ -94,8 +94,12 @@
   }
   .proto-modbus-tcp  { background:#dbeafe; color:#1d4ed8 }
   .proto-modbus-rtu  { background:#ede9fe; color:#6d28d9 }
+  .proto-modbus-tcp-server { background:#bfdbfe; color:#1e40af }
+  .proto-modbus-rtu-server { background:#ddd6fe; color:#5b21b6 }
   .proto-opc-ua      { background:#fef3c7; color:#92400e }
+  .proto-opc-ua-server { background:#fde68a; color:#92400e }
   .proto-mqtt        { background:#dcfce7; color:#166534 }
+  .proto-mqtt-broker { background:#bbf7d0; color:#14532d }
   .proto-profinet    { background:#ffedd5; color:#9a3412 }
   .proto-ethernetip  { background:#fce7f3; color:#9d174d }
   .proto-canopen     { background:#e0f2fe; color:#0369a1 }
@@ -250,10 +254,14 @@
       <div class="cfg-field full">
         <label>Protocol</label>
         <select id="newProto" onchange="renderNewFields()">
-          <option value="modbus-tcp">Modbus TCP</option>
-          <option value="modbus-rtu">Modbus RTU</option>
-          <option value="opc-ua">OPC-UA</option>
-          <option value="mqtt">MQTT</option>
+          <option value="modbus-tcp">Modbus TCP — Client / Master</option>
+          <option value="modbus-tcp-server">Modbus TCP — Server / Slave</option>
+          <option value="modbus-rtu">Modbus RTU — Client / Master</option>
+          <option value="modbus-rtu-server">Modbus RTU — Server / Slave</option>
+          <option value="opc-ua">OPC-UA Client</option>
+          <option value="opc-ua-server">OPC-UA Server</option>
+          <option value="mqtt">MQTT Client</option>
+          <option value="mqtt-broker">MQTT Broker</option>
           <option value="profinet">PROFINET</option>
           <option value="ethernetip">EtherNet/IP</option>
           <option value="canopen">CANopen</option>
@@ -423,10 +431,32 @@ const PROTO_FIELDS = {
     { id:'poll_ms',     label:'Poll (ms)',   type:'number', placeholder:'100',   half:true },
     { id:'parity',      label:'Parity',      type:'select', options:['none','even','odd'], half:true },
   ],
+  'modbus-tcp-server': [
+    { id:'bind_address', label:'Bind address', type:'text',   placeholder:'0.0.0.0', half:true },
+    { id:'port',         label:'Port',         type:'number', placeholder:'502', half:true },
+    { id:'unit_id',      label:'Unit ID',      type:'number', placeholder:'1', half:true },
+    { id:'expose_tags',  label:'Expose tags (glob → registers)', type:'text', placeholder:'*  ·  2.*,hass.*', full:true },
+  ],
+  'modbus-rtu-server': [
+    { id:'serial_port', label:'Serial port', type:'text',   placeholder:'/dev/ttyUSB0', full:true },
+    { id:'baud_rate',   label:'Baud rate',   type:'number', placeholder:'9600', half:true },
+    { id:'unit_id',     label:'Unit ID',     type:'number', placeholder:'1', half:true },
+    { id:'parity',      label:'Parity',      type:'select', options:['none','even','odd'], half:true },
+    { id:'expose_tags', label:'Expose tags (glob → registers)', type:'text', placeholder:'*', full:true },
+  ],
   'opc-ua': [
     { id:'endpoint_url', label:'Endpoint URL', type:'text', placeholder:'opc.tcp://192.168.1.200:4840', full:true },
     { id:'security',     label:'Security',     type:'select', options:['None','Basic128Rsa15','Basic256Sha256'], full:true },
     { id:'poll_ms',      label:'Poll (ms)',    type:'number', placeholder:'500', half:true },
+  ],
+  'opc-ua-server': [
+    { id:'bind_address',   label:'Bind address', type:'text',   placeholder:'0.0.0.0', half:true },
+    { id:'port',           label:'Port',         type:'number', placeholder:'4840', half:true },
+    { id:'namespace_uri',  label:'Namespace URI',type:'text',   placeholder:'urn:osologic:platform', full:true },
+    { id:'security_policy',label:'Security policy', type:'select', options:['None','Basic128Rsa15','Basic256Sha256'], half:true },
+    { id:'auth',           label:'Authentication',  type:'select', options:['Anonymous','Username-Password','Certificate'], half:true },
+    { id:'username',       label:'Username (if user/pass)', type:'text', placeholder:'opcuser', half:true },
+    { id:'expose_tags',    label:'Expose tags (glob)', type:'text', placeholder:'*  ·  or  2.*,hass.*', full:true },
   ],
   'mqtt': [
     { id:'host',         label:'Broker host', type:'text',   placeholder:'192.168.1.10' },
@@ -434,6 +464,14 @@ const PROTO_FIELDS = {
     { id:'topic_prefix', label:'Topic prefix',type:'text',   placeholder:'osologic/', full:true },
     { id:'qos',          label:'QoS',         type:'select', options:['0','1','2'], half:true },
     { id:'poll_ms',      label:'Publish (ms)',type:'number', placeholder:'100', half:true },
+  ],
+  'mqtt-broker': [
+    { id:'bind_address', label:'Bind address', type:'text',   placeholder:'0.0.0.0', half:true },
+    { id:'port',         label:'TCP port',     type:'number', placeholder:'1883', half:true },
+    { id:'ws_port',      label:'WebSocket port', type:'number', placeholder:'9001', half:true },
+    { id:'auth',         label:'Authentication', type:'select', options:['Anonymous','Username-Password'], half:true },
+    { id:'topic_prefix', label:'Topic prefix', type:'text',   placeholder:'osologic/', full:true },
+    { id:'retain',       label:'Retain', type:'select', options:['yes','no'], half:true },
   ],
   'profinet': [
     { id:'interface',     label:'Network interface', type:'text', placeholder:'eth0', half:true },
@@ -521,8 +559,10 @@ function closeModal() {
 
 // ── Utils ──────────────────────────────────────────────────
 const PROTO_LABELS = {
-  'modbus-tcp': 'Modbus TCP', 'modbus-rtu': 'Modbus RTU',
-  'opc-ua': 'OPC-UA', 'mqtt': 'MQTT', 'profinet': 'PROFINET',
+  'modbus-tcp': 'Modbus TCP · Master', 'modbus-tcp-server': 'Modbus TCP · Server',
+  'modbus-rtu': 'Modbus RTU · Master', 'modbus-rtu-server': 'Modbus RTU · Server',
+  'opc-ua': 'OPC-UA Client', 'opc-ua-server': 'OPC-UA Server',
+  'mqtt': 'MQTT Client', 'mqtt-broker': 'MQTT Broker', 'profinet': 'PROFINET',
   'ethernetip': 'EtherNet/IP', 'canopen': 'CANopen',
 };
 function protoLabel(p) { return PROTO_LABELS[p] || p }
@@ -530,8 +570,12 @@ function protoLabel(p) { return PROTO_LABELS[p] || p }
 function cfgSummary(proto, cfg) {
   if (proto === 'modbus-tcp')  return `${cfg.host||'—'}:${cfg.port||502}  slave ${cfg.slave_id||1}`;
   if (proto === 'modbus-rtu')  return `${cfg.serial_port||'—'}  ${cfg.baud_rate||9600} baud`;
+  if (proto === 'modbus-tcp-server') return `serve ${cfg.bind_address||'0.0.0.0'}:${cfg.port||502}  unit ${cfg.unit_id||1}  · ${cfg.expose_tags||'*'}`;
+  if (proto === 'modbus-rtu-server') return `serve ${cfg.serial_port||'—'}  ${cfg.baud_rate||9600} baud  unit ${cfg.unit_id||1}`;
   if (proto === 'opc-ua')      return cfg.endpoint_url || '—';
+  if (proto === 'opc-ua-server') return `serve :${cfg.port||4840}  ${cfg.namespace_uri||'urn:osologic:platform'}  · ${cfg.auth||'Anonymous'}`;
   if (proto === 'mqtt')        return `${cfg.host||'—'}:${cfg.port||1883}  ${cfg.topic_prefix||''}`;
+  if (proto === 'mqtt-broker') return `broker :${cfg.port||1883}${cfg.ws_port?(' · ws :'+cfg.ws_port):''}  ${cfg.topic_prefix||''}`;
   if (proto === 'profinet')    return `${cfg.interface||'eth0'}  ${cfg.station_name||'—'}`;
   if (proto === 'ethernetip')  return `${cfg.host||'—'}  slot ${cfg.slot??0}`;
   if (proto === 'canopen')     return `${cfg.interface||'can0'}  node ${cfg.node_id||1}  ${cfg.bitrate||250}k`;
