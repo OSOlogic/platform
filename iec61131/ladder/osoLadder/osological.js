@@ -205,6 +205,7 @@ let clipboard     = null;
 let dragType      = null;
 let armedType     = null;  // click-to-place: a palette tool armed by tapping it
 let simRunning    = false; // ladder simulation engine
+let simPaused     = false; // debugger: auto-scan paused, step manually
 let simState      = {};    // runtime variable values during simulation
 let simTimer      = null;
 
@@ -1342,11 +1343,30 @@ function simToggleInput(cell) {
 }
 function toggleSimulation() {
   simRunning = !simRunning;
+  simPaused = false;
   document.body.classList.toggle('sim-on', simRunning);
   const btn = document.getElementById('btn-sim');
   if (btn) { btn.textContent = simRunning ? '■ Detener' : '▶ Simular'; btn.classList.toggle('sim-active', simRunning); }
   if (simRunning) { simInit(); simTimer = setInterval(simTick, SIM_SCAN_MS); simTick(); }
   else { clearInterval(simTimer); simTimer = null; renderAll(); updateLiveCells(); }
+  updateSimControls();
+}
+// Debugger controls: pause the auto-scan and step one scan at a time.
+function updateSimControls() {
+  const p = document.getElementById('btn-sim-pause');
+  const s = document.getElementById('btn-sim-step');
+  if (p) { p.style.display = simRunning ? '' : 'none'; p.textContent = simPaused ? '▶' : '⏸'; p.title = simPaused ? 'Reanudar' : 'Pausar'; }
+  if (s) s.style.display = (simRunning && simPaused) ? '' : 'none';
+}
+function pauseSimulation() {
+  if (!simRunning) return;
+  simPaused = !simPaused;
+  if (simPaused) { clearInterval(simTimer); simTimer = null; }
+  else { simTimer = setInterval(simTick, SIM_SCAN_MS); }
+  updateSimControls();
+}
+function stepSimulation() {
+  if (simRunning && simPaused) simTick();   // one scan cycle
 }
 
 // ============================================================
@@ -1482,6 +1502,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('btn-add-rung').addEventListener('click',()=>addRung());
   document.getElementById('btn-export').addEventListener('click',exportJSON);
   document.getElementById('btn-sim')?.addEventListener('click',toggleSimulation);
+  document.getElementById('btn-sim-pause')?.addEventListener('click',pauseSimulation);
+  document.getElementById('btn-sim-step')?.addEventListener('click',stepSimulation);
   document.getElementById('pou-select')?.addEventListener('change',e=>switchPou(e.target.value));
   document.getElementById('btn-pou-new')?.addEventListener('click',newPou);
   document.getElementById('btn-pou-del')?.addEventListener('click',deletePou);
