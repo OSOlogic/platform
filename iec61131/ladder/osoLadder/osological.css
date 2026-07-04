@@ -82,6 +82,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
 }
 .tb-btn:hover { background: #333a4a; border-color: var(--accent); }
 .tb-btn:active { background: var(--accent); }
+.tb-btn.sim-active { background: #2e7d32; border-color: #43a047; color: #fff; }
+body.sim-on .cell-hit { cursor: pointer; }
 
 #project-name {
   background: var(--bg-tertiary);

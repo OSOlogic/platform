@@ -202,6 +202,9 @@ let selectedCell  = null;  // { rungId, row, col }
 let clipboard     = null;
 let dragType      = null;
 let armedType     = null;  // click-to-place: a palette tool armed by tapping it
+let simRunning    = false; // ladder simulation engine
+let simState      = {};    // runtime variable values during simulation
+let simTimer      = null;
 
 function createDefaultProject() {
   return {
@@ -520,6 +523,7 @@ function buildRungSVG(rung) {
   // ── 3. POWER RAILS (drawn after wires, on top) ────────────
   svg.appendChild(svgRect(0,0,RAIL_W,svgH,{fill:COLORS.rail}));
   svg.appendChild(svgRect(rxStart,0,RAIL_W,svgH,{fill:COLORS.rail}));
+  if(simRunning && rung._energized) svg.appendChild(svgRect(0,0,RAIL_W,svgH,{fill:'rgba(76,175,80,0.45)'}));
   svg.appendChild(svgLine(RAIL_W,0,RAIL_W,svgH,'rgba(255,255,255,0.15)',1));
   svg.appendChild(svgLine(rxStart,0,rxStart,svgH,'rgba(255,255,255,0.15)',1));
 
@@ -538,6 +542,7 @@ function buildRungSVG(rung) {
         if(cell && cell.type){
           // Opaque background erases the wire under the element
           svg.appendChild(svgRect(x0,y0,CELL_W,rh,{fill:COLORS.bg}));
+          if(simRunning && cell._energized) svg.appendChild(svgRect(x0+2,y0+2,CELL_W-4,rh-4,{fill:'rgba(76,175,80,0.16)',rx:4,stroke:'rgba(76,175,80,0.5)','stroke-width':1}));
           drawCellSymbol(svg, cell, x0, y0);
         }
         // Hit overlay
@@ -812,6 +817,12 @@ function onCellClick(e) {
   const hit=e.target.closest('.cell-hit');
   if(!hit) return;
   const rungId=hit.dataset.rungId, row=+hit.dataset.row, col=+hit.dataset.col;
+  // In simulation, tapping a contact forces its variable (virtual push-button).
+  if(simRunning){
+    const cell=getRung(rungId)?.cells[row]?.[col];
+    if(cell && SIM_CONTACTS.has(cell.type)){ simToggleInput(cell); simTick(); }
+    return;
+  }
   // If a palette tool is armed, tapping a valid cell drops it (stays armed for repeats).
   if(armedType && col>=1 && col<=DEF_COLS-2){
     placeElement(rungId,row,col,armedType);
@@ -1111,6 +1122,10 @@ function renderTagTable() {
 
 // Live value for a variable name, from the PLC connector (osodb / DB via REST).
 function liveValueFor(name) {
+  if (simRunning) {
+    const v = simState[name];
+    return (v === undefined || v === null) ? '—' : String(v);
+  }
   try {
     const lv = (typeof PlcConnector !== 'undefined') ? PlcConnector.live() : null;
     const val = lv ? lv[name] : undefined;
@@ -1129,6 +1144,102 @@ function updateLiveCells() {
 
 // osoplc.js broadcasts this after each REST poll of osodb / the DB.
 document.addEventListener('plc:update', updateLiveCells);
+
+// ============================================================
+// SECTION: LADDER SIMULATION (client-side scan engine)
+// ============================================================
+const SIM_SCAN_MS = 100;
+const SIM_CONTACTS = new Set(['NO_CONTACT','NC_CONTACT','POS_TRANSITION','NEG_TRANSITION']);
+const SIM_COILS    = new Set(['COIL_NORMAL','COIL_NEGATED','COIL_SET','COIL_RESET']);
+
+function simParseTime(s) {
+  if (s == null) return 0;
+  const m = String(s).match(/(\d+(?:\.\d+)?)\s*(ms|s|m|h)?/i);
+  if (!m) return 0;
+  return parseFloat(m[1]) * ({ ms:1, s:1000, m:60000, h:3600000 }[(m[2]||'ms').toLowerCase()] || 1);
+}
+function simInit() {
+  simState = {};
+  state.variables.forEach(v => { simState[v.name] = (v.dataType === 'BOOL') ? false : 0; });
+  state.rungs.forEach(r => (r.cells||[]).forEach(row => (row||[]).forEach(c => {
+    if (c) { delete c._et; delete c._cv; delete c._prev; delete c._prevCU; delete c._prevCD; delete c._pulse; delete c._prevIN; c._energized = false; }
+  })));
+}
+function simContact(cell) {
+  const v = !!simState[cell.variableName];
+  switch (cell.type) {
+    case 'NO_CONTACT': return v;
+    case 'NC_CONTACT': return !v;
+    case 'POS_TRANSITION': { const p = cell._prev||false; cell._prev = v; return v && !p; }
+    case 'NEG_TRANSITION': { const p = cell._prev||false; cell._prev = v; return !v && p; }
+  }
+  return false;
+}
+function simFB(cell, cond, dt) {
+  const p = cell.params || {};
+  const IN = (p.IN != null && p.IN !== '') ? !!simState[p.IN] : cond;
+  const PT = simParseTime(p.PT);
+  const out = (q, et) => { if (p.Q) simState[p.Q] = q; if (p.ET) simState[p.ET] = Math.round(et||0); cell._q = q; };
+  switch (cell.type) {
+    case 'FB_TON': if (IN) { cell._et = (cell._et||0)+dt; out(cell._et>=PT, Math.min(cell._et,PT)); } else { cell._et = 0; out(false,0); } break;
+    case 'FB_TOF': if (IN) { cell._et = 0; out(true,0); } else { cell._et = (cell._et||0)+dt; out(cell._et<PT, Math.min(cell._et,PT)); } break;
+    case 'FB_TP':  if (IN && !cell._prevIN) { cell._et = 0; cell._pulse = true; } cell._prevIN = IN;
+                   if (cell._pulse) { cell._et = (cell._et||0)+dt; if (cell._et>=PT) cell._pulse = false; }
+                   out(!!cell._pulse, Math.min(cell._et||0,PT)); break;
+    case 'FB_CTU': { const CU = (p.CU!=null&&p.CU!=='')?!!simState[p.CU]:cond; if (p.R && simState[p.R]) cell._cv = 0; else if (CU && !cell._prevCU) cell._cv = (cell._cv||0)+1; cell._prevCU = CU; const PV = Number(p.PV)||0; if (p.CV) simState[p.CV] = cell._cv||0; cell._q = (cell._cv||0) >= PV; if (p.Q) simState[p.Q] = cell._q; break; }
+    case 'FB_CTD': { const CD = (p.CD!=null&&p.CD!=='')?!!simState[p.CD]:cond; const PV = Number(p.PV)||0; if (p.LD && simState[p.LD]) cell._cv = PV; else if (CD && !cell._prevCD) cell._cv = (cell._cv||0)-1; cell._prevCD = CD; if (p.CV) simState[p.CV] = cell._cv||0; cell._q = (cell._cv||0) <= 0; if (p.Q) simState[p.Q] = cell._q; break; }
+    default: cell._q = cond; // math/compare/mov not simulated (v1)
+  }
+}
+function simRung(rung, dt) {
+  if (rung.enabled === false) { rung._energized = false; return; }
+  const rowConds = [];
+  for (let r = 0; r < rung.cells.length; r++) {
+    const row = rung.cells[r] || [];
+    let has = false, acc = true;
+    for (let c = 1; c < rung.cols-1; c++) {
+      const cell = row[c];
+      if (cell && SIM_CONTACTS.has(cell.type)) { has = true; acc = acc && simContact(cell); cell._energized = acc; }
+    }
+    if (has) rowConds.push(acc);
+  }
+  const cond = rowConds.length ? rowConds.some(Boolean) : true;
+  rung._energized = cond;
+  for (let r = 0; r < rung.cells.length; r++) {
+    const row = rung.cells[r] || [];
+    for (let c = 1; c < rung.cols-1; c++) {
+      const cell = row[c]; if (!cell) continue;
+      if (SIM_COILS.has(cell.type)) {
+        const n = cell.variableName;
+        if (n) switch (cell.type) {
+          case 'COIL_NORMAL':  simState[n] = cond; break;
+          case 'COIL_NEGATED': simState[n] = !cond; break;
+          case 'COIL_SET':     if (cond) simState[n] = true; break;
+          case 'COIL_RESET':   if (cond) simState[n] = false; break;
+        }
+        cell._energized = cond;
+      } else if (FB_TYPES.has(cell.type)) { simFB(cell, cond, dt); cell._energized = !!cell._q; }
+    }
+  }
+}
+function simTick() {
+  state.rungs.forEach(r => simRung(r, SIM_SCAN_MS));
+  renderAll();
+  updateLiveCells();
+}
+function simToggleInput(cell) {
+  // Click a contact in sim mode to force its variable (bit) — a virtual push-button.
+  const n = cell.variableName; if (!n) return;
+  simState[n] = !simState[n];
+}
+function toggleSimulation() {
+  simRunning = !simRunning;
+  document.body.classList.toggle('sim-on', simRunning);
+  const btn = document.getElementById('btn-sim');
+  if (btn) { btn.textContent = simRunning ? '■ Detener' : '▶ Simular'; btn.classList.toggle('sim-active', simRunning); }
+  if (simRunning) { simInit(); simTimer = setInterval(simTick, SIM_SCAN_MS); simTick(); }
+  else { clearInterval(simTimer); simTimer = null; renderAll(); updateLiveCells(); }
+}
 
 // ============================================================
 // SECTION 18: IMPORT / EXPORT
@@ -1262,6 +1373,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('btn-redo').addEventListener('click',redo);
   document.getElementById('btn-add-rung').addEventListener('click',()=>addRung());
   document.getElementById('btn-export').addEventListener('click',exportJSON);
+  document.getElementById('btn-sim')?.addEventListener('click',toggleSimulation);
   document.getElementById('btn-import').addEventListener('click',()=>document.getElementById('file-input').click());
   document.getElementById('file-input').addEventListener('change',e=>{ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=''; });
   document.getElementById('btn-new').addEventListener('click',()=>{
