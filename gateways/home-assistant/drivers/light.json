@@ -1,0 +1,6 @@
+{ "domain":"light", "label":"Light", "icon":"💡",
+  "osodb":{"type":"Boolean","access":"ReadWrite"},
+  "state_map":{"on":1,"off":0},
+  "write":{"true":"light.turn_on","false":"light.turn_off"},
+  "attributes":{ "brightness":{"type":"UInt16","access":"ReadWrite","range":[0,255]},
+                 "color_temp":{"type":"UInt16","access":"ReadWrite"} } }

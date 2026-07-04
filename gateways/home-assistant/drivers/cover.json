@@ -1,0 +1,4 @@
+{ "domain":"cover", "label":"Cover / Gate", "icon":"🚪",
+  "osodb":{"type":"Boolean","access":"ReadWrite"},
+  "state_map":{"open":1,"closed":0}, "write":{"true":"cover.open_cover","false":"cover.close_cover"},
+  "attributes":{ "current_position":{"type":"UInt16","access":"ReadWrite","range":[0,100],"units":"%"} } }

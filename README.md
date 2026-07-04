@@ -47,7 +47,7 @@ We want to help industry leap forward by adopting modern, flexible technologies,
 - **Data-centric** — In-memory, real-time database (`osodb`) at the core for flexible and immediate system interaction.
 - **Modular and compatible** — Interfaces with legacy industrial standards (IEC 61131-3, Ladder, ST) and supports modern technologies.
 - **Secure by design** — Encryption, certificates, authentication, firewalls, and more.
-- **Universal gateway** — Communicates across industrial protocols (Modbus, CAN, EtherNet/IP, PROFINET, OPC-UA) and modern formats (JSON, XML, Protocol Buffers).
+- **Universal gateway** — Communicates across industrial protocols (Modbus, CAN, EtherNet/IP, PROFINET, OPC-UA) and modern formats (JSON, XML, Protocol Buffers). See the [connectivity matrix](docs/connectivity.md).
 - **Scalable for all** — From microcontrollers and single-board computers to industrial PCs, supercomputers and control rooms.
 - **SQL & REST direct control** — read and control the plant with plain SQL (`SELECT` / `UPDATE`) or a JSON/XML REST API (`GET` / `PUT`), from any language, no drivers or SDKs.
 - **Ready for AI** — Designed for the AI era: machine-readable, agent-friendly, and open to what comes next.

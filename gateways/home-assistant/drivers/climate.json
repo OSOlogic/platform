@@ -1,0 +1,3 @@
+{ "domain":"climate", "label":"Climate / HVAC", "icon":"🌡️",
+  "osodb":{"type":"Float","access":"ReadOnly","from_attr":"current_temperature","units":"°C"},
+  "attributes":{ "temperature":{"type":"Float","access":"ReadWrite","units":"°C","write":"climate.set_temperature"} } }

@@ -3,9 +3,9 @@
 # OSOLogic — Home Assistant bridge (reference / prototype)
 #
 # Mirrors Home Assistant entities into osodb (via the osoLogic REST API) and
-# turns osodb set-points into HA service calls — so every HA integration
-# (Zigbee, Z-Wave, Matter, MQTT, ...) becomes an OSOLogic tag with no native
-# driver work.
+# turns osodb set-points into HA service calls — a compatibility gateway so a
+# device HA already supports (Zigbee, Z-Wave, Matter, MQTT, ...) can appear as an
+# OSOLogic tag. Uses HA's public API; complements HA, doesn't replace it.
 #
 # HA -> osodb : subscribe to state_changed over the HA WebSocket API, write each
 #               entity's state/attributes to osodb tags `hass.<domain>.<id>[.<attr>]`.

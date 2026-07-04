@@ -1,0 +1,4 @@
+{ "domain":"fan", "label":"Fan", "icon":"🌀",
+  "osodb":{"type":"Boolean","access":"ReadWrite"},
+  "state_map":{"on":1,"off":0}, "write":{"true":"fan.turn_on","false":"fan.turn_off"},
+  "attributes":{ "percentage":{"type":"UInt16","access":"ReadWrite","range":[0,100],"units":"%"} } }

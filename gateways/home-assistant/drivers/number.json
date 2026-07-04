@@ -1,0 +1,3 @@
+{ "domain":"number", "label":"Number / setpoint", "icon":"🎚️",
+  "osodb":{"type":"Float","access":"ReadWrite"}, "write":{"value":"number.set_value"},
+  "units_from":"unit_of_measurement" }
