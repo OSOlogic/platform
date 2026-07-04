@@ -183,11 +183,11 @@ const ELEMENT_LABELS = {
   FB_TON:'TON', FB_TOF:'TOF', FB_TP:'TP',
   FB_CTU:'CTU', FB_CTD:'CTD', FB_CTUD:'CTUD',
   FB_ADD:'ADD', FB_SUB:'SUB', FB_MUL:'MUL', FB_DIV:'DIV', FB_MOV:'MOV',
-  FB_PID:'PID',
+  FB_PID:'PID', FB_CALL:'CALL',
   FB_GT:'GT', FB_LT:'LT', FB_GE:'GE', FB_LE:'LE', FB_EQ:'EQ', FB_NE:'NE',
 };
 
-const FB_TYPES      = new Set(['FB_TON','FB_TOF','FB_TP','FB_CTU','FB_CTD','FB_CTUD','FB_ADD','FB_SUB','FB_MUL','FB_DIV','FB_MOV','FB_GT','FB_LT','FB_GE','FB_LE','FB_EQ','FB_NE','FB_PID']);
+const FB_TYPES      = new Set(['FB_TON','FB_TOF','FB_TP','FB_CTU','FB_CTD','FB_CTUD','FB_ADD','FB_SUB','FB_MUL','FB_DIV','FB_MOV','FB_GT','FB_LT','FB_GE','FB_LE','FB_EQ','FB_NE','FB_PID','FB_CALL']);
 const TIMER_TYPES   = new Set(['FB_TON','FB_TOF','FB_TP']);
 const COUNTER_TYPES = new Set(['FB_CTU','FB_CTD','FB_CTUD']);
 const MATH_TYPES    = new Set(['FB_ADD','FB_SUB','FB_MUL','FB_DIV','FB_MOV']);
@@ -197,7 +197,8 @@ const CMP_TYPES     = new Set(['FB_GT','FB_LT','FB_GE','FB_LE','FB_EQ','FB_NE'])
 // SECTION 4: STATE
 // ============================================================
 
-let state    = createDefaultProject();
+let state    = normalizePous(createDefaultProject());
+let simCallDepth = 0;
 let undoStack = [], redoStack = [];
 let selectedCell  = null;  // { rungId, row, col }
 let clipboard     = null;
@@ -213,8 +214,44 @@ function createDefaultProject() {
             created: new Date().toISOString(), modified: new Date().toISOString(),
             standard:'IEC61131-3' },
     variables: [],
+    subroutines: { main: [] },
+    activePou: 'main',
     rungs: [],
   };
+}
+
+// POUs (Program Organization Units): the project holds a 'main' program plus named
+// functions (sub-ladders). state.rungs always points at the active POU's rungs so the
+// whole engine keeps working unchanged. Called after create/undo/redo/import.
+function normalizePous(s) {
+  if (!s.subroutines) { s.subroutines = { main: s.rungs || [] }; s.activePou = 'main'; }
+  if (!s.subroutines.main) s.subroutines.main = s.rungs || [];
+  if (!s.activePou || !s.subroutines[s.activePou]) s.activePou = 'main';
+  s.rungs = s.subroutines[s.activePou];   // engine edits the active POU in place
+  return s;
+}
+function renderPouBar() {
+  const sel = document.getElementById('pou-select'); if (!sel) return;
+  const names = Object.keys(state.subroutines);
+  sel.innerHTML = names.map(n => `<option value="${escH(n)}"${n===state.activePou?' selected':''}>${n==='main'?'▶ main':'ƒ '+escH(n)}</option>`).join('');
+  const del = document.getElementById('btn-pou-del'); if (del) del.style.display = (state.activePou==='main') ? 'none' : '';
+}
+function switchPou(name) {
+  if (!state.subroutines[name]) return;
+  state.activePou = name; state.rungs = state.subroutines[name];
+  selectedCell = null; showPropsEmpty(); renderAll(); renderPouBar();
+}
+function newPou() {
+  let name = prompt('Nombre de la función (sub-ladder):', 'func1'); if (!name) return;
+  name = name.trim().replace(/[^A-Za-z0-9_]/g, '_'); if (!name || name === 'main') return;
+  pushUndo();
+  if (!state.subroutines[name]) state.subroutines[name] = [createRung(DEF_COLS)];
+  switchPou(name);
+}
+function deletePou() {
+  if (state.activePou === 'main') return;
+  if (!confirm('¿Eliminar la función "' + state.activePou + '"?')) return;
+  pushUndo(); delete state.subroutines[state.activePou]; switchPou('main');
 }
 
 let _rc = 0, _vc = 0, _fbc = {};
@@ -248,6 +285,7 @@ function defaultFbParams(type) {
   if (type==='FB_CTUD')        return { instanceName:inst, CU:'', CD:'', R:'', LD:'', PV:10, QU:'', QD:'', CV:'' };
   if (type==='FB_MOV')         return { instanceName:inst, EN:'', IN1:'', ENO:'', OUT:'' };
   if (type==='FB_PID')         return { instanceName:inst, EN:'', PV:'', SP:'', Kp:'1.0', Ki:'0.1', Kd:'0', OUT:'' };
+  if (type==='FB_CALL')        return { instanceName:inst, EN:'', target:'', ENO:'' };
   return { instanceName:inst, EN:'', IN1:'', IN2:'', ENO:'', OUT:'' };
 }
 
@@ -302,14 +340,14 @@ function pushUndo() {
 function undo() {
   if (!undoStack.length) return;
   redoStack.push(JSON.stringify(state));
-  state = JSON.parse(undoStack.pop());
-  syncUndoBtns(); renderAll();
+  state = normalizePous(JSON.parse(undoStack.pop()));
+  syncUndoBtns(); renderAll(); renderPouBar();
 }
 function redo() {
   if (!redoStack.length) return;
   undoStack.push(JSON.stringify(state));
-  state = JSON.parse(redoStack.pop());
-  syncUndoBtns(); renderAll();
+  state = normalizePous(JSON.parse(redoStack.pop()));
+  syncUndoBtns(); renderAll(); renderPouBar();
 }
 function syncUndoBtns() {
   document.getElementById('btn-undo').disabled = !undoStack.length;
@@ -394,6 +432,9 @@ function getFbPins(type) {
   if(type==='FB_PID') return {
     left:[{name:'EN',key:'EN'},{name:'PV',key:'PV'},{name:'SP',key:'SP'},{name:'Kp',key:'Kp'},{name:'Ki',key:'Ki'},{name:'Kd',key:'Kd'}],
     right:[{name:'OUT',key:'OUT'}]};
+  if(type==='FB_CALL') return {
+    left:[{name:'EN',key:'EN'},{name:'ƒ',key:'target'}],
+    right:[{name:'ENO',key:'ENO'}]};
   return {
     left:[{name:'EN',key:'EN'},{name:'IN1',key:'IN1'},{name:'IN2',key:'IN2'}],
     right:[{name:'ENO',key:'ENO'},{name:'OUT',key:'OUT'}]};
@@ -1199,6 +1240,16 @@ function simFB(cell, cond, dt) {
                    out(!!cell._pulse, Math.min(cell._et||0,PT)); break;
     case 'FB_CTU': { const CU = (p.CU!=null&&p.CU!=='')?!!simState[p.CU]:cond; if (p.R && simState[p.R]) cell._cv = 0; else if (CU && !cell._prevCU) cell._cv = (cell._cv||0)+1; cell._prevCU = CU; const PV = Number(p.PV)||0; if (p.CV) simState[p.CV] = cell._cv||0; cell._q = (cell._cv||0) >= PV; if (p.Q) simState[p.Q] = cell._q; break; }
     case 'FB_CTD': { const CD = (p.CD!=null&&p.CD!=='')?!!simState[p.CD]:cond; const PV = Number(p.PV)||0; if (p.LD && simState[p.LD]) cell._cv = PV; else if (CD && !cell._prevCD) cell._cv = (cell._cv||0)-1; cell._prevCD = CD; if (p.CV) simState[p.CV] = cell._cv||0; cell._q = (cell._cv||0) <= 0; if (p.Q) simState[p.Q] = cell._q; break; }
+    case 'FB_CALL': {
+      const en = (p.IN != null && p.IN !== '') ? cond : cond;
+      const gate = (p.EN != null && p.EN !== '') ? !!simState[p.EN] : cond;
+      cell._q = gate;
+      if (gate && p.target && state.subroutines[p.target] && simCallDepth < 8) {
+        simCallDepth++; state.subroutines[p.target].forEach(r => simRung(r, dt)); simCallDepth--;
+      }
+      if (p.ENO) simState[p.ENO] = gate;
+      break;
+    }
     default: simFBMathCmp(cell, cond); break;
   }
 }
@@ -1226,6 +1277,7 @@ function simFBMathCmp(cell, cond) {
     case 'FB_NE': res = a !== b; isBool = true; break;
     case 'FB_PID': res = simPID(cell, p, en); break;
     default: cell._q = cond; return;
+    // (FB_CALL handled in simFB main switch)
   }
   if (en) {
     if (isBool) { if (p.OUT) simState[p.OUT] = res; cell._q = res; }
@@ -1316,10 +1368,10 @@ function importJSON(file) {
   reader.onload=e=>{
     try{
       const data=JSON.parse(e.target.result);
-      if(!data.rungs||!Array.isArray(data.rungs)) throw new Error(t('invalidFormat'));
-      pushUndo(); state=data;
+      if((!data.rungs||!Array.isArray(data.rungs)) && !data.subroutines) throw new Error(t('invalidFormat'));
+      pushUndo(); state=normalizePous(data);
       _rc=state.rungs.length; _vc=state.variables.length;
-      renderAll();
+      renderAll(); renderPouBar();
     } catch(err){ alert(t('importError')+err.message); }
   };
   reader.readAsText(file);
@@ -1430,6 +1482,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('btn-add-rung').addEventListener('click',()=>addRung());
   document.getElementById('btn-export').addEventListener('click',exportJSON);
   document.getElementById('btn-sim')?.addEventListener('click',toggleSimulation);
+  document.getElementById('pou-select')?.addEventListener('change',e=>switchPou(e.target.value));
+  document.getElementById('btn-pou-new')?.addEventListener('click',newPou);
+  document.getElementById('btn-pou-del')?.addEventListener('click',deletePou);
+  renderPouBar();
   document.getElementById('btn-import').addEventListener('click',()=>document.getElementById('file-input').click());
   document.getElementById('file-input').addEventListener('change',e=>{ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=''; });
   document.getElementById('btn-new').addEventListener('click',()=>{

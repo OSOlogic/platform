@@ -32,6 +32,9 @@
       <button class="tb-btn" id="btn-redo">Rehacer</button>
     </div>
     <div class="toolbar-center">
+      <select class="tb-btn" id="pou-select" title="Diagrama activo (POU)" style="min-width:110px"></select>
+      <button class="tb-btn" id="btn-pou-new" title="Nueva función (sub-ladder)">＋ ƒ</button>
+      <button class="tb-btn" id="btn-pou-del" title="Eliminar función" style="display:none">🗑</button>
       <input type="text" id="project-name" value="Proyecto Sin Nombre" autocomplete="off">
     </div>
     <div class="toolbar-right">
@@ -137,6 +140,7 @@
       <div class="palette-group-header">Control</div>
       <div class="palette-group-body">
         <div class="palette-item" draggable="true" data-type="FB_PID" title="Controlador PID"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#a5d6a7" stroke-width="2" fill="none" rx="2"/><text x="30" y="23" text-anchor="middle" fill="#a5d6a7" font-size="13" font-family="monospace" font-weight="bold">PID</text></svg><span>PID</span></div>
+        <div class="palette-item" draggable="true" data-type="FB_CALL" title="Llamar a otra función (sub-ladder)"><svg class="palette-svg" viewBox="0 0 60 36"><rect x="4" y="2" width="52" height="32" stroke="#ffcc80" stroke-width="2" fill="none" rx="2"/><text x="30" y="23" text-anchor="middle" fill="#ffcc80" font-size="11" font-family="monospace" font-weight="bold">CALL</text></svg><span>CALL</span></div>
       </div>
     </div>
   </aside>
