@@ -44,6 +44,16 @@ What OSOLogic can talk to. Everything lands in the same place — the
 | **Node-RED** flows | ✅ Native | [`ui/node-red`](../ui/node-red/) |
 | **IEC 61131-3** (Ladder, ST) | ✅ Native *(prototype)* | [`iec61131/`](../iec61131/) |
 
+## Database backends (osodb persistence)
+
+osodb is the in-memory hub; the database behind it is an **adapter**, so several backends fit:
+
+| Backend | Status | Use |
+|---|---|---|
+| **MariaDB / MySQL** | ✅ Native | source-of-truth, SQL direct control |
+| **PostgreSQL** | 🔜 Roadmap *(priority)* | SQL backend; drops into the data-centric model; pairs with TimescaleDB |
+| **SQLite** | 🔜 Roadmap | embedded / internal (not networked) — small boards, local state |
+
 ## Via gateway — third-party ecosystems (compatibility)
 
 For the broad world of consumer / smart-home / IoT devices, OSOLogic **interoperates**
