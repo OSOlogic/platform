@@ -11,6 +11,15 @@
 
 ---
 
+![osoLadder editor](screenshot.png)
+
+> **⚠ Work in progress — not yet fully functional.** The layout, palette, variable
+> table (with a live **Valor**/value column) and the **Compilar ST** action are in
+> place, but editor interactions (drag-drop placement, branch editing) are still being
+> hardened. Treat as a prototype.
+
+---
+
 ## Files / Archivos
 
 ```
