@@ -1,0 +1,59 @@
+{
+  "$comment": "OSOlogic custom protocol definition — example (RFC 0001). Low-cadence polling, not real-time.",
+  "id": "acme-rs485-tank",
+  "name": "ACME RS-485 Tank Controller",
+  "cadence": "low",
+
+  "transport": {
+    "type": "serial",
+    "serial": { "port": "/dev/ttyUSB0", "baud": 9600, "data_bits": 8, "parity": "none", "stop_bits": 1 },
+    "framing": { "mode": "silence-gap", "silence_ms": 3.5 }
+  },
+
+  "crc": {
+    "type": "modbus16",
+    "poly": "0x8005", "init": "0xFFFF", "reflect_in": true, "reflect_out": true, "append": "little"
+  },
+
+  "requests": [
+    {
+      "name": "read_status",
+      "poll_ms": 1000,
+      "tx": [
+        { "const": "0x01" }, { "const": "0x03" },
+        { "const": "0x00" }, { "const": "0x00" },
+        { "const": "0x00" }, { "const": "0x02" }
+      ],
+      "rx": {
+        "match": [ { "offset": 0, "equals": "0x01" }, { "offset": 1, "equals": "0x03" } ],
+        "fields": [
+          { "tag": "tank.level", "offset": 3, "size": 2, "type": "uint16", "endian": "big",
+            "scale": 0.1, "units": "%" },
+          { "offset": 5, "size": 1, "type": "bits", "bits": [
+            { "bit": 0, "tag": "tank.high",  "type": "Boolean" },
+            { "bit": 1, "tag": "tank.low",   "type": "Boolean" },
+            { "bit": 2, "tag": "tank.fault", "type": "Boolean" }
+          ] }
+        ]
+      }
+    }
+  ],
+
+  "writes": [
+    {
+      "name": "set_valve",
+      "tag": "tank.valve",
+      "tx": [
+        { "const": "0x01" }, { "const": "0x06" },
+        { "const": "0x00" }, { "const": "0x10" },
+        { "field": "tank.valve", "size": 2, "type": "uint16", "endian": "big" }
+      ]
+    }
+  ],
+
+  "hooks": {
+    "$comment": "Optional — only for exotic decoding / non-standard CRC. Sandboxed, low-cadence.",
+    "on_frame": null,
+    "crc_script": null
+  }
+}
