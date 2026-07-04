@@ -39,6 +39,15 @@ CACHE = {}                 # id -> tag dict  (the in-memory hub)
 LOCK = threading.Lock()
 _conn = None
 _t0 = time.time()
+RUNNING = True             # scan-cycle state (osoadmin Runtime module)
+CYCLES = 0                 # scan cycle counter
+
+
+def tag_pub(r):
+    """Public tag shape for REST (works for /tags and /api/v1/tags — includes `type` alias)."""
+    return {"id": r["id"], "name": r.get("name"), "data_type": r.get("data_type"),
+            "type": r.get("data_type"), "value": tag_value(r), "units": r.get("units"),
+            "access": r.get("access")}
 
 
 # ---- DB -----------------------------------------------------
@@ -105,7 +114,9 @@ def tag_value(r):
 
 # ---- scan loop ---------------------------------------------
 def scan_loop():
+    global CYCLES
     while True:
+        CYCLES += 1
         t = time.time() - _t0
         for tid, r in list(CACHE.items()):
             sim = r.get("sim")
@@ -149,25 +160,46 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
-        if path == "/tags" or path == "/api/tags":
-            return self._json([
-                {"id": r["id"], "name": r.get("name"), "data_type": r.get("data_type"),
-                 "value": tag_value(r), "units": r.get("units"), "access": r.get("access")}
-                for r in CACHE.values()])
-        if path.startswith("/var/") or path.startswith("/api/tags/"):
+        if path in ("/tags", "/api/tags", "/api/v1/tags"):
+            return self._json([tag_pub(r) for r in CACHE.values()])
+        if path == "/api/v1/runtime/status":
+            return self._json({"state": "running" if RUNNING else "stopped",
+                               "cycle_count": CYCLES, "scan_ms": SCAN_MS,
+                               "tasks": [{"name": "main scan", "state": "running" if RUNNING else "stopped"}]})
+        if path == "/api/v1/system/info":
+            return self._json({"hostname": "osologic-sandbox", "version": "1.0 (sandbox)",
+                               "arch": "x86_64", "cores": os.cpu_count(), "tags": len(CACHE), "db": bool(_conn)})
+        if path == "/api/v1/gateways":
+            return self._json([])
+        if path == "/api/v1/projects":
+            return self._json([])
+        if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
             if not r:
                 return self._json({"error": "unknown tag", "key": key}, 404)
-            return self._json({"id": key, "value": tag_value(r), "units": r.get("units"),
-                               "name": r.get("name"), "access": r.get("access")})
+            return self._json(tag_pub(r))
         if path in ("/healthz", "/api/health"):
-            return self._json({"ok": True, "tags": len(CACHE), "db": bool(_conn)})
+            return self._json({"ok": True, "tags": len(CACHE), "db": bool(_conn), "running": RUNNING})
         return self._static(path)
+
+    def do_POST(self):
+        path = self.path.split("?", 1)[0]
+        global RUNNING
+        if path.startswith("/api/v1/runtime/"):
+            action = path.rsplit("/", 1)[-1]
+            if action in ("start", "restart", "resume"):
+                RUNNING = True
+            elif action in ("stop", "pause"):
+                RUNNING = False
+            return self._json({"state": "running" if RUNNING else "stopped", "ok": True})
+        if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
+            return self._json({"ok": True})
+        return self._json({"error": "not found", "path": path}, 404)
 
     def do_PUT(self):
         path = self.path.split("?", 1)[0]
-        if not (path.startswith("/var/") or path.startswith("/api/tags/")):
+        if not (path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/")):
             return self._json({"error": "not found"}, 404)
         key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
         r = CACHE.get(key)
