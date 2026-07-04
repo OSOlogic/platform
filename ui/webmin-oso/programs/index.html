@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Programs &amp; Scripts</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --panel-2:#1c1f26; --line:#2a2e37; --ink:#ece9e3; --muted:#8b8f99;
+    --accent:#c23434; --accent-2:#e05a5a; --brand:#a11313; --good:#46d17f; --warn:#e6a417; --bad:#e5484d;
+    --mono:ui-monospace,Menlo,Consolas,monospace; --sans:"Segoe UI",system-ui,sans-serif;
+  }
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:32px;height:24px}
+  .logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}.reg{font-size:.55em;vertical-align:super;color:var(--muted)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .palette{display:flex;gap:5px;margin-left:14px}.palette button{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}.palette button.on{outline:2px solid var(--ink);outline-offset:1px}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:8px}
+  h1{font-size:26px;letter-spacing:-.02em;margin:26px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 20px;max-width:66ch}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:22px;flex-wrap:wrap}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 13px;cursor:pointer;font-size:13px;display:inline-flex;gap:7px;align-items:center}
+  .btn:hover{border-color:var(--accent)} .btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  input.search{flex:1;min-width:160px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 12px}
+  .seg{display:flex;gap:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:3px}
+  .seg button{background:none;border:none;color:var(--muted);border-radius:6px;padding:6px 11px;cursor:pointer;font-size:12.5px}
+  .seg button.on{background:var(--accent);color:#fff}
+  .group{margin:0 0 26px}
+  .group h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:9px}
+  .group h2 .ic{font-size:16px} .group h2 .n{color:var(--accent);font-weight:700} .group h2 .open{margin-left:auto;font-size:12px;color:var(--accent);cursor:pointer;text-transform:none;letter-spacing:0}
+  .list{display:flex;flex-direction:column;gap:9px}
+  .row{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;transition:border-color .14s}
+  .row:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .row .ic{width:38px;height:38px;border-radius:9px;background:var(--panel-2);display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+  .row .meta{flex:1;min-width:0}
+  .row .nm{font-weight:600;display:flex;align-items:center;gap:9px}
+  .badge{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .row .det{font-size:12px;color:var(--muted);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap}
+  .st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .st .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .st.running{color:var(--good)} .st.running .dot{background:var(--good)}
+  .st.stopped{color:var(--muted)} .st.draft{color:var(--warn)} .st.draft .dot{background:var(--warn)}
+  .acts{display:flex;gap:6px;flex:0 0 auto}
+  .icobtn{width:32px;height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;color:var(--ink);cursor:pointer;font-size:13px}
+  .icobtn:hover{border-color:var(--accent)} .icobtn.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .empty{color:var(--muted);font-size:13px;padding:14px 4px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:20px 0 44px}
+  /* modal */
+  .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;align-items:center;justify-content:center;padding:20px}
+  .mbg.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;width:100%;max-width:560px;display:flex;flex-direction:column;gap:12px;max-height:90vh}
+  .modal h3{margin:0;font-size:17px} .modal label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  .modal input,.modal select,.modal textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font-family:var(--sans)}
+  .modal textarea{font-family:var(--mono);font-size:12.5px;min-height:220px;resize:vertical}
+  .mrow{display:flex;gap:10px} .mrow>div{flex:1}
+  .mbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="../index.html" style="display:flex;gap:10px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic">
+      <span class="logo">OSO<b>logic</b><span class="reg">®</span></span></a>
+    <span class="krumb">Programs &amp; Scripts</span>
+    <div class="palette" id="palette">
+      <button data-accent="amber" style="background:#f48c06"></button>
+      <button data-accent="honey" style="background:#ffb300"></button>
+      <button data-accent="maroon" style="background:#c23434"></button>
+      <button data-accent="bootstrap" style="background:#0d6efd"></button>
+    </div>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Programs &amp; <em>Scripts</em></h1>
+  <p class="lede">One place to author and run everything on the device — <b>Ladder</b> and
+    <b>Structured Text</b> logic, admin <b>scripts</b>, and <b>Node-RED</b> flows. Open each in its
+    editor; compiled programs deploy through <a href="../cockpit/oso-plc-projects/index.html" style="color:var(--accent)">PLC Projects</a>.</p>
+
+  <div class="bar">
+    <button class="btn pri" id="newBtn">＋ New program</button>
+    <input class="search" id="search" placeholder="Search programs & scripts…">
+    <div class="seg" id="filter">
+      <button data-f="all" class="on">All</button>
+      <button data-f="ladder">Ladder</button>
+      <button data-f="st">ST</button>
+      <button data-f="script">Scripts</button>
+      <button data-f="nodered">Node-RED</button>
+    </div>
+  </div>
+
+  <div id="groups"></div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+
+<!-- New / edit modal -->
+<div class="mbg" id="modal">
+  <div class="modal">
+    <h3 id="mTitle">New program</h3>
+    <div class="mrow">
+      <div><label>Name</label><input id="mName" placeholder="Conveyor interlock"></div>
+      <div><label>Type</label><select id="mType">
+        <option value="ladder">Ladder Diagram</option>
+        <option value="st">Structured Text</option>
+        <option value="script">Script</option>
+      </select></div>
+    </div>
+    <div id="mLangWrap"><label>Language</label><select id="mLang">
+      <option>python</option><option>bash</option><option>node</option><option>php</option>
+      <option>ruby</option><option>lua</option><option>csharp</option><option>rust</option><option>cpp</option>
+    </select></div>
+    <div id="mSrcWrap"><label>Source</label><textarea id="mSrc" spellcheck="false"></textarea></div>
+    <div class="mbtns">
+      <button class="btn" id="mCancel">Cancel</button>
+      <button class="btn pri" id="mSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const LS='oso-programs', NR_URL_LS='oso-nodered-url';
+const TYPES={
+  ladder:{icon:'🪜',label:'Ladder Diagram',editor:'../../../iec61131/ladder/osoLadder/index.html'},
+  st:{icon:'📐',label:'Structured Text',editor:null},
+  script:{icon:'📜',label:'Scripts',editor:'../scripting/index.html'},
+  nodered:{icon:'🔴',label:'Node-RED flows',editor:null}
+};
+const $=s=>document.querySelector(s);
+let programs=load(), flows=[], filter='all', editId=null;
+
+function load(){ try{const v=JSON.parse(localStorage.getItem(LS));if(v)return v;}catch(_){}
+  return SEED(); }
+function save(){ localStorage.setItem(LS,JSON.stringify(programs)); }
+function SEED(){ return [
+  {id:'p1',type:'ladder',name:'Conveyor interlock',status:'running',target:'main scan',modified:'2026-07-04',rungs:6},
+  {id:'p2',type:'ladder',name:'Pump station',status:'stopped',target:'—',modified:'2026-07-02',rungs:11},
+  {id:'p3',type:'st',name:'Batch sequence',status:'draft',target:'—',modified:'2026-07-03',
+    src:'PROGRAM batch\nVAR step : INT; timer : TON; END_VAR\n  CASE step OF\n    0: IF start THEN step := 1; END_IF;\n    1: fill := TRUE; IF level >= sp THEN step := 2; END_IF;\n  END_CASE;\nEND_PROGRAM'},
+  {id:'p4',type:'script',name:'Nightly tag report',lang:'python',status:'stopped',target:'cron 02:00',modified:'2026-07-01'},
+  {id:'p5',type:'script',name:'Backup osodb snapshot',lang:'bash',status:'stopped',target:'manual',modified:'2026-06-28'},
+]; }
+
+// Node-RED flows from the flows.json in the repo
+async function loadFlows(){
+  try{
+    const data=await (await fetch('../../node-red/flows.json')).json();
+    flows=data.filter(n=>n.type==='tab').map(t=>({id:t.id,name:t.label||'(flow)',disabled:!!t.disabled}));
+  }catch(_){ flows=[]; }
+  render();
+}
+
+function render(){
+  const q=$('#search').value.trim().toLowerCase();
+  const g=$('#groups'); g.innerHTML='';
+  const order=['ladder','st','script','nodered'];
+  for(const t of order){
+    if(filter!=='all'&&filter!==t) continue;
+    const T=TYPES[t];
+    let items;
+    if(t==='nodered') items=flows.filter(f=>!q||f.name.toLowerCase().includes(q));
+    else items=programs.filter(p=>p.type===t&&(!q||p.name.toLowerCase().includes(q)));
+    if(filter==='all'&&!items.length&&t==='nodered'&&!flows.length) { /* still show header */ }
+    const sec=document.createElement('div'); sec.className='group';
+    const openLink = t==='nodered'
+      ? `<span class="open" onclick="openNodeRed()">Open Node-RED ↗</span>`
+      : (T.editor?`<span class="open" onclick="location.href='${T.editor}'">Open editor ↗</span>`:'');
+    sec.innerHTML=`<h2><span class="ic">${T.icon}</span> ${T.label} <span class="n">${items.length}</span> ${openLink}</h2>
+      <div class="list"></div>`;
+    const list=sec.querySelector('.list');
+    if(!items.length){ list.innerHTML=`<div class="empty">No ${T.label.toLowerCase()} yet.</div>`; }
+    else items.forEach(it=> list.appendChild(t==='nodered'?flowRow(it):progRow(it)));
+    g.appendChild(sec);
+  }
+}
+
+function stEl(status){ return `<span class="st ${status}"><span class="dot"></span>${status}</span>`; }
+function progRow(p){
+  const el=document.createElement('div'); el.className='row';
+  const badge = p.type==='script'?p.lang:(p.type==='ladder'?`${p.rungs||0} rungs`:'ST');
+  const canCompile = p.type==='ladder'||p.type==='st';
+  el.innerHTML=`<div class="ic">${TYPES[p.type].icon}</div>
+    <div class="meta"><div class="nm">${esc(p.name)} <span class="badge">${esc(badge)}</span></div>
+      <div class="det">${stEl(p.status)} <span>⤷ ${esc(p.target||'—')}</span> <span>✎ ${esc(p.modified||'')}</span></div></div>
+    <div class="acts">
+      <button class="icobtn" title="Open" onclick="openProg('${p.id}')">✎</button>
+      ${canCompile?`<button class="icobtn" title="Compile → ST/p-code" onclick="compile('${p.id}')">⚙</button>`:''}
+      <button class="icobtn" title="${p.status==='running'?'Stop':'Run / enable'}" onclick="toggle('${p.id}')">${p.status==='running'?'■':'▶'}</button>
+      <button class="icobtn danger" title="Delete" onclick="del('${p.id}')">🗑</button>
+    </div>`;
+  return el;
+}
+function flowRow(f){
+  const el=document.createElement('div'); el.className='row';
+  el.innerHTML=`<div class="ic">🔴</div>
+    <div class="meta"><div class="nm">${esc(f.name)} <span class="badge">flow</span></div>
+      <div class="det">${stEl(f.disabled?'stopped':'running')} <span>Node-RED</span></div></div>
+    <div class="acts"><button class="icobtn" title="Open in Node-RED" onclick="openNodeRed('${f.id}')">↗</button></div>`;
+  return el;
+}
+
+// actions
+function openProg(id){
+  const p=programs.find(x=>x.id===id); if(!p)return;
+  if(p.type==='ladder'){ location.href=TYPES.ladder.editor+'?program='+encodeURIComponent(id); return; }
+  if(p.type==='script'){ location.href=TYPES.script.editor+'?program='+encodeURIComponent(id); return; }
+  if(p.type==='st'){ openModal(p); }   // lightweight inline ST editor
+}
+function compile(id){ const p=programs.find(x=>x.id===id); alert(`Compiling “${p.name}” → Structured Text → p-code.\n\n(Prototype: wires into osocompile + the osoST toolchain, then deploys via PLC Projects.)`); }
+function toggle(id){ const p=programs.find(x=>x.id===id); p.status=p.status==='running'?'stopped':'running'; save(); render(); }
+function del(id){ const p=programs.find(x=>x.id===id); if(!confirm(`Delete “${p.name}”?`))return; programs=programs.filter(x=>x.id!==id); save(); render(); }
+
+function openNodeRed(flowId){
+  let url=localStorage.getItem(NR_URL_LS);
+  if(!url){ url=prompt('Node-RED editor URL:','http://localhost:1880'); if(!url)return; localStorage.setItem(NR_URL_LS,url); }
+  window.open(url.replace(/\/$/,'')+(flowId?'/#flow/'+flowId:''),'_blank');
+}
+
+// modal (new + ST editor)
+function openModal(p){
+  editId=p?p.id:null;
+  $('#mTitle').textContent=p?('Edit '+(p.type==='st'?'ST program':'program')):'New program';
+  $('#mName').value=p?p.name:''; $('#mType').value=p?p.type:'ladder';
+  $('#mLang').value=(p&&p.lang)||'python'; $('#mSrc').value=(p&&p.src)||'';
+  syncModal(); $('#modal').classList.add('open'); $('#mName').focus();
+}
+function syncModal(){
+  const t=$('#mType').value;
+  $('#mLangWrap').style.display=t==='script'?'block':'none';
+  $('#mSrcWrap').style.display=t==='st'?'block':'none';
+}
+function saveModal(){
+  const name=$('#mName').value.trim(); if(!name){$('#mName').focus();return;}
+  const t=$('#mType').value;
+  if(editId){ const p=programs.find(x=>x.id===editId); p.name=name; if(t==='st')p.src=$('#mSrc').value; p.modified=today(); }
+  else{ const p={id:'p'+Date.now(),type:t,name,status:'draft',target:'—',modified:today()};
+    if(t==='script')p.lang=$('#mLang').value; if(t==='ladder')p.rungs=0; if(t==='st')p.src=$('#mSrc').value;
+    programs.unshift(p);
+    // new ladder/script → jump straight to its editor
+    save(); $('#modal').classList.remove('open');
+    if(t==='ladder'||t==='script'){ openProg(p.id); return; }
+    render(); return;
+  }
+  save(); $('#modal').classList.remove('open'); render();
+}
+
+// utils
+function today(){ return new Date().toISOString().slice(0,10); }
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// wire
+$('#newBtn').onclick=()=>openModal(null);
+$('#mCancel').onclick=()=>$('#modal').classList.remove('open');
+$('#mSave').onclick=saveModal;
+$('#mType').onchange=syncModal;
+$('#search').oninput=render;
+document.querySelectorAll('#filter button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#filter button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); filter=b.dataset.f; render();
+});
+$('#modal').onclick=e=>{ if(e.target===$('#modal'))$('#modal').classList.remove('open'); };
+
+// theme + palette
+const root=document.documentElement; const th=localStorage.getItem('oso-theme'); if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']};
+function setAcc(n){const a=ACC[n]||ACC.maroon;root.style.setProperty('--accent',a[0]);root.style.setProperty('--accent-2',a[1]);localStorage.setItem('oso-accent',n);document.querySelectorAll('#palette button').forEach(b=>b.classList.toggle('on',b.dataset.accent===n));}
+setAcc(localStorage.getItem('oso-accent')||'maroon');document.querySelectorAll('#palette button').forEach(b=>b.onclick=()=>setAcc(b.dataset.accent));
+
+loadFlows();
+</script>
+</body>
+</html>
