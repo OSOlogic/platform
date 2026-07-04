@@ -97,6 +97,23 @@ def grant_sql(u):
     return f"GRANT {', '.join(u['privileges'])} ON {u['scope']} TO '{u['user']}'@'{u['host']}';"
 
 
+# ---- Home Assistant compatibility-gateway config (osoadmin) ----
+HASS_CFG = {"enabled": False, "url": "http://homeassistant.local:8123", "token": "",
+            "poll_ms": 1000, "domains": ["light", "switch", "sensor", "binary_sensor", "climate", "cover", "lock"]}
+
+
+def hass_drivers():
+    out = []
+    for path in sorted(glob.glob(os.path.join(UI_DIR, "gateways", "home-assistant", "drivers", "*.json"))):
+        try:
+            d = json.load(open(path))
+            out.append({"domain": d.get("domain"), "label": d.get("label", d.get("domain")),
+                        "icon": d.get("icon", "🔧"), "access": d.get("osodb", {}).get("access", "")})
+        except Exception:
+            pass
+    return out
+
+
 def _cmp(v, op, val):
     try:
         v = float(v)
@@ -338,6 +355,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"tag": tag, "samples": list(HISTORY.get(tag, []))[-n:]})
         if path == "/api/v1/users":
             return self._json({"users": USERS, "roles": ROLES})
+        if path == "/api/v1/hass/config":
+            return self._json({"config": HASS_CFG, "drivers": hass_drivers()})
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -440,6 +459,16 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception as e:
                         log("warn", f"drop failed: {e}")
                 return self._json({"ok": True, "sql": sql})
+        if path == "/api/v1/hass/test":
+            url = HASS_CFG["url"].rstrip("/")
+            try:
+                import urllib.request
+                req = urllib.request.Request(url + "/api/", headers={"Authorization": "Bearer " + HASS_CFG["token"]})
+                with urllib.request.urlopen(req, timeout=4) as r:
+                    ok = r.status == 200
+                return self._json({"ok": ok, "message": f"connected to {url}" if ok else f"HTTP {r.status}"})
+            except Exception as e:
+                return self._json({"ok": False, "message": f"could not reach {url}: {e}"})
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)
@@ -468,6 +497,16 @@ class Handler(BaseHTTPRequestHandler):
                     HIST_CFG[k] = body[k]
             log("info", f"historian → {HIST_CFG['backend']} ({len(HIST_CFG['tags'])} tags @ {HIST_CFG['sample_ms']}ms)")
             return self._json({"config": HIST_CFG, "ok": True})
+        if path == "/api/v1/hass/config":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            for k in list(HASS_CFG.keys()):
+                if k in body:
+                    HASS_CFG[k] = body[k]
+            log("info", f"Home Assistant gateway {'enabled' if HASS_CFG['enabled'] else 'disabled'} ({HASS_CFG['url']})")
+            return self._json({"config": HASS_CFG, "ok": True})
         if not (path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/")):
             return self._json({"error": "not found"}, 404)
         key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
