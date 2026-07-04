@@ -35,6 +35,25 @@ INSERT INTO tags (id, name, data_type, value, units, access, sim) VALUES
   ('hass.binary_sensor.jam', 'Jam Detector', 'Boolean', 0, NULL,  'ReadOnly',  NULL)
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 
+-- ── Node-RED (Diego's PLCBorrell) compatibility views over `tags` ──────────
+-- His flows read rtmirror_complete and write net_required_value; these views map
+-- that schema onto the sandbox tags table so his flows run unchanged.
+CREATE OR REPLACE VIEW rtmirror_complete AS
+  SELECT id  AS io_definition_id,
+         name AS user_label,
+         value AS net_value,
+         required_value AS net_required_value,
+         CASE data_type WHEN 'Boolean' THEN 'bit' ELSE 'register' END AS io_type,
+         units,
+         'standard' AS purpose,
+         'visible'  AS visibility
+  FROM tags;
+
+-- Simple projection → updatable, so `UPDATE rtmirror SET net_required_value=..` reaches tags.
+CREATE OR REPLACE VIEW rtmirror AS
+  SELECT id AS io_definition_id, value AS net_value, required_value AS net_required_value
+  FROM tags;
+
 -- A least-privilege app user (the REST/osodb core connects as this).
 CREATE USER IF NOT EXISTS 'osoapp'@'%' IDENTIFIED BY 'osoapp';
 GRANT SELECT, INSERT, UPDATE ON osodb.* TO 'osoapp'@'%';

@@ -67,6 +67,9 @@ To wire these flows to the sandbox DB:
 2. **Import** `/reference/flows.json` (mounted from this folder).
 3. Point the **MySQL config node** at host `db`, database `osodb`, port `3306` (user `osoapp`/`osoapp`).
 
-> **Schema note.** These flows target Diego's **`PLC` / `rtmirror`** schema. The sandbox ships a
-> simplified `osodb.tags` table, so a compatibility **view** (or adapting the SQL nodes to `tags`) is
-> the remaining wiring step — tracked as the osodb ↔ rtmirror reconciliation.
+> **Schema.** These flows target Diego's **`rtmirror` / `rtmirror_complete`** schema. The sandbox DB
+> ([`sandbox/db/init.sql`](../../sandbox/db/init.sql)) now ships compatibility **views** mapping that
+> schema onto the `tags` table — `rtmirror_complete` (read: `io_definition_id`, `user_label`,
+> `net_value`, `io_type`, `units`, `purpose`, `visibility`) and an updatable `rtmirror` (write:
+> `net_required_value` → the tag's set-point). So the flows run unchanged against the sandbox DB;
+> the read/write cadence and NET-value scaling are the tuning that remains.
