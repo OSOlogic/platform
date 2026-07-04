@@ -27,12 +27,13 @@
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:820px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:520px){.grid{grid-template-columns:1fr}}
   .app{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;gap:13px;align-items:flex-start;transition:transform .14s,border-color .14s}
   .app.ok:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
-  .app.mock{opacity:.62}.app.mock:hover{opacity:.85}
+  .app.dim{opacity:.62}.app.dim:hover{opacity:.85}
   .app .ic{font-size:24px;line-height:1;flex:0 0 auto}
   .app h3{margin:0 0 3px;font-size:15px;display:flex;align-items:center;gap:8px}.app p{margin:0;color:var(--muted);font-size:12.5px}
   .tag{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;padding:2px 6px;border-radius:999px;border:1px solid var(--line)}
   .tag.available{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
-  .tag.mockup{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+  .tag.coming{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+  .tag.disabled{color:var(--muted)}
   .tag.external{color:var(--muted)}
   footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:30px;padding:20px 0 46px}
   footer a:hover{color:var(--accent)}
@@ -61,7 +62,7 @@
   <div class="filters" id="filters">
     <button data-f="all" class="on">All</button>
     <button data-f="available">Available</button>
-    <button data-f="mockup">Coming / mockup</button>
+    <button data-f="coming">Coming soon</button>
   </div>
 
   <div id="cats"></div>
@@ -82,8 +83,8 @@ const DEFAULT = { categories: [
     { icon:'🏭', name:'Plant Manager', desc:'Device tree + plant mimic, live', url:'/ui/hmi-web/plant-manager/index.html', status:'available' },
     { icon:'🖼️', name:'HMI · SVG', desc:'SVG mimic bound to tags', url:'/ui/hmi-web/svg-hmi/index.html', status:'available' },
     { icon:'🎛️', name:'HMI · HTML5', desc:'Widget board', url:'/ui/hmi-web/html5-hmi/index.html', status:'available' },
-    { icon:'📊', name:'Dashboards', desc:'Trends & reports', url:'#', status:'mockup' },
-    { icon:'🔔', name:'Alarms & Events', desc:'Live alarm list + history', url:'#', status:'mockup' },
+    { icon:'📊', name:'Dashboards', desc:'Trends & reports', url:'#', status:'coming' },
+    { icon:'🔔', name:'Alarms & Events', desc:'Live alarm list + history', url:'#', status:'coming' },
   ]},
   { name:'Start here', apps:[
     { icon:'🚀', name:'Get started', desc:'Docs & examples — HMIs, automations, scripting, dashboards', url:'/ui/get-started/index.html', status:'available' },
@@ -92,9 +93,9 @@ const DEFAULT = { categories: [
   { name:'Engineering', apps:[
     { icon:'🗂️', name:'Programs & Scripts', desc:'Ladder · ST · scripts · Node-RED', url:'/ui/webmin-oso/programs/index.html', status:'available' },
     { icon:'🪜', name:'Ladder editor', desc:'osoLadder — visual LD → ST', url:'/iec61131/ladder/osoLadder/index.html', status:'available' },
-    { icon:'📐', name:'Structured Text', desc:'ST editor / toolchain', url:'#', status:'mockup' },
-    { icon:'🔴', name:'Node-RED', desc:'Flow editor (if installed)', url:'http://localhost:1880', status:'external' },
-    { icon:'🧩', name:'Protocol builder', desc:'Define custom serial/TCP protocols', url:'#', status:'mockup' },
+    { icon:'📐', name:'Structured Text', desc:'ST editor / toolchain', url:'#', status:'coming' },
+    { icon:'🔴', name:'Node-RED', desc:'Flow editor & dashboards — DB-wired (Diego)', url:'http://localhost:1880', status:'available' },
+    { icon:'🧩', name:'Protocol builder', desc:'Define custom serial/TCP protocols', url:'#', status:'coming' },
   ]},
   { name:'Administration', apps:[
     { icon:'⚙️', name:'osowebmin', desc:'System & HMI admin', url:'/ui/webmin-oso/index.html', status:'available' },
@@ -102,37 +103,39 @@ const DEFAULT = { categories: [
     { icon:'🏷️', name:'I/O Tags', desc:'Browse osodb, read/write', url:'/ui/webmin-oso/cockpit/oso-iotags/index.html', status:'available' },
     { icon:'▶️', name:'Runtime', desc:'Scan cycle, start/stop', url:'/ui/webmin-oso/cockpit/oso-runtime/index.html', status:'available' },
     { icon:'📦', name:'PLC Projects', desc:'Deploy compiled projects', url:'/ui/webmin-oso/cockpit/oso-plc-projects/index.html', status:'available' },
-    { icon:'👥', name:'Users & Roles', desc:'DB roles & permissions', url:'#', status:'mockup' },
-    { icon:'📁', name:'Logs', desc:'Detail, logrotate, RAM/persistent', url:'#', status:'mockup' },
+    { icon:'👥', name:'Users & Roles', desc:'DB roles & permissions', url:'#', status:'coming' },
+    { icon:'📁', name:'Logs', desc:'Detail, logrotate, RAM/persistent', url:'#', status:'coming' },
   ]},
   { name:'Networking & Gateways', apps:[
     { icon:'🔌', name:'Gateways', desc:'Modbus · OPC-UA · MQTT · HA (server+client)', url:'/ui/webmin-oso/cockpit/oso-gateways/index.html', status:'available' },
-    { icon:'🏠', name:'Home Assistant', desc:'Compatibility gateway', url:'#', status:'mockup' },
-    { icon:'📡', name:'Network scanner', desc:'Discover TCP/IP & serial devices', url:'#', status:'mockup' },
-    { icon:'🧱', name:'Firewall', desc:'iptables editor', url:'#', status:'mockup' },
-    { icon:'🛡️', name:'fail2ban', desc:'Intrusion protection', url:'#', status:'mockup' },
+    { icon:'🏠', name:'Home Assistant', desc:'Compatibility gateway', url:'#', status:'coming' },
+    { icon:'📡', name:'Network scanner', desc:'Discover TCP/IP & serial devices', url:'#', status:'coming' },
+    { icon:'🧱', name:'Firewall', desc:'iptables editor', url:'#', status:'coming' },
+    { icon:'🛡️', name:'fail2ban', desc:'Intrusion protection', url:'#', status:'coming' },
   ]},
 ]};
 
 let model = load(); let filter='all';
 function load(){ try{const v=JSON.parse(localStorage.getItem('oso-launcher'));if(v&&v.categories)return v;}catch(_){}
   return DEFAULT; }
+const LABEL={available:'available',coming:'coming soon',disabled:'not available',external:'external'};
+const openable=s=>s==='available'||s==='external';
 
 function render(){
   const root=document.getElementById('cats'); root.innerHTML='';
   model.categories.forEach(cat=>{
-    const apps=cat.apps.filter(a=> filter==='all' || (filter==='available'? a.status==='available' : a.status!=='available'));
+    const apps=cat.apps.filter(a=> filter==='all' || (filter==='available'? openable(a.status) : !openable(a.status)));
     if(!apps.length) return;
     const sec=document.createElement('div'); sec.className='cat';
     sec.innerHTML=`<h2>${esc(cat.name)}</h2><div class="grid"></div>`;
     const g=sec.querySelector('.grid');
     apps.forEach(a=>{
-      const ok=a.status==='available'||a.status==='external';
-      const el=document.createElement(ok&&a.url&&a.url!=='#'?'a':'div');
-      el.className='app '+(a.status==='available'?'ok':(a.status==='external'?'ok':'mock'));
-      if(ok&&a.url&&a.url!=='#'){ el.href=a.url; if(a.status==='external')el.target='_blank'; }
+      const ok=openable(a.status)&&a.url&&a.url!=='#';
+      const el=document.createElement(ok?'a':'div');
+      el.className='app '+(openable(a.status)?'ok':'dim');
+      if(ok){ el.href=a.url; if(a.status==='external')el.target='_blank'; }
       el.innerHTML=`<div class="ic">${a.icon||'🔧'}</div>
-        <div><h3>${esc(a.name)} <span class="tag ${a.status}">${a.status}</span></h3><p>${esc(a.desc||'')}</p></div>`;
+        <div><h3>${esc(a.name)} <span class="tag ${a.status}">${LABEL[a.status]||a.status}</span></h3><p>${esc(a.desc||'')}</p></div>`;
       g.appendChild(el);
     });
     root.appendChild(sec);

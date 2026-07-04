@@ -75,15 +75,15 @@ const DEFAULT={categories:[
     {icon:'🏭',name:'Plant Manager',desc:'Device tree + plant mimic',url:'/ui/hmi-web/plant-manager/index.html',status:'available'},
     {icon:'🖼️',name:'HMI · SVG',desc:'SVG mimic bound to tags',url:'/ui/hmi-web/svg-hmi/index.html',status:'available'},
     {icon:'🎛️',name:'HMI · HTML5',desc:'Widget board',url:'/ui/hmi-web/html5-hmi/index.html',status:'available'},
-    {icon:'📊',name:'Dashboards',desc:'Trends & reports',url:'#',status:'mockup'},
-    {icon:'🔔',name:'Alarms & Events',desc:'Live alarms + history',url:'#',status:'mockup'},
+    {icon:'📊',name:'Dashboards',desc:'Trends & reports',url:'#',status:'coming'},
+    {icon:'🔔',name:'Alarms & Events',desc:'Live alarms + history',url:'#',status:'coming'},
   ]},
   {name:'Engineering',apps:[
     {icon:'🗂️',name:'Programs & Scripts',desc:'Ladder · ST · scripts · Node-RED',url:'/ui/webmin-oso/programs/index.html',status:'available'},
     {icon:'🪜',name:'Ladder editor',desc:'osoLadder',url:'/iec61131/ladder/osoLadder/index.html',status:'available'},
-    {icon:'📐',name:'Structured Text',desc:'ST editor',url:'#',status:'mockup'},
-    {icon:'🔴',name:'Node-RED',desc:'Flow editor',url:'http://localhost:1880',status:'external'},
-    {icon:'🧩',name:'Protocol builder',desc:'Custom serial/TCP protocols',url:'#',status:'mockup'},
+    {icon:'📐',name:'Structured Text',desc:'ST editor',url:'#',status:'coming'},
+    {icon:'🔴',name:'Node-RED',desc:'Flow editor & dashboards — DB-wired',url:'http://localhost:1880',status:'available'},
+    {icon:'🧩',name:'Protocol builder',desc:'Custom serial/TCP protocols',url:'#',status:'coming'},
   ]},
   {name:'Administration',apps:[
     {icon:'⚙️',name:'osowebmin',desc:'System & HMI admin',url:'/ui/webmin-oso/index.html',status:'available'},
@@ -91,18 +91,18 @@ const DEFAULT={categories:[
     {icon:'🏷️',name:'I/O Tags',desc:'Browse osodb',url:'/ui/webmin-oso/cockpit/oso-iotags/index.html',status:'available'},
     {icon:'▶️',name:'Runtime',desc:'Scan cycle',url:'/ui/webmin-oso/cockpit/oso-runtime/index.html',status:'available'},
     {icon:'📦',name:'PLC Projects',desc:'Deploy compiled projects',url:'/ui/webmin-oso/cockpit/oso-plc-projects/index.html',status:'available'},
-    {icon:'👥',name:'Users & Roles',desc:'DB roles & permissions',url:'#',status:'mockup'},
-    {icon:'📁',name:'Logs',desc:'Detail, logrotate, RAM/persistent',url:'#',status:'mockup'},
+    {icon:'👥',name:'Users & Roles',desc:'DB roles & permissions',url:'#',status:'coming'},
+    {icon:'📁',name:'Logs',desc:'Detail, logrotate, RAM/persistent',url:'#',status:'coming'},
   ]},
   {name:'Networking & Gateways',apps:[
     {icon:'🔌',name:'Gateways',desc:'Modbus · OPC-UA · MQTT · HA',url:'/ui/webmin-oso/cockpit/oso-gateways/index.html',status:'available'},
-    {icon:'🏠',name:'Home Assistant',desc:'Compatibility gateway',url:'#',status:'mockup'},
-    {icon:'📡',name:'Network scanner',desc:'Discover TCP/IP & serial devices',url:'#',status:'mockup'},
-    {icon:'🧱',name:'Firewall',desc:'iptables editor',url:'#',status:'mockup'},
-    {icon:'🛡️',name:'fail2ban',desc:'Intrusion protection',url:'#',status:'mockup'},
+    {icon:'🏠',name:'Home Assistant',desc:'Compatibility gateway',url:'#',status:'coming'},
+    {icon:'📡',name:'Network scanner',desc:'Discover TCP/IP & serial devices',url:'#',status:'coming'},
+    {icon:'🧱',name:'Firewall',desc:'iptables editor',url:'#',status:'coming'},
+    {icon:'🛡️',name:'fail2ban',desc:'Intrusion protection',url:'#',status:'coming'},
   ]},
 ]};
-const DOT={available:'var(--good)',mockup:'var(--warn)',external:'var(--muted)'};
+const DOT={available:'var(--good)',coming:'var(--warn)',disabled:'var(--muted)',external:'var(--muted)'};
 const $=s=>document.querySelector(s);
 let model=load();
 function load(){try{const v=JSON.parse(localStorage.getItem(LS));if(v&&v.categories)return v;}catch(_){}
@@ -124,7 +124,7 @@ function render(){
         <input value="${esc(a.url||'')}" data-ci="${ci}" data-ai="${ai}" data-k="url" placeholder="/path or https://">
         <input value="${esc(a.desc||'')}" data-ci="${ci}" data-ai="${ai}" data-k="desc" placeholder="Description">
         <select data-ci="${ci}" data-ai="${ai}" data-k="status">
-          ${['available','mockup','external'].map(s=>`<option${a.status===s?' selected':''}>${s}</option>`).join('')}</select>
+          ${['available','coming','disabled','external'].map(s=>`<option${a.status===s?' selected':''}>${s}</option>`).join('')}</select>
         <button class="del" data-ci="${ci}" data-ai="${ai}" data-act="delapp" title="Remove">🗑</button>`;
       rows.appendChild(r);
     });
@@ -139,7 +139,7 @@ function render(){
   root.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>{
     const {ci,ai,act}=e.target.dataset;
     if(act==='delcat'){ if(confirm('Delete this category?')){model.categories.splice(ci,1);render();} }
-    else if(act==='addapp'){ model.categories[ci].apps.push({icon:'🔧',name:'New app',desc:'',url:'#',status:'mockup'});render(); }
+    else if(act==='addapp'){ model.categories[ci].apps.push({icon:'🔧',name:'New app',desc:'',url:'#',status:'coming'});render(); }
     else if(act==='delapp'){ model.categories[ci].apps.splice(ai,1);render(); }
   });
 }

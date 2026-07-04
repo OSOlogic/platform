@@ -37,5 +37,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Node-RED — flow editor & dashboards (Diego's PLCBorrell interface).
+  # His flows are wired to the DB via node-red-contrib-mysql-config (targeting the
+  # PLC/rtmirror schema). In the sandbox: Manage Palette → install that node, import
+  # /reference/flows.json, and point the MySQL config node at host "db", db "osodb".
+  nodered:
+    image: nodered/node-red:4
+    ports:
+      - "1880:1880"
+    environment:
+      TZ: Europe/Madrid
+    volumes:
+      - nodered-data:/data
+      - ../ui/node-red:/reference:ro     # Diego's flows.json + package.json to import
+    depends_on:
+      - db
+    restart: unless-stopped
+
 volumes:
   osodb-data:
+  nodered-data:

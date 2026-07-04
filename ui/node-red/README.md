@@ -51,3 +51,22 @@ When a control is actuated in Node-RED, a dynamic SQL query is generated to upda
 
 ---
 *Developed for the OsoLogic ecosystem - Advancing industrial automation.*
+---
+
+## Run in the OSOLogic sandbox
+
+The [sandbox](../../sandbox/) brings up Node-RED alongside MariaDB + osodb:
+
+```bash
+cd sandbox && docker compose up --build     # Node-RED at http://localhost:1880
+```
+
+To wire these flows to the sandbox DB:
+
+1. **Manage Palette → Install** `node-red-contrib-mysql-config`.
+2. **Import** `/reference/flows.json` (mounted from this folder).
+3. Point the **MySQL config node** at host `db`, database `osodb`, port `3306` (user `osoapp`/`osoapp`).
+
+> **Schema note.** These flows target Diego's **`PLC` / `rtmirror`** schema. The sandbox ships a
+> simplified `osodb.tags` table, so a compatibility **view** (or adapting the SQL nodes to `tags`) is
+> the remaining wiring step — tracked as the osodb ↔ rtmirror reconciliation.
