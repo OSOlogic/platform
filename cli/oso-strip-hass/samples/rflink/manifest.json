@@ -1,0 +1,1 @@
+{"domain":"rflink","name":"RFLink","iot_class":"assumed_state","requirements":["rflink==0.0.66"]}

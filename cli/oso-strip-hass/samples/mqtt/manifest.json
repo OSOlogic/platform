@@ -1,0 +1,1 @@
+{"domain":"mqtt","name":"MQTT","iot_class":"local_push","requirements":["paho-mqtt==1.6.1"],"mqtt":["#"]}

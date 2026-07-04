@@ -1,0 +1,1 @@
+{"domain":"tuya","name":"Tuya","iot_class":"cloud_push","requirements":["tuya-device-sharing-sdk==0.2.1"]}

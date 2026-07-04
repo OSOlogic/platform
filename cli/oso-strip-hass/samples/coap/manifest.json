@@ -1,0 +1,1 @@
+{"domain":"tradfri","name":"IKEA TRADFRI","iot_class":"local_polling","requirements":["pytradfri[async]==9.0.1","aiocoap==0.4.7"],"zeroconf":["_coap._udp.local."]}

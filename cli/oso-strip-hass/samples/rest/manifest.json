@@ -1,0 +1,1 @@
+{"domain":"rest","name":"RESTful","iot_class":"local_polling","requirements":["jsonpath==0.82","xmltodict==0.13.0"]}

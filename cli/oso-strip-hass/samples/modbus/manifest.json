@@ -1,0 +1,1 @@
+{"domain":"modbus","name":"Modbus","iot_class":"local_polling","requirements":["pymodbus==3.5.4"]}
