@@ -16,6 +16,7 @@
   a{color:var(--accent)}
   header{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
   .logo{font-weight:800;letter-spacing:-.02em}.logo b{color:var(--accent)}
+  .brand-mark{width:26px;height:20px;flex:0 0 auto}
   .sep{width:1px;height:22px;background:var(--line)}
   .grow{flex:1}
   button,select,input{font-family:inherit;font-size:13px}
@@ -53,6 +54,7 @@
 <body data-mode="edit">
 
 <header>
+  <img class="brand-mark" src="../../shared/oso-mark.svg" alt="OSOLogic">
   <span class="logo">OSO<b>logic</b> · SVG HMI</span>
   <span class="pill edit-only">editor</span>
   <div class="sep"></div>
@@ -147,8 +149,9 @@ function renderBindPanel(){
     </div>`).join('');
   p.innerHTML = `
     <div class="selrow">#${selected}</div>
-    <label class="f">osodb tag (NodeId/address or name)</label>
-    <input class="f" id="bTag" value="${b.tag||''}" placeholder="2.5">
+    <label class="f">osodb tag <span class="muted">(pick or type — NodeId/name)</span></label>
+    <input class="f" id="bTag" list="tagList" value="${b.tag||''}" placeholder="2.5 or hass.light.kitchen">
+    <datalist id="tagList"></datalist>
     <label class="f">Default colour</label>
     <input class="sw" id="bDefault" type="color" value="${b.default||'#3a3f4b'}" style="width:100%;height:30px">
     <label class="f"><input type="checkbox" id="bLabel" ${b.label?'checked':''}> show value as text</label>
@@ -159,6 +162,9 @@ function renderBindPanel(){
       default grey. Analog → <span class="mono">&gt; 80 → red</span>.</p>`;
 
   document.getElementById('bTag').onchange = e=>{ b.tag=e.target.value.trim(); persist(); if(running) OsoDB.startPolling(boundTags); };
+  // Populate the tag picker from osodb (includes hass.* tags from the HA bridge).
+  if(OsoDB.cfg.baseUrl) OsoDB.listTags().then(tags=>{ const dl=document.getElementById('tagList');
+    if(dl) dl.innerHTML=tags.map(t=>`<option value="${t.key}">${t.label}</option>`).join(''); }).catch(()=>{});
   document.getElementById('bDefault').oninput = e=>{ b.default=e.target.value; persist(); applyLiveColors(); };
   document.getElementById('bLabel').onchange = e=>{ b.label=e.target.checked; persist(); applyLiveColors(); };
   document.getElementById('addRule').onclick = ()=>{ b.rules.push({op:'==',val:1,color:'#46d17f'}); persist(); renderBindPanel(); };

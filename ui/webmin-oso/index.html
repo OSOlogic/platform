@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — System Administration</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --line:#2a2e37; --ink:#ece9e3; --muted:#8b8f99;
+    --accent:#f48c06; --accent-2:#ffb64d; --brand:#a11313; --good:#46d17f;
+    --mono:ui-monospace,Menlo,Consolas,monospace; --sans:"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:18px 0;border-bottom:1px solid var(--line)}
+  header img{width:34px;height:26px}
+  .logo{font-weight:800;font-size:19px}.logo b{color:var(--accent)}.reg{font-size:.55em;vertical-align:super;color:var(--muted)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;margin:38px 0 8px}
+  h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);max-width:60ch;margin:0 0 34px;font-size:16px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+  .flavours{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:44px}
+  @media(max-width:720px){.flavours{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .16s,border-color .16s}
+  .card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+  .card h2{margin:0 0 4px;font-size:20px} .card .tag{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .card p{color:var(--muted);font-size:14px;margin:12px 0 18px}
+  .cta{display:inline-flex;gap:8px;font-weight:700;color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
+  .mod{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .mod:hover{border-color:var(--accent)} .mod h3{margin:0 0 4px;font-size:15px} .mod span{color:var(--muted);font-size:12.5px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:40px;padding:22px 0 50px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="../shared/oso-mark.svg" alt="OSOLogic">
+    <span class="logo">OSO<b>logic</b><span class="reg">®</span></span>
+    <span class="krumb">System Administration</span>
+  </header>
+
+  <h1>Administer OSOLogic — <em>your way.</em></h1>
+  <p class="lede">Two admin flavours over the same system. Both configure the device — services,
+    network, users, runtime, gateways — <b>and</b> how the HMI is shown and configured.</p>
+
+  <p class="eyebrow">Choose a flavour</p>
+  <div class="flavours">
+    <a class="card" href="./public/">
+      <div class="tag">flavour · lightweight</div>
+      <h2>Webmin style</h2>
+      <p>A Webmin-inspired panel — familiar, form-driven, no dependencies. Manage everything from
+        one place, ideal on small boards.</p>
+      <span class="cta">Open Webmin flavour →</span>
+    </a>
+    <a class="card" href="./cockpit/oso-runtime/index.html">
+      <div class="tag">flavour · modern</div>
+      <h2>Cockpit style</h2>
+      <p>Cockpit modules (PatternFly) — a modern, real-time console that plugs into system Cockpit.
+        Rich widgets, live status.</p>
+      <span class="cta">Open Cockpit flavour →</span>
+    </a>
+  </div>
+
+  <p class="eyebrow">Modules</p>
+  <div class="grid">
+    <a class="mod" href="./cockpit/oso-runtime/index.html"><h3>Runtime</h3><span>Scan cycle, start/stop, status</span></a>
+    <a class="mod" href="./cockpit/oso-plc-projects/index.html"><h3>PLC Projects</h3><span>Programs, activate, deploy</span></a>
+    <a class="mod" href="./cockpit/oso-gateways/index.html"><h3>Gateways</h3><span>Modbus · OPC-UA · MQTT · HA</span></a>
+    <a class="mod" href="./cockpit/oso-iotags/index.html"><h3>I/O Tags</h3><span>Browse osodb, read/write</span></a>
+    <a class="mod" href="./cockpit/oso-hmi/index.html"><h3>HMI</h3><span>Screens, SVG / HTML5, bindings</span></a>
+    <a class="mod" href="./scripting/index.html"><h3>Scripting</h3><span>Multi-language admin scripts</span></a>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+</body>
+</html>

@@ -47,6 +47,17 @@
       if (!r.ok) throw new Error('HTTP ' + r.status);
     },
 
+    /** List available tags from osodb (for the HMI tag picker). */
+    async listTags() {
+      const r = await fetch(this._base() + '/tags', { headers: this._headers() });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      const arr = Array.isArray(j) ? j : (j.tags || []);
+      return arr.map(t => typeof t === 'string'
+        ? { key: t, label: t }
+        : { key: (t.id || t.key || t.node || ''), label: (t.name || t.label || t.id || t.key || '') });
+    },
+
     /** Poll the given keys; broadcasts `osodb:update` (detail = live map). */
     startPolling(keysFn) {
       this.stop();

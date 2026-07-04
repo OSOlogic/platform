@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOlogic — HMI</title>
+<style>
+  :root{ --oso-red:#800000; --oso-red3:#600000; --accent:#f48c06; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#111317;color:#e0e0e0;font-family:"Segoe UI",system-ui,sans-serif;font-size:14px}
+  .oso-header{background:#1c1c1c;border-bottom:3px solid var(--oso-red3);padding:10px 24px;display:flex;align-items:center;gap:14px}
+  .oso-header img{width:30px;height:23px}
+  .oso-header h1{font-size:17px;font-weight:700;color:#e0e0e0;margin:0}
+  .oso-header .sub{font-size:11px;color:#777}
+  .wrap{padding:22px 24px;max-width:960px}
+  .eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  @media(max-width:680px){.cards{grid-template-columns:1fr}}
+  .card{background:#181b20;border:1px solid #2a2e37;border-radius:14px;padding:20px}
+  .card h2{margin:0 0 4px;font-size:18px} .card p{color:#8b8f99;font-size:13.5px;margin:8px 0 16px}
+  .btn{display:inline-flex;gap:8px;background:var(--accent);color:#161007;border:none;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer;text-decoration:none;font-size:13.5px}
+  .btn.ghost{background:transparent;color:#e0e0e0;border:1px solid #2a2e37}
+  h3{margin:24px 0 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8b8f99}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #22262e} th{color:#8b8f99;font-weight:600}
+  .empty{color:#8b8f99;font-size:13px;padding:14px 0}
+  .chip{font-family:ui-monospace,monospace;font-size:11px;color:#8b8f99;border:1px solid #2a2e37;border-radius:999px;padding:2px 8px}
+</style>
+</head>
+<body>
+<div class="oso-header">
+  <img src="../../../shared/oso-mark.svg" alt="OSOLogic">
+  <div><h1>HMI Screens</h1><div class="sub">Process visualization &amp; operator interface · osodb-bound</div></div>
+</div>
+
+<div class="wrap">
+  <p class="eyebrow">Build a screen</p>
+  <div class="cards">
+    <div class="card">
+      <h2>SVG mimic <span class="chip">shape → state colour</span></h2>
+      <p>Draw or import an SVG plant diagram and bind shapes to osodb tags with colour rules — pipes,
+        tanks, valves that change colour by state.</p>
+      <a class="btn" href="../../../hmi-web/svg-hmi/index.html" target="_blank" rel="noopener">Open SVG editor →</a>
+    </div>
+    <div class="card">
+      <h2>HTML5 board <span class="chip">controls + image</span></h2>
+      <p>Lamps, values, gauges and buttons over a background image, drag-positioned and bound to tags —
+        for control panels and dashboards.</p>
+      <a class="btn ghost" href="../../../hmi-web/html5-hmi/index.html" target="_blank" rel="noopener">Open HTML5 editor →</a>
+    </div>
+  </div>
+
+  <h3>Screens</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Engine</th><th>Bindings</th><th></th></tr></thead>
+    <tbody id="screens"><tr><td colspan="4" class="empty">No saved screens yet. Create one with an editor above; screens saved in the browser appear here.</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+  // List HMI screens saved by the editors (localStorage). Foundation; a server-backed
+  // store lands in webmin-oso/api.
+  try{
+    const rows=[];
+    const svg=JSON.parse(localStorage.getItem('osohmi_svg')||'null');
+    if(svg) rows.push({name:'SVG mimic', engine:'SVG', n:Object.keys(svg.bindings||{}).length, url:'../../../hmi-web/svg-hmi/index.html'});
+    const h5=JSON.parse(localStorage.getItem('osohmi_html5')||'null');
+    if(h5) rows.push({name:'HTML5 board', engine:'HTML5', n:(h5.widgets||[]).length, url:'../../../hmi-web/html5-hmi/index.html'});
+    if(rows.length){
+      document.getElementById('screens').innerHTML = rows.map(r=>
+        `<tr><td>${r.name}</td><td>${r.engine}</td><td>${r.n}</td><td><a class="btn ghost" href="${r.url}" target="_blank" rel="noopener">Open</a></td></tr>`).join('');
+    }
+  }catch(_){}
+</script>
+</body>
+</html>
