@@ -465,6 +465,11 @@ function buildRungSVG(rung) {
   const svgH    = rungSvgH(rung);
   const svgW    = rung.cols * CELL_W;
   const rxStart = (rung.cols-1)*CELL_W;  // x of right rail
+  // Parallel branches rejoin just before the first coil (so both paths feed it),
+  // or at the right rail if the rung has no coil.
+  let joinCol = rung.cols-1;
+  for(let c=1;c<rung.cols-1;c++){ const cc=rung.cells[0]?.[c]; if(cc && cc.type && cc.type.startsWith('COIL')){ joinCol=c; break; } }
+  const joinX = joinCol < rung.cols-1 ? joinCol*CELL_W : rxStart;
 
   const svg = svgEl('svg',{
     class:'rung-svg',
@@ -484,7 +489,8 @@ function buildRungSVG(rung) {
     const ym  = y0 + rh/2;
     const sc  = rung.rowStartCols[r] ?? 1;   // start column index
     const xStart = r === 0 ? RAIL_W : sc * CELL_W;  // row 0 starts at rail edge
-    svg.appendChild(svgLine(xStart, ym, rxStart, ym, COLORS.wire, 2));
+    const xEnd   = r === 0 ? rxStart : joinX;       // branch rows rejoin at the coil
+    svg.appendChild(svgLine(xStart, ym, xEnd, ym, COLORS.wire, 2));
   }
 
   // ── 2. VERTICAL BRANCH CONNECTORS ─────────────────────────
@@ -497,7 +503,7 @@ function buildRungSVG(rung) {
     // Right side: connect all rows at the right rail edge
     const topYm = rowYOffset(rung,0) + rowHeight(rung,0)/2;
     const botYm = rowYOffset(rung,rung.rows-1) + rowHeight(rung,rung.rows-1)/2;
-    svg.appendChild(svgLine(rxStart, topYm, rxStart, botYm, COLORS.wire, 2.5));
+    svg.appendChild(svgLine(joinX, topYm, joinX, botYm, COLORS.wire, 2.5));
 
     // Left/mid side: per branch row
     for(let r=1;r<rung.rows;r++){
