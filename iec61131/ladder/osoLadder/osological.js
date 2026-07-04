@@ -335,11 +335,15 @@ function drawTransition(g, x0, y0, label, letter) {
 }
 
 function drawCoil(g, x0, y0, label, inner) {
-  const ym=y0+CELL_H/2,cx=x0+CELL_W/2,r=16;
-  g.appendChild(svgLine(x0,ym,cx-r,ym,COLORS.coil));
-  g.appendChild(svgLine(cx+r,ym,x0+CELL_W,ym,COLORS.coil));
-  g.appendChild(svgEl('circle',{cx,cy:ym,r,stroke:COLORS.coil,'stroke-width':2,fill:'none'}));
-  if(inner==='/') g.appendChild(svgLine(cx-9,ym+9,cx+9,ym-9,COLORS.coil,2));
+  // IEC 61131-3 coil = facing parentheses  ( )   (not a full circle)
+  const ym=y0+CELL_H/2, cx=x0+CELL_W/2, gap=9, h=15, bow=8;
+  g.appendChild(svgLine(x0,ym,cx-gap,ym,COLORS.coil));
+  g.appendChild(svgLine(cx+gap,ym,x0+CELL_W,ym,COLORS.coil));
+  g.appendChild(svgEl('path',{d:`M ${cx-gap} ${ym-h} Q ${cx-gap-bow} ${ym} ${cx-gap} ${ym+h}`,
+    stroke:COLORS.coil,'stroke-width':2,fill:'none','stroke-linecap':'round'}));
+  g.appendChild(svgEl('path',{d:`M ${cx+gap} ${ym-h} Q ${cx+gap+bow} ${ym} ${cx+gap} ${ym+h}`,
+    stroke:COLORS.coil,'stroke-width':2,fill:'none','stroke-linecap':'round'}));
+  if(inner==='/') g.appendChild(svgLine(cx-7,ym+8,cx+7,ym-8,COLORS.coil,2));
   else if(inner)  g.appendChild(svgText(inner,cx,ym+1,{fill:COLORS.coil,'font-size':'12','font-family':'monospace','font-weight':'bold'}));
   if(label) g.appendChild(svgText(trunc(label,10),cx,ym-22,{fill:COLORS.coil,'font-size':'10','font-family':'monospace'}));
 }
