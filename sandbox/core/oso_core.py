@@ -12,13 +12,16 @@
 #
 # (C) 2026 Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0-or-later
 # ============================================================
+import glob
 import json
 import math
 import os
+import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote
 
 try:
     import pymysql
@@ -136,6 +139,51 @@ def scan_loop():
         time.sleep(SCAN_MS / 1000.0)
 
 
+# ---- network / serial discovery ----------------------------
+PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
+              1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
+              80: "HTTP", 443: "HTTPS", 22: "SSH", 23: "Telnet", 161: "SNMP",
+              8080: "HTTP-alt", 1880: "Node-RED", 8123: "Home Assistant",
+              3306: "MariaDB", 5432: "PostgreSQL", 6379: "Redis"}
+
+
+def scan_serial():
+    ports = []
+    for pat in ("/dev/ttyUSB*", "/dev/ttyACM*", "/dev/ttyS[0-9]*", "/dev/ttyAMA*", "/dev/serial/by-id/*"):
+        ports += glob.glob(pat)
+    return {"ports": sorted(set(ports))}
+
+
+def _probe(ip, port, timeout=0.35):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    try:
+        return s.connect_ex((ip, port)) == 0
+    except Exception:
+        return False
+    finally:
+        s.close()
+
+
+def scan_tcp(subnet, ports_str):
+    try:
+        plist = [int(p) for p in ports_str.split(",") if p.strip()][:16]
+    except Exception:
+        plist = [502, 4840, 1883, 80]
+    base = subnet.strip().rstrip(".")
+    if base.count(".") != 2:
+        return {"error": "subnet must be a /24 prefix like 192.168.1"}
+    targets = [(f"{base}.{h}", p) for h in range(1, 255) for p in plist]
+    found = {}
+    with ThreadPoolExecutor(max_workers=128) as ex:
+        for (ip, port), ok in zip(targets, ex.map(lambda t: _probe(*t), targets)):
+            if ok:
+                found.setdefault(ip, []).append({"port": port, "proto": PORT_NAMES.get(port, "?")})
+    hosts = [{"ip": ip, "ports": found[ip]} for ip in
+             sorted(found, key=lambda x: tuple(int(o) for o in x.split(".")))]
+    return {"subnet": base + ".0/24", "scanned_ports": plist, "hosts": hosts}
+
+
 # ---- REST + static -----------------------------------------
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -173,6 +221,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json([])
         if path == "/api/v1/projects":
             return self._json([])
+        if path == "/api/v1/scan/serial":
+            return self._json(scan_serial())
+        if path == "/api/v1/scan/tcp":
+            q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            return self._json(scan_tcp(q.get("subnet", ["192.168.1"])[0],
+                                       q.get("ports", ["502,102,44818,4840,1883,80"])[0]))
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)

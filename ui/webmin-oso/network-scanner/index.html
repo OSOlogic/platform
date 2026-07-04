@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Network scanner</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:940px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:24px;margin:22px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 18px;max-width:72ch}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+  .panel h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:13px}
+  .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:700;border-radius:8px;padding:9px 16px;cursor:pointer;font-size:13px}
+  .btn.ghost{background:var(--panel-2);border-color:var(--line);color:var(--ink);font-weight:400}
+  .btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.6;cursor:default}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  td.ip{font-family:var(--mono)}
+  .chip{display:inline-block;font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:2px 4px 2px 0}
+  .chip .pt{color:var(--accent);font-weight:700}
+  .muted{color:var(--muted)}.spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+  .add{font-size:12px;color:var(--accent)}.add:hover{text-decoration:underline}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:18px 0 44px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+      <span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Network scanner</span>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Network &amp; device <em>scanner</em></h1>
+  <p class="lede">Discover automation devices on the network — probe a subnet for industrial ports
+    (Modbus, OPC-UA, EtherNet/IP, S7, MQTT, BACnet…) and list serial ports. Add what you find as a
+    <a href="../cockpit/oso-gateways/index.html" style="color:var(--accent)">gateway</a>.</p>
+
+  <div class="panel">
+    <h2>TCP / IP scan</h2>
+    <div class="row">
+      <div><label>Subnet (/24 prefix)</label><input id="subnet" value="192.168.1" size="12"></div>
+      <div style="flex:1;min-width:220px"><label>Ports</label><input id="ports" value="502,102,44818,4840,1883,47808,80" style="width:100%"></div>
+      <button class="btn" id="scanBtn">Scan</button>
+    </div>
+    <div id="tcpOut" style="margin-top:14px"><p class="muted">Enter a subnet and press Scan. (A /24 sweep takes a few seconds.)</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>Serial ports</h2>
+    <button class="btn ghost" id="serialBtn">↻ List serial ports</button>
+    <div id="serialOut" style="margin-top:12px"></div>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+$('#scanBtn').onclick=async()=>{
+  const b=$('#scanBtn'); b.disabled=true; b.textContent='Scanning…';
+  $('#tcpOut').innerHTML='<p class="muted"><span class="spin">◠</span> probing '+esc($('#subnet').value)+'.0/24 …</p>';
+  try{
+    const u=BASE+'/api/v1/scan/tcp?subnet='+encodeURIComponent($('#subnet').value)+'&ports='+encodeURIComponent($('#ports').value);
+    const d=await (await fetch(u)).json();
+    if(d.error){ $('#tcpOut').innerHTML='<p class="muted">'+esc(d.error)+'</p>'; }
+    else if(!d.hosts||!d.hosts.length){ $('#tcpOut').innerHTML='<p class="muted">No devices answered on '+esc(d.subnet)+' for those ports.</p>'; }
+    else{
+      $('#tcpOut').innerHTML='<p class="muted">'+d.hosts.length+' device(s) on '+esc(d.subnet)+':</p><table><thead><tr><th>Host</th><th>Open ports</th><th></th></tr></thead><tbody>'+
+        d.hosts.map(h=>`<tr><td class="ip">${esc(h.ip)}</td><td>${h.ports.map(p=>`<span class="chip"><span class="pt">${p.port}</span> ${esc(p.proto)}</span>`).join('')}</td>
+          <td><a class="add" href="../cockpit/oso-gateways/index.html" title="Configure a gateway for this device">+ gateway</a></td></tr>`).join('')+'</tbody></table>';
+    }
+  }catch(e){ $('#tcpOut').innerHTML='<p class="muted">Scan failed: '+esc(e.message)+' (is the core running?)</p>'; }
+  b.disabled=false; b.textContent='Scan';
+};
+
+$('#serialBtn').onclick=async()=>{
+  $('#serialOut').innerHTML='<p class="muted">…</p>';
+  try{
+    const d=await (await fetch(BASE+'/api/v1/scan/serial')).json();
+    $('#serialOut').innerHTML = (d.ports&&d.ports.length)
+      ? '<div>'+d.ports.map(p=>`<span class="chip">${esc(p)}</span>`).join('')+'</div>'
+      : '<p class="muted">No serial ports found (none attached, or not permitted in this environment).</p>';
+  }catch(e){ $('#serialOut').innerHTML='<p class="muted">Failed: '+esc(e.message)+'</p>'; }
+};
+
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
+</script>
+</body>
+</html>

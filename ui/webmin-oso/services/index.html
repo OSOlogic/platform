@@ -46,7 +46,7 @@
 
   <h1>Services &amp; <em>Launcher</em></h1>
   <p class="lede">Configure the OSOLogic home launcher — which apps and admin tools appear, their links
-    and whether each is <b>available</b>, a <b>mockup</b> (coming) or an <b>external</b> service. Saved
+    and whether each is <b>available</b>, <b>coming soon</b>, <b>disabled</b> or an <b>external</b> service. Saved
     settings drive <a href="/" style="color:var(--accent)">the home page</a> on this instance.</p>
 
   <div class="bar">
@@ -75,7 +75,7 @@ const DEFAULT={categories:[
     {icon:'🏭',name:'Plant Manager',desc:'Device tree + plant mimic',url:'/ui/hmi-web/plant-manager/index.html',status:'available'},
     {icon:'🖼️',name:'HMI · SVG',desc:'SVG mimic bound to tags',url:'/ui/hmi-web/svg-hmi/index.html',status:'available'},
     {icon:'🎛️',name:'HMI · HTML5',desc:'Widget board',url:'/ui/hmi-web/html5-hmi/index.html',status:'available'},
-    {icon:'📊',name:'Dashboards',desc:'Node-RED Dashboard (Diego)',url:'http://localhost:1880/dashboard',status:'available'},
+    {icon:'📊',name:'Dashboards',desc:'Node-RED Dashboard',url:'http://localhost:1880/dashboard',status:'available'},
     {icon:'🔔',name:'Alarms & Events',desc:'Live alarms + history',url:'#',status:'coming'},
   ]},
   {name:'Engineering',apps:[
@@ -97,7 +97,7 @@ const DEFAULT={categories:[
   {name:'Networking & Gateways',apps:[
     {icon:'🔌',name:'Gateways',desc:'Modbus · OPC-UA · MQTT · HA',url:'/ui/webmin-oso/cockpit/oso-gateways/index.html',status:'available'},
     {icon:'🏠',name:'Home Assistant',desc:'Compatibility gateway',url:'#',status:'coming'},
-    {icon:'📡',name:'Network scanner',desc:'Discover TCP/IP & serial devices',url:'#',status:'coming'},
+    {icon:'📡',name:'Network scanner',desc:'Discover TCP/IP & serial devices',url:'/ui/webmin-oso/network-scanner/index.html',status:'available'},
     {icon:'🧱',name:'Firewall',desc:'iptables editor',url:'#',status:'coming'},
     {icon:'🛡️',name:'fail2ban',desc:'Intrusion protection',url:'#',status:'coming'},
   ]},
