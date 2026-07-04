@@ -68,7 +68,7 @@
   // Compile one rung to ST statements. Series within a row = AND, rows = OR.
   // (Prototype: treats each row as an independent parallel branch feeding the
   // outputs; nested mid-rung re-joins are approximated.)
-  function compileRung(rung, edgeDecls, warnings, idx) {
+  function compileRung(rung, edgeDecls, warnings, idx, callDecls) {
     const outLines = [];
     const contactRows = [];
     const outputs = [];   // {cell, row, col}
@@ -86,7 +86,9 @@
       if (rowContacts.length) contactRows.push(andJoin(rowContacts));
     }
 
-    const cond = orJoin(contactRows);   // parallel branches OR-ed together
+    // Parallel branches OR-ed together. No contacts = wired straight to the rail = TRUE
+    // (matches the simulator, so what you simulate is what you deploy).
+    const cond = contactRows.length ? orJoin(contactRows) : 'TRUE';
 
     if (outputs.length === 0) {
       warnings.push(`Rung ${idx + 1}${rung.label ? ` ("${rung.label}")` : ''}: no output — skipped.`);
@@ -102,16 +104,32 @@
         case 'COIL_SET':     outLines.push(`IF ${cond} THEN ${v} := TRUE; END_IF;`); break;
         case 'COIL_RESET':   outLines.push(`IF ${cond} THEN ${v} := FALSE; END_IF;`); break;
         default:
-          outLines.push(compileFB(cell, cond, edgeDecls, warnings, idx));
+          outLines.push(compileFB(cell, cond, edgeDecls, warnings, idx, callDecls));
       }
     }
     return outLines;
   }
 
   // Function-block call → ST. Timers/counters as instance calls; math/compare inline.
-  function compileFB(cell, cond, edgeDecls, warnings, idx) {
+  function compileFB(cell, cond, edgeDecls, warnings, idx, callDecls) {
     const p = cell.params || {};
     const inst = p.instanceName || (cell.type.replace('FB_', '') + '_1');
+    // CALL another POU (sub-ladder): declare an instance of the target FB and call it.
+    if (cell.type === 'FB_CALL') {
+      const target = sanitize(p.target || '');
+      if (!target) { warnings.push(`Rung ${idx + 1}: CALL with no target — skipped.`); return `(* CALL: no target *)`; }
+      const cinst = sanitize(p.instanceName || ('CALL_' + target));
+      if (callDecls) callDecls.set(cinst, target);
+      return `IF ${cond} THEN ${cinst}(); END_IF;`;
+    }
+    // PID controller: emitted as an FB instance call (needs a PID block in the ST library).
+    if (cell.type === 'FB_PID') {
+      edgeDecls.set(inst, 'PID');
+      warnings.push(`Rung ${idx + 1}: PID emitted as FB instance '${inst}' — provide a PID block in the ST library.`);
+      const out = p.OUT ? `\n  ${ref(p.OUT)} := ${inst}.OUT;` : '';
+      return `${inst}(EN := ${cond}, PV := ${ref(p.PV)}, SP := ${ref(p.SP)}, ` +
+             `KP := ${p.Kp || 0}, KI := ${p.Ki || 0}, KD := ${p.Kd || 0});${out}`;
+    }
     if (TIMERS.has(cell.type)) {
       const fb = cell.type.replace('FB_', '');           // TON/TOF/TP
       edgeDecls.set(inst, fb);
@@ -152,43 +170,64 @@
     return ok.has(t) ? t : 'BOOL';
   }
 
+  // Compile one POU (a named ladder diagram) to a PROGRAM or FUNCTION_BLOCK.
+  // Shared tags live in a VAR_GLOBAL block; each POU reaches them via VAR_EXTERNAL.
+  function compilePou(name, rungs, kind, state, warnings) {
+    const edgeDecls = new Map();   // local FB instances (timers/counters/edges/PID)
+    const callDecls = new Map();   // CALL instances: instName -> target POU (as FB)
+    const body = [];
+    (rungs || []).filter(r => r.enabled !== false).forEach((rung, i) => {
+      if (rung.label) body.push(`  (* Rung ${i + 1}: ${rung.label} *)`);
+      for (const line of compileRung(rung, edgeDecls, warnings, i, callDecls)) {
+        body.push('  ' + line.replace(/\n/g, '\n  '));
+      }
+    });
+    if (!body.length) body.push('  (* empty *)');
+
+    const ext = (state.variables || []).map(v => `  ${sanitize(v.name)} : ${stType(v.dataType)};`);
+    const locals = [];
+    for (const [inst, fb] of edgeDecls) locals.push(`  ${inst} : ${fb};`);
+    for (const [inst, tgt] of callDecls) locals.push(`  ${inst} : ${tgt};   (* sub-ladder *)`);
+
+    const kw = kind;   // 'PROGRAM' | 'FUNCTION_BLOCK'
+    return `${kw} ${sanitize(name)}\n` +
+      (ext.length ? `VAR_EXTERNAL\n${ext.join('\n')}\nEND_VAR\n` : '') +
+      `VAR\n${locals.length ? locals.join('\n') : '  (* no local instances *)'}\nEND_VAR\n\n` +
+      body.join('\n') + `\n\nEND_${kw}\n`;
+  }
+
   /**
-   * Compile an osoLadder `state` object to a Structured Text program (string).
+   * Compile an osoLadder `state` object to Structured Text (string).
+   * Multi-POU: shared tags → VAR_GLOBAL, each function → FUNCTION_BLOCK (declared first,
+   * so CALLs resolve), the main program → PROGRAM.
    * @returns {{ st:string, warnings:string[] }}
    */
   function compileLadderToST(state) {
     const warnings = [];
-    const edgeDecls = new Map();   // instanceName -> FB type (R_TRIG/TON/...)
-    const name = sanitize((state.meta && state.meta.name) || 'LadderProgram') || 'LadderProgram';
+    const pous = (state.subroutines && Object.keys(state.subroutines).length)
+      ? state.subroutines
+      : { main: state.rungs || [] };
+    const funcs = Object.keys(pous).filter(n => n !== 'main');
 
-    const body = [];
-    const rungs = (state.rungs || []).filter(r => r.enabled !== false);
-    rungs.forEach((rung, i) => {
-      if (rung.label) body.push(`  (* Rung ${i + 1}: ${rung.label} *)`);
-      for (const line of compileRung(rung, edgeDecls, warnings, i)) {
-        body.push('  ' + line.replace(/\n/g, '\n  '));
-      }
-    });
-    if (!body.length) body.push('  (* empty program *)');
+    // Shared tags: one VAR_GLOBAL for the whole project.
+    const globals = (state.variables || []).map(v =>
+      `  ${sanitize(v.name)} : ${stType(v.dataType)}` +
+      (v.initialValue != null && v.initialValue !== '' ? ` := ${v.initialValue}` : '') + ';' +
+      (v.address ? `   (* @ ${v.address} *)` : '') +
+      (v.comment ? `   (* ${v.comment} *)` : ''));
 
-    // VAR block: declared variables + auto edge/FB instances.
-    const decls = [];
-    for (const v of (state.variables || [])) {
-      const line = `  ${sanitize(v.name)} : ${stType(v.dataType)}` +
-        (v.initialValue != null && v.initialValue !== '' ? ` := ${v.initialValue}` : '') + ';' +
-        (v.address ? `   (* @ ${v.address} *)` : '') +
-        (v.comment ? `   (* ${v.comment} *)` : '');
-      decls.push(line);
-    }
-    for (const [inst, fb] of edgeDecls) decls.push(`  ${inst} : ${fb};`);
+    const blocks = [];
+    // Functions (sub-ladders) first, so PROGRAM main can CALL them.
+    for (const fn of funcs) blocks.push(compilePou(fn, pous[fn], 'FUNCTION_BLOCK', state, warnings));
+    // Then the main program.
+    blocks.push(compilePou('main', pous['main'] || [], 'PROGRAM', state, warnings));
 
     const st =
       `(* Generated by osoLadder → osocompile.js (prototype) *)\n` +
-      `(* Source: ${(state.meta && state.meta.name) || 'untitled'} — IEC 61131-3 *)\n\n` +
-      `PROGRAM ${name}\n` +
-      `VAR\n${decls.length ? decls.join('\n') : '  (* no variables *)'}\nEND_VAR\n\n` +
-      body.join('\n') + '\n\n' +
-      `END_PROGRAM\n`;
+      `(* Source: ${(state.meta && state.meta.name) || 'untitled'} — IEC 61131-3 *)\n` +
+      `(* POUs: main${funcs.length ? ' + ' + funcs.join(', ') : ''} *)\n\n` +
+      `VAR_GLOBAL\n${globals.length ? globals.join('\n') : '  (* no tags *)'}\nEND_VAR\n\n` +
+      blocks.join('\n');
 
     return { st, warnings };
   }
