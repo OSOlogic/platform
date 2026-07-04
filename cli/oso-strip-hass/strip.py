@@ -71,22 +71,49 @@ def main():
     ap.add_argument("--path", help="HA components dir (contains <domain>/manifest.json)")
     ap.add_argument("--samples", action="store_true", help="use the bundled samples/")
     ap.add_argument("--out", help="write candidate driver.json stubs here")
+    ap.add_argument("--verbose", action="store_true", help="list every integration (huge on a full HA tree)")
+    ap.add_argument("--limit", type=int, default=0, help="list only the first N in the detail table")
     args = ap.parse_args()
 
     root = os.path.join(HERE, "samples") if args.samples else args.path
     if not root:
         ap.error("give --path <ha components> or --samples")
     files = glob.glob(os.path.join(root, "*", "manifest.json"))
-    results = [classify(json.load(open(f))) for f in files]
+    results = []
+    for f in files:
+        try:
+            results.append(classify(json.load(open(f))))
+        except Exception:
+            pass
     results.sort(key=lambda c: (not c["easy"], c["domain"]))
-
     easy = [c for c in results if c["easy"]]
-    print(f"\nSwept {len(results)} integrations — {len(easy)} easily mappable → native driver, "
-          f"{len(results) - len(easy)} stay bridged\n")
-    print(f"  {'STATUS':10} {'DOMAIN':14} {'TRANSPORT':16} {'IOT_CLASS':14} REASON")
-    for c in results:
-        print(f"  {'✓ native' if c['easy'] else '· bridged':10} {c['domain']:14} "
-              f"{str(c['transport']):16} {c['iot_class']:14} {c['reason']}")
+    n = len(results) or 1
+
+    from collections import Counter
+    by_t = Counter(str(c["transport"]) for c in results)
+    by_i = Counter(c["iot_class"] for c in results)
+
+    print(f"\n╭─ Swept {len(results)} HA integrations "
+          f"({os.path.basename(os.path.abspath(root))})")
+    print(f"│  native (easily mappable): {len(easy):5}  ({100*len(easy)//n}%)")
+    print(f"│  bridged (for now):        {len(results)-len(easy):5}  ({100*(len(results)-len(easy))//n}%)")
+    print("├─ by transport")
+    for t, c in by_t.most_common():
+        bar = "█" * min(40, c * 40 // (by_t.most_common(1)[0][1] or 1))
+        print(f"│  {t:16} {c:5} {bar}")
+    print("├─ by iot_class")
+    for i, c in by_i.most_common():
+        print(f"│  {i:16} {c:5}")
+    print("╰─")
+
+    if args.verbose or args.limit:
+        rows = results[:args.limit] if args.limit else results
+        print(f"\n  {'STATUS':10} {'DOMAIN':16} {'TRANSPORT':16} {'IOT_CLASS':14} REASON")
+        for c in rows:
+            print(f"  {'✓ native' if c['easy'] else '· bridged':10} {c['domain']:16} "
+                  f"{str(c['transport']):16} {c['iot_class']:14} {c['reason']}")
+        if args.limit and len(results) > args.limit:
+            print(f"  … +{len(results)-args.limit} more (use --verbose for all)")
 
     if args.out:
         os.makedirs(args.out, exist_ok=True)
