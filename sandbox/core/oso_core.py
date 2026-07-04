@@ -56,6 +56,47 @@ def log(level, msg):
     print(f"[{level}] {msg}", flush=True)
 
 
+# ---- alarms (osoadmin Alarms & Events module) --------------
+ALARM_RULES = [
+    {"id": "a1", "tag": "hass.sensor.tank_level",  "op": ">=", "value": 48, "severity": "warn",     "label": "Tank level HIGH"},
+    {"id": "a2", "tag": "hass.sensor.tank_level",  "op": "<=", "value": 36, "severity": "warn",     "label": "Tank level LOW"},
+    {"id": "a3", "tag": "hass.sensor.temperature", "op": ">=", "value": 27, "severity": "critical", "label": "Ambient temp HIGH"},
+    {"id": "a4", "tag": "hass.binary_sensor.jam",  "op": "==", "value": 1,  "severity": "critical", "label": "Jam detected"},
+]
+ALARM_ACTIVE = {}
+ALARM_EVENTS = deque(maxlen=500)
+_arc = 4
+
+
+def _cmp(v, op, val):
+    try:
+        v = float(v)
+    except Exception:
+        return False
+    return {">": v > val, "<": v < val, ">=": v >= val, "<=": v <= val,
+            "==": v == val, "!=": v != val}.get(op, False)
+
+
+def eval_alarms():
+    now = time.strftime("%H:%M:%S")
+    for rule in ALARM_RULES:
+        r = CACHE.get(rule["tag"])
+        if not r:
+            continue
+        cond = _cmp(r.get("value"), rule["op"], float(rule["value"]))
+        rid = rule["id"]
+        if cond and rid not in ALARM_ACTIVE:
+            ALARM_ACTIVE[rid] = {"rule": rule, "since": now, "value": r.get("value"), "acked": False}
+            ALARM_EVENTS.append({"time": now, "type": "raised", "label": rule["label"], "severity": rule["severity"], "tag": rule["tag"]})
+            log("warn", f"ALARM raised — {rule['label']} ({rule['tag']}={r.get('value')})")
+        elif not cond and rid in ALARM_ACTIVE:
+            del ALARM_ACTIVE[rid]
+            ALARM_EVENTS.append({"time": now, "type": "cleared", "label": rule["label"], "severity": rule["severity"], "tag": rule["tag"]})
+            log("info", f"ALARM cleared — {rule['label']}")
+        elif cond and rid in ALARM_ACTIVE:
+            ALARM_ACTIVE[rid]["value"] = r.get("value")
+
+
 def tag_pub(r):
     """Public tag shape for REST (works for /tags and /api/v1/tags — includes `type` alias)."""
     return {"id": r["id"], "name": r.get("name"), "data_type": r.get("data_type"),
@@ -146,6 +187,10 @@ def scan_loop():
                     db_exec("UPDATE tags SET value=%s WHERE id=%s", (float(r["value"] or 0), tid))
                 except Exception:
                     pass
+        try:
+            eval_alarms()
+        except Exception:
+            pass
         time.sleep(SCAN_MS / 1000.0)
 
 
@@ -243,6 +288,11 @@ class Handler(BaseHTTPRequestHandler):
             thr = _LEVELS.get(q.get("level", [""])[0], 0)
             lines = [ln for ln in LOGS if _LEVELS.get(ln["level"], 1) >= thr]
             return self._json({"config": LOG_CFG, "lines": lines[-n:]})
+        if path == "/api/v1/alarms":
+            active = [{"id": k, "label": v["rule"]["label"], "severity": v["rule"]["severity"],
+                       "tag": v["rule"]["tag"], "since": v["since"], "value": v["value"], "acked": v["acked"]}
+                      for k, v in ALARM_ACTIVE.items()]
+            return self._json({"rules": ALARM_RULES, "active": active, "events": list(ALARM_EVENTS)[-100:]})
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -267,6 +317,30 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v1/logs/clear":
             LOGS.clear()
             return self._json({"ok": True})
+        if path.startswith("/api/v1/alarms/"):
+            global _arc
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "rule":
+                _arc += 1
+                rule = {"id": "a" + str(_arc), "tag": body.get("tag", ""), "op": body.get("op", ">"),
+                        "value": float(body.get("value", 0) or 0), "severity": body.get("severity", "warn"),
+                        "label": body.get("label", "alarm")}
+                ALARM_RULES.append(rule)
+                return self._json({"ok": True, "rule": rule})
+            if act == "delete":
+                rid = body.get("id")
+                ALARM_RULES[:] = [r for r in ALARM_RULES if r["id"] != rid]
+                ALARM_ACTIVE.pop(rid, None)
+                return self._json({"ok": True})
+            if act == "ack":
+                rid = body.get("id")
+                if rid in ALARM_ACTIVE:
+                    ALARM_ACTIVE[rid]["acked"] = True
+                return self._json({"ok": True})
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)

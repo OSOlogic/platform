@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Alarms &amp; Events</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#c23434;--accent-2:#e05a5a;--brand:#a11313;--good:#46d17f;--warn:#e6a417;--crit:#e5484d;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:24px;margin:22px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 16px;max-width:74ch}
+  h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px;display:flex;align-items:center;gap:9px}
+  h2 .n{color:var(--accent);font-weight:700}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .al{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .al:last-child{border-bottom:none}
+  .sev{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.sev.warn{background:var(--warn)}.sev.critical{background:var(--crit);box-shadow:0 0 0 0 var(--crit);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--crit) 60%,transparent)}70%{box-shadow:0 0 0 7px transparent}}
+  .al .m{flex:1;min-width:0}.al .m .lb{font-weight:600}.al .m .d{font-size:12px;color:var(--muted);margin-top:2px}
+  .al .v{font-family:var(--mono);font-size:13px;color:var(--warn)}.al.critical .v{color:var(--crit)}
+  .btn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px}
+  .btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .badge.acked{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+  .empty{color:var(--muted);padding:16px;font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:11px;text-transform:uppercase}
+  td.mono,input,select{font-family:var(--mono)}
+  input,select{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:12.5px}
+  .ev{font-family:var(--mono);font-size:12px;padding:5px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px}
+  .ev .t{color:var(--muted)}.ev .r{color:var(--warn)}.ev .c{color:var(--good)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 40px}
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+      <span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Alarms &amp; Events</span>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Alarms &amp; <em>Events</em></h1>
+  <p class="lede">Threshold alarms on any tag, evaluated every scan. Active alarms can be acknowledged;
+    every raise/clear is logged as an event. (In the sandbox the simulated sensors move, so alarms fire live.)</p>
+
+  <h2>Active <span class="n" id="nActive">0</span></h2>
+  <div class="panel" id="active"><div class="empty">No active alarms.</div></div>
+
+  <h2>Rules <span class="n" id="nRules">0</span></h2>
+  <div class="panel">
+    <table><thead><tr><th>Tag</th><th>Condition</th><th>Severity</th><th>Label</th><th></th></tr></thead><tbody id="rules"></tbody></table>
+    <div class="addrow">
+      <input id="rTag" placeholder="tag id" size="20">
+      <select id="rOp"><option>&gt;</option><option>&gt;=</option><option>&lt;</option><option>&lt;=</option><option>==</option><option>!=</option></select>
+      <input id="rVal" type="number" placeholder="value" style="width:90px">
+      <select id="rSev"><option>warn</option><option>critical</option><option>info</option></select>
+      <input id="rLbl" placeholder="label" size="18">
+      <button class="btn pri" id="addRule">＋ Add rule</button>
+    </div>
+  </div>
+
+  <h2>Event history</h2>
+  <div class="panel" id="events"><div class="empty">No events yet.</div></div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function post(p,b){return fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});}
+
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/alarms')).json(); }catch(e){ $('#active').innerHTML='<div class="empty">core offline</div>'; return; }
+  // active
+  $('#nActive').textContent=d.active.length;
+  $('#active').innerHTML = d.active.length ? d.active.map(a=>`
+    <div class="al ${a.severity}"><span class="sev ${a.severity}"></span>
+      <div class="m"><div class="lb">${esc(a.label)}</div><div class="d">${esc(a.tag)} · since ${esc(a.since)} · ${esc(a.severity)}</div></div>
+      <div class="v">${esc(String(a.value))}</div>
+      ${a.acked?'<span class="badge acked">acked</span>':`<button class="btn" onclick="ack('${a.id}')">Ack</button>`}</div>`).join('')
+    : '<div class="empty">No active alarms.</div>';
+  // rules
+  $('#nRules').textContent=d.rules.length;
+  $('#rules').innerHTML=d.rules.map(r=>`<tr><td class="mono">${esc(r.tag)}</td><td class="mono">${esc(r.op)} ${esc(String(r.value))}</td>
+    <td>${esc(r.severity)}</td><td>${esc(r.label)}</td><td><button class="btn" onclick="delRule('${r.id}')">✕</button></td></tr>`).join('');
+  // events
+  $('#events').innerHTML = d.events.length ? d.events.slice().reverse().slice(0,60).map(e=>`
+    <div class="ev"><span class="t">${esc(e.time)}</span><span class="${e.type==='raised'?'r':'c'}">${e.type.toUpperCase()}</span><span>${esc(e.label)} <span class="t">(${esc(e.tag)})</span></span></div>`).join('')
+    : '<div class="empty">No events yet.</div>';
+}
+window.ack=async id=>{ await post('/api/v1/alarms/ack',{id}); load(); };
+window.delRule=async id=>{ await post('/api/v1/alarms/delete',{id}); load(); };
+$('#addRule').onclick=async()=>{
+  const tag=$('#rTag').value.trim(); if(!tag)return;
+  await post('/api/v1/alarms/rule',{tag,op:$('#rOp').value,value:Number($('#rVal').value||0),severity:$('#rSev').value,label:$('#rLbl').value||tag});
+  $('#rTag').value=$('#rVal').value=$('#rLbl').value=''; load();
+};
+setInterval(load,1600);
+
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
+load();
+</script>
+</body>
+</html>
