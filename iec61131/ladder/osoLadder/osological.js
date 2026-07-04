@@ -251,6 +251,16 @@ function createVariable(name, dataType, scope) {
            initialValue:null, comment:'', address:'' };
 }
 
+// Find a variable by name, or auto-declare it. Keeps the variable table in sync
+// with what the ladder references, so compile and live monitoring can bind it.
+function ensureVar(name, dataType) {
+  name = (name || '').trim();
+  if (!name) return null;
+  let v = state.variables.find(x => x.name === name);
+  if (!v) { v = createVariable(name, dataType || 'BOOL'); state.variables.push(v); renderTagTable(); }
+  return v;
+}
+
 // ============================================================
 // SECTION 6: UNDO/REDO
 // ============================================================
@@ -832,7 +842,7 @@ function populateProps(rungId, row, col) {
     pushUndo();
     const c=getRung(rungId).cells[row][col];
     c.variableName=e.target.value;
-    const v=state.variables.find(v=>v.name===e.target.value);
+    const v=ensureVar(e.target.value, 'BOOL');   // auto-declare if new
     c.variableId=v?v.id:null;
     hideAC(); rerenderRung(rungId);
   });
@@ -1020,6 +1030,7 @@ function renderTagTable() {
         ${['LOCAL','GLOBAL','IO_INPUT','IO_OUTPUT'].map(s=>`<option${v.scope===s?' selected':''}>${s}</option>`).join('')}
       </select></td>
       <td><input type="text" value="${escH(v.address||'')}" data-id="${v.id}" data-field="address" placeholder="%IX0.0"></td>
+      <td class="var-live" data-vname="${escH(v.name)}">${escH(liveValueFor(v.name))}</td>
       <td><input type="text" value="${escH(v.comment||'')}" data-id="${v.id}" data-field="comment" placeholder="${t('varComment')}..."></td>
       <td><button class="var-del-btn" data-id="${v.id}">&#10005;</button></td>
     `;
@@ -1039,6 +1050,27 @@ function renderTagTable() {
     });
   });
 }
+
+// Live value for a variable name, from the PLC connector (osodb / DB via REST).
+function liveValueFor(name) {
+  try {
+    const lv = (typeof PlcConnector !== 'undefined') ? PlcConnector.live() : null;
+    const val = lv ? lv[name] : undefined;
+    return (val === undefined || val === null) ? '—' : String(val);
+  } catch (_) { return '—'; }
+}
+
+// Refresh just the live-value cells in place (called on every osodb poll update).
+function updateLiveCells() {
+  document.querySelectorAll('#var-table-body td.var-live').forEach(td => {
+    const val = liveValueFor(td.dataset.vname);
+    td.textContent = val;
+    td.classList.toggle('live-on', val === 'true' || val === '1');
+  });
+}
+
+// osoplc.js broadcasts this after each REST poll of osodb / the DB.
+document.addEventListener('plc:update', updateLiveCells);
 
 // ============================================================
 // SECTION 18: IMPORT / EXPORT

@@ -47,6 +47,10 @@ const PlcConnector = {
 
   _ws:        null,
   _pollTimer: null,
+  _live:      {},   // last known live values, keyed by variable name (from osodb/DB via REST)
+
+  /** Live value snapshot (name → value), updated by the REST poll. */
+  live() { return this._live; },
 
   // ── Conectar ─────────────────────────────────────────────
   async connect() {
@@ -154,8 +158,21 @@ const PlcConnector = {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   },
 
-  _restPoll() {
-    // TODO: actualizar valores de variables activas en el editor
+  // Poll live values for the editor's declared variables from osodb / the DB,
+  // through the osoLogic REST API. Each variable is read by its `address`
+  // (its osodb tag / NodeId, e.g. "2.5") when set, otherwise by its name.
+  // Results are cached in `_live` and broadcast as a `plc:update` DOM event so
+  // the editor (variable table, energised contacts) can reflect live state.
+  async _restPoll() {
+    if (typeof state === 'undefined' || !Array.isArray(state.variables)) return;
+    const targets = state.variables.filter(v => v && (v.address || v.name));
+    await Promise.all(targets.map(async v => {
+      const key = (v.address && v.address.trim()) || v.name;
+      try { this._live[v.name] = await this._restRead(key); } catch (_) { /* keep last value */ }
+    }));
+    try {
+      document.dispatchEvent(new CustomEvent('plc:update', { detail: this._live }));
+    } catch (_) {}
   },
 
   // ── MQTT (WebSocket) ──────────────────────────────────────
@@ -199,11 +216,15 @@ const PlcConnector = {
   // ── Bridge (DB / Redis) ───────────────────────────────────
 
   async _connectBridge() {
-    // Acceso directo a DB/Redis no es posible desde el navegador.
-    // La configuración se persiste para que el bridge backend la lea.
+    // A browser cannot open raw DB/Redis sockets. The data-centric path is to go
+    // through the osoLogic REST API, which fronts osodb (the in-memory hub) and,
+    // behind it, MariaDB/Redis — so "DB / osodb" reads and writes reuse the REST
+    // connector against the osoLogic server. Configure that endpoint under
+    // Settings → PLC → REST and select REST, or point a bridge at this config.
     throw new Error(
-      'Este protocolo requiere un bridge backend. ' +
-      'La configuración ha sido guardada; conéctate a través del servidor osoLogic.'
+      'DB/Redis/osodb access goes through the osoLogic REST API (it fronts osodb ' +
+      'and the database). Set the REST endpoint and use REST mode — the config has ' +
+      'been saved. Direct DB sockets are not available from the browser.'
     );
   },
 };

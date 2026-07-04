@@ -640,3 +640,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg-primary); colo
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Live value cell — osodb / DB monitoring (variable table) */
+#var-table td.var-live{font-family:monospace;text-align:center;color:#8b8f99;font-size:12px;min-width:44px}
+#var-table td.var-live.live-on{color:#46d17f;font-weight:700}
