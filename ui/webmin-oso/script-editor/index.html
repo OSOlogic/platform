@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Script editor</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#0d6efd;--accent-2:#3d8bfd;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:22px;margin:18px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 14px;max-width:78ch;font-size:13.5px}
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  select,input,button{font-size:13px}
+  select,input{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 10px}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}.btn.run{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .grow{flex:1}
+  .ed{width:100%;height:300px;background:#0b0c10;border:1px solid var(--line);border-radius:12px;color:var(--ink);font-family:var(--mono);font-size:13px;padding:14px 16px;resize:vertical;line-height:1.6;tab-size:2}
+  :root[data-theme="light"] .ed{background:#0e1013;color:#e6e6e6}
+  .out{margin-top:12px;background:#0b0c10;border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;min-height:60px;max-height:300px;overflow:auto}
+  :root[data-theme="light"] .out{background:#0e1013;color:#e6e6e6}
+  .out .err{color:var(--bad)}.out .meta{color:var(--muted)}.out .ok{color:var(--good)}
+  .warn{font-size:12px;color:var(--muted);margin-top:8px}.warn b{color:var(--accent)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:22px;padding:16px 0 40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'">
+      <span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Script editor</span>
+    <button class="toggle" id="themeBtn">◐</button>
+  </header>
+
+  <h1>Script <em>editor</em></h1>
+  <p class="lede">Write and run scripts in any supported language against the plant. Read and control tags
+    through the REST API or SQL from your script — automate reports, batch jobs, integrations.</p>
+
+  <div class="bar">
+    <select id="lang" title="Language"></select>
+    <input id="name" placeholder="script name" size="18">
+    <select id="saved" title="Saved scripts"><option value="">— saved —</option></select>
+    <button class="btn" id="save">Save</button>
+    <button class="btn" id="del">Delete</button>
+    <div class="grow"></div>
+    <button class="btn run" id="run">▶ Run</button>
+  </div>
+
+  <textarea class="ed" id="code" spellcheck="false"></textarea>
+  <p class="warn"><b>⚠ Sandbox / dev.</b> Scripts run on the device with a 20 s limit. In production this
+    must be authenticated, per-role authorised, sandboxed and audited (see the scripting endpoint notes).</p>
+
+  <div class="out" id="out"><span class="meta">Output appears here. Press ▶ Run.</span></div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s);const LS='oso-scripts';
+const LANGS=['bash','python','node','php','ruby','perl','lua','csharp','rust','cpp','java','go','r'];
+const RUNNABLE=['bash','python','node','php','ruby','perl','lua'];
+const TPL={
+  bash:'# read a tag, then set a set-point via REST\nV=$(curl -s '+location.origin+'/var/hass.sensor.tank_level | sed \'s/.*"value"://;s/[,}].*//\')\necho "tank level = $V"\ncurl -s -X PUT '+location.origin+'/var/hass.switch.pump -d \'{"value":1}\'',
+  python:'import urllib.request, json\nbase="'+location.origin+'"\nlvl=json.load(urllib.request.urlopen(base+"/var/hass.sensor.tank_level"))["value"]\nprint("tank level =", lvl)\nif lvl < 40:\n    urllib.request.urlopen(urllib.request.Request(base+"/var/hass.switch.pump", data=b\'{"value":1}\', method="PUT"))\n    print("pump ON")',
+  node:'const base="'+location.origin+'";\nconst v=await (await fetch(base+"/var/hass.sensor.tank_level")).json();\nconsole.log("tank level =", v.value);',
+  php:'$v=json_decode(file_get_contents("'+location.origin+'/var/hass.sensor.tank_level"))->value;\necho "tank level = $v\\n";',
+  ruby:'require "net/http";require "json"\nv=JSON.parse(Net::HTTP.get(URI("'+location.origin+'/var/hass.sensor.tank_level")))["value"]\nputs "tank level = #{v}"',
+  perl:'print "hello from perl\\n";',
+  lua:'print("hello from lua")',
+  csharp:'// C# needs the .NET toolchain — not runnable inline in the sandbox.',
+  rust:'// Rust needs cargo/rustc — not runnable inline in the sandbox.',
+  cpp:'// C++ needs a compiler — not runnable inline in the sandbox.',
+  java:'// Java needs the JDK — not runnable inline in the sandbox.',
+  go:'// Go needs the toolchain — not runnable inline in the sandbox.',
+  r:'v <- as.numeric(sub(".*\\"value\\":", "", readLines(url("'+location.origin+'/var/hass.sensor.tank_level"))))\ncat("tank level =", v, "\\n")'
+};
+function load(){try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(_){return {}}}
+function store(o){localStorage.setItem(LS,JSON.stringify(o))}
+function refreshSaved(){const o=load();$('#saved').innerHTML='<option value="">— saved —</option>'+Object.keys(o).map(k=>`<option>${k}</option>`).join('');}
+$('#lang').innerHTML=LANGS.map(l=>`<option value="${l}"${RUNNABLE.includes(l)?'':' data-nr="1"'}>${l}${RUNNABLE.includes(l)?'':' (needs toolchain)'}</option>`).join('');
+function setTpl(){ $('#code').value=TPL[$('#lang').value]||''; }
+$('#lang').onchange=()=>{ if(!$('#code').value.trim()||confirm('Load the template for '+$('#lang').value+'?')) setTpl(); };
+$('#saved').onchange=()=>{const o=load();const s=o[$('#saved').value];if(s){$('#lang').value=s.lang;$('#name').value=$('#saved').value;$('#code').value=s.code;}};
+$('#save').onclick=()=>{const n=$('#name').value.trim();if(!n)return alert('name?');const o=load();o[n]={lang:$('#lang').value,code:$('#code').value};store(o);refreshSaved();$('#saved').value=n;};
+$('#del').onclick=()=>{const n=$('#name').value.trim();const o=load();if(o[n]){delete o[n];store(o);refreshSaved();}};
+$('#run').onclick=async()=>{
+  const out=$('#out');out.innerHTML='<span class="meta">running…</span>';
+  try{
+    const r=await (await fetch(BASE+'/api/v1/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lang:$('#lang').value,code:$('#code').value})})).json();
+    if(r.error){ out.innerHTML='<span class="err">'+esc(r.error)+'</span>'; return; }
+    let h='';
+    if(r.stdout) h+=esc(r.stdout);
+    if(r.stderr) h+='<span class="err">'+esc(r.stderr)+'</span>';
+    h+='\n<span class="meta">exit code </span><span class="'+(r.code===0?'ok':'err')+'">'+r.code+'</span>';
+    out.innerHTML=h||'<span class="meta">(no output)</span>';
+  }catch(e){ out.innerHTML='<span class="err">request failed: '+esc(e.message)+'</span>'; }
+};
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'bootstrap');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#0d6efd','#3d8bfd'];
+root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
+refreshSaved();setTpl();
+</script>
+</body>
+</html>

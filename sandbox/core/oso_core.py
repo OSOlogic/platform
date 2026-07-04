@@ -247,6 +247,35 @@ def scan_loop():
         time.sleep(SCAN_MS / 1000.0)
 
 
+# ---- script exec (osoadmin Script editor) ------------------
+# SANDBOX/DEV ONLY: runs code on the device. In production this endpoint MUST be
+# authenticated, authorised per user/role, sandboxed (restricted user, cgroups,
+# no host escalation) and audited. Toggle with OSO_EXEC_ENABLE=0.
+EXEC_ENABLE = os.environ.get("OSO_EXEC_ENABLE", "1") == "1"
+INTERP = {"bash": ["bash", "-c"], "sh": ["sh", "-c"],
+          "python": ["python3", "-c"], "python3": ["python3", "-c"],
+          "node": ["node", "-e"], "javascript": ["node", "-e"],
+          "php": ["php", "-r"], "ruby": ["ruby", "-e"], "perl": ["perl", "-e"], "lua": ["lua", "-e"]}
+
+
+def run_script(lang, code):
+    if not EXEC_ENABLE:
+        return {"error": "script execution is disabled on this instance"}
+    cmd = INTERP.get(lang)
+    if not cmd:
+        return {"error": f"'{lang}' needs an interpreter/compiler not runnable inline here"}
+    import subprocess
+    try:
+        p = subprocess.run(cmd + [code], capture_output=True, text=True, timeout=20)
+        return {"lang": lang, "stdout": p.stdout, "stderr": p.stderr, "code": p.returncode}
+    except FileNotFoundError:
+        return {"error": f"{cmd[0]} is not installed on this device"}
+    except subprocess.TimeoutExpired:
+        return {"error": "script timed out (20s limit)"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -469,6 +498,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": ok, "message": f"connected to {url}" if ok else f"HTTP {r.status}"})
             except Exception as e:
                 return self._json({"ok": False, "message": f"could not reach {url}: {e}"})
+        if path in ("/api/v1/exec", "/api/admin/exec"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            lang = body.get("lang", "bash")
+            log("info", f"exec {lang} script ({len(body.get('code',''))} chars)")
+            return self._json(run_script(lang, body.get("code", "")))
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)
