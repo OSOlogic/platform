@@ -1,0 +1,4 @@
+{ "domain":"weather", "label":"Weather", "icon":"⛅",
+  "osodb":{"type":"String","access":"ReadOnly"},
+  "attributes":{ "temperature":{"type":"Float","access":"ReadOnly","units":"°C"},
+                 "humidity":{"type":"UInt16","access":"ReadOnly","units":"%"} } }

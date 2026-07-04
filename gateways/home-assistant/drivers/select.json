@@ -1,0 +1,2 @@
+{ "domain":"select", "label":"Select (enum)", "icon":"🔽",
+  "osodb":{"type":"String","access":"ReadWrite"}, "write":{"value":"select.select_option"} }

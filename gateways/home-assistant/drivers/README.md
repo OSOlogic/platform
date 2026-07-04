@@ -24,18 +24,44 @@ re-implement or embed HA's drivers.
 }
 ```
 
-## Populated so far
+## Populated so far — 26 domains
+
+**Switchable actuators** — Boolean, ReadWrite
+
+| Driver | Extra tags | Write service |
+|--------|-----------|---------------|
+| `light` | brightness, color_temp | `light.turn_on/off` |
+| `switch` | — | `switch.turn_on/off` |
+| `fan` | percentage | `fan.turn_on/off` |
+| `cover` | current_position | `cover.open/close_cover` |
+| `valve` | current_position | `valve.open/close_valve` |
+| `lock` | — | `lock.lock/unlock` |
+| `siren` | — | `siren.turn_on/off` |
+| `humidifier` | humidity setpoint | `humidifier.turn_on/off` |
+| `media_player` | volume_level | `media_player.turn_on/off` |
+| `input_boolean` | — | `input_boolean.turn_on/off` |
+| `button` *(momentary)* | — | `button.press` |
+| `scene` *(trigger)* | — | `scene.turn_on` |
+
+**Analog & enum**
 
 | Driver | osodb type | Access | Write service |
 |--------|-----------|--------|---------------|
-| `light` | Boolean (+brightness, color_temp) | RW | `light.turn_on/off` |
-| `switch` | Boolean | RW | `switch.turn_on/off` |
-| `fan` | Boolean (+percentage) | RW | `fan.turn_on/off` |
-| `cover` | Boolean (+position) | RW | `cover.open/close_cover` |
-| `lock` | Boolean | RW | `lock.lock/unlock` |
-| `binary_sensor` | Boolean | RO | — |
+| `number` · `input_number` | Float | RW | `*.set_value` |
 | `sensor` | Float (units from HA) | RO | — |
-| `number` | Float | RW | `number.set_value` |
 | `climate` | Float current + temperature setpoint | RO/RW | `climate.set_temperature` |
+| `water_heater` | Float current + temperature setpoint | RO/RW | `water_heater.set_temperature` |
+| `select` · `input_select` | String (enum) | RW | `*.select_option` |
+| `alarm_control_panel` | String | RW | `alarm_arm_away/arm_home/disarm` |
+
+**Read-only status** — Boolean / composite
+
+| Driver | osodb type | Notes |
+|--------|-----------|-------|
+| `binary_sensor` | Boolean | on/off |
+| `device_tracker` · `person` | Boolean | home / not_home |
+| `sun` | Boolean | above/below horizon |
+| `vacuum` | Boolean (+battery_level) | cleaning; `vacuum.start/return_to_base` |
+| `weather` | String (+temperature, humidity) | condition |
 
 **Add a driver** = drop a new `<domain>.json` here; the mapper picks it up automatically.

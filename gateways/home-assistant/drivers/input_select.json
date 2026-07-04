@@ -1,0 +1,2 @@
+{ "domain":"input_select", "label":"Select (helper)", "icon":"🔽",
+  "osodb":{"type":"String","access":"ReadWrite"}, "write":{"value":"input_select.select_option"} }

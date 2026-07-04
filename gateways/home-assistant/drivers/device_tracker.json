@@ -1,0 +1,2 @@
+{ "domain":"device_tracker", "label":"Presence", "icon":"📍",
+  "osodb":{"type":"Boolean","access":"ReadOnly"}, "state_map":{"home":1,"not_home":0} }

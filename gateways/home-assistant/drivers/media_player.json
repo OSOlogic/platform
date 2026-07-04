@@ -1,0 +1,5 @@
+{ "domain":"media_player", "label":"Media player", "icon":"📺",
+  "osodb":{"type":"Boolean","access":"ReadWrite"},
+  "state_map":{"on":1,"playing":1,"paused":1,"idle":0,"off":0,"standby":0},
+  "write":{"true":"media_player.turn_on","false":"media_player.turn_off"},
+  "attributes":{ "volume_level":{"type":"Float","access":"ReadWrite","range":[0,1],"write":"media_player.volume_set"} } }

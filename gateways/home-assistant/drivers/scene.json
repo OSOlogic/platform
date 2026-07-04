@@ -1,0 +1,2 @@
+{ "domain":"scene", "label":"Scene (trigger)", "icon":"🎬",
+  "osodb":{"type":"Boolean","access":"ReadWrite"}, "write":{"true":"scene.turn_on"} }

@@ -1,0 +1,2 @@
+{ "domain":"sun", "label":"Sun", "icon":"🌞",
+  "osodb":{"type":"Boolean","access":"ReadOnly"}, "state_map":{"above_horizon":1,"below_horizon":0} }

@@ -1,0 +1,2 @@
+{ "domain":"button", "label":"Button (momentary)", "icon":"⏺️",
+  "osodb":{"type":"Boolean","access":"ReadWrite"}, "write":{"true":"button.press"} }

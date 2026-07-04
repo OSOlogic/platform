@@ -1,0 +1,5 @@
+{ "domain":"vacuum", "label":"Vacuum", "icon":"🤖",
+  "osodb":{"type":"Boolean","access":"ReadWrite"},
+  "state_map":{"cleaning":1,"returning":0,"docked":0,"idle":0,"paused":0,"error":0},
+  "write":{"true":"vacuum.start","false":"vacuum.return_to_base"},
+  "attributes":{ "battery_level":{"type":"UInt16","access":"ReadOnly","range":[0,100],"units":"%"} } }

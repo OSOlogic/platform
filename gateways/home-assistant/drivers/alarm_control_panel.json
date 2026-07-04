@@ -1,0 +1,3 @@
+{ "domain":"alarm_control_panel", "label":"Alarm panel", "icon":"🚨",
+  "osodb":{"type":"String","access":"ReadWrite"},
+  "write":{"arm_away":"alarm_control_panel.alarm_arm_away","arm_home":"alarm_control_panel.alarm_arm_home","disarm":"alarm_control_panel.alarm_disarm"} }

@@ -1,0 +1,3 @@
+{ "domain":"input_number", "label":"Number (helper)", "icon":"🎚️",
+  "osodb":{"type":"Float","access":"ReadWrite"}, "write":{"value":"input_number.set_value"},
+  "units_from":"unit_of_measurement" }
