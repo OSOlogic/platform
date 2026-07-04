@@ -191,7 +191,11 @@ building out the scaffold and hardening the codebase toward a stable 1.0.
 ### Release codenames
 
 OSOlogic releases are named after bears — starting friendly and growing fiercer as the
-platform matures: **Teddy → Misha → Grizzly → Kodiak → Polar → Ursa**.
+platform matures: **Teddy → Misha → Grizzly → Kodiak → Polar → Ursa**. Each codename is a
+[GitHub Release](https://github.com/OSOlogic/platform/releases).
+
+🐻 Meet the bears in the **[codename fan zone](https://osologic.com/bears/)** — a photo
+tribute from the cuddly Teddy to the Great Bear, Ursa (with a nod to Yogi &amp; friends).
 
 ### Editions
 
