@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — osoAdmin Scripting</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --panel-2:#1c1f26; --line:#2a2e37; --ink:#ece9e3;
+    --muted:#8b8f99; --accent:#f48c06; --good:#46d17f; --bad:#e5484d; --warn:#ffb64d;
+    --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace; --sans:"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  header{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+  .logo{font-weight:800}.logo b{color:var(--accent)} .grow{flex:1}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px}
+  .btn:hover{border-color:var(--accent)} .btn.pri{background:var(--accent);color:#161007;border-color:var(--accent);font-weight:700}
+  select.lang{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:13px}
+  .warn{background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));
+    color:var(--warn);padding:8px 14px;font-size:12.5px;display:flex;gap:8px;align-items:center}
+  main{flex:1;display:grid;grid-template-columns:220px 1fr;min-height:0}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
+  aside h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .snip{display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:7px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-size:12.5px}
+  .snip:hover{border-color:var(--accent)} .snip b{color:var(--accent)}
+  .work{display:grid;grid-template-rows:1fr 200px;min-height:0}
+  #editor{width:100%;height:100%;background:#0b0c10;color:#d6d9e0;border:none;font-family:var(--mono);font-size:13.5px;
+    padding:14px 16px;resize:none;outline:none;line-height:1.55;tab-size:4}
+  .out{background:#0b0c10;border-top:1px solid var(--line);overflow:auto;padding:12px 16px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap}
+  .out .ok{color:var(--good)} .out .err{color:var(--bad)} .out .muted{color:var(--muted)}
+  .status{font-family:var(--mono);font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">OSO<b>logic</b> · osoAdmin Scripting</span>
+  <div class="grow"></div>
+  <select class="lang" id="lang" aria-label="Language"></select>
+  <button class="btn" id="clearBtn">Clear</button>
+  <button class="btn pri" id="runBtn">▶ Run</button>
+</header>
+<div class="warn">⚠ Admin only. Scripts run server-side in a sandbox under the osoAdmin API,
+  gated by your permissions and audited. Never paste untrusted code.</div>
+<main>
+  <aside>
+    <h3>Language</h3>
+    <p class="status" id="langNote">Shell (bash)</p>
+    <h3 style="margin-top:16px">Snippets</h3>
+    <div id="snips"></div>
+    <h3 style="margin-top:16px">osodb</h3>
+    <button class="snip" data-snip="read"><b>Read</b> a tag</button>
+    <button class="snip" data-snip="write"><b>Write</b> a set-point</button>
+  </aside>
+  <div class="work">
+    <textarea id="editor" spellcheck="false" placeholder="# Write a script, pick a language, press Run"></textarea>
+    <div class="out" id="out"><span class="muted">Output will appear here. Endpoint: POST /api/admin/exec {lang, code}</span></div>
+  </div>
+</main>
+
+<script>
+'use strict';
+// Sky is the limit — languages OSOLogic aims to run for admin/automation scripting.
+const LANGS = [
+  {id:'bash',    name:'Shell (bash)',  hello:'#!/usr/bin/env bash\necho "hello from OSOLogic"\nuname -a'},
+  {id:'python',  name:'Python',        hello:'print("hello from OSOLogic")\nimport sys; print(sys.version)'},
+  {id:'node',    name:'JavaScript (Node)', hello:'console.log("hello from OSOLogic");\nconsole.log(process.version);'},
+  {id:'php',     name:'PHP',           hello:'<?php echo "hello from OSOLogic\\n"; echo phpversion();'},
+  {id:'ruby',    name:'Ruby',          hello:'puts "hello from OSOLogic"'},
+  {id:'perl',    name:'Perl',          hello:'print "hello from OSOLogic\\n";'},
+  {id:'lua',     name:'Lua',           hello:'print("hello from OSOLogic")'},
+  {id:'rscript', name:'R',             hello:'cat("hello from OSOLogic\\n")'},
+  {id:'csharp',  name:'C# (dotnet-script)', hello:'Console.WriteLine("hello from OSOLogic");'},
+  {id:'rust',    name:'Rust (script)', hello:'fn main(){ println!("hello from OSOLogic"); }'},
+  {id:'cpp',     name:'C++ (compile+run)', hello:'#include <cstdio>\nint main(){ std::puts("hello from OSOLogic"); }'},
+];
+const SNIPS = {
+  read:  '# Read a tag from osodb via the local REST API\ncurl -s localhost:8080/api/var/3.14',
+  write: '# Write a set-point to osodb (guarded by permissions)\ncurl -s -X PUT localhost:8080/api/var/3.14 -d \'{"value":1450}\'',
+};
+
+const langSel=document.getElementById('lang'), ed=document.getElementById('editor'),
+      out=document.getElementById('out'), note=document.getElementById('langNote');
+LANGS.forEach(l=>{ const o=document.createElement('option'); o.value=l.id; o.textContent=l.name; langSel.appendChild(o); });
+
+function curLang(){ return LANGS.find(l=>l.id===langSel.value)||LANGS[0]; }
+function setLang(){ const l=curLang(); note.textContent=l.name; if(!ed.value.trim()||ed.dataset.tpl==='1'){ ed.value=l.hello; ed.dataset.tpl='1'; } }
+langSel.onchange=setLang; ed.oninput=()=>ed.dataset.tpl='0';
+setLang();
+
+document.getElementById('clearBtn').onclick=()=>{ ed.value=''; ed.dataset.tpl='0'; out.innerHTML='<span class="muted">cleared</span>'; };
+document.querySelectorAll('.snip').forEach(b=>b.onclick=()=>{ ed.value=SNIPS[b.dataset.snip]; ed.dataset.tpl='0'; langSel.value='bash'; setLang(); ed.dataset.tpl='0'; ed.value=SNIPS[b.dataset.snip]; });
+
+document.getElementById('runBtn').onclick=async()=>{
+  const lang=langSel.value, code=ed.value;
+  out.innerHTML='<span class="muted">running…</span>';
+  try{
+    const r=await fetch('/api/admin/exec',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lang,code}) });
+    if(!r.ok){ out.innerHTML=`<span class="err">HTTP ${r.status} — the osoAdmin exec endpoint is not wired yet (prototype).</span>`; return; }
+    const j=await r.json();
+    out.innerHTML = (j.stdout?`${escapeHtml(j.stdout)}`:'') +
+      (j.stderr?`\n<span class="err">${escapeHtml(j.stderr)}</span>`:'') +
+      `\n<span class="muted">exit ${j.code ?? '?'} · ${lang}</span>`;
+  }catch(e){
+    out.innerHTML=`<span class="err">${escapeHtml(e.message)}</span>\n<span class="muted">Prototype: this UI POSTs to /api/admin/exec {lang, code}. Wire that endpoint in webmin-oso/api to run scripts server-side (sandboxed, audited).</span>`;
+  }
+};
+function escapeHtml(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+</script>
+</body>
+</html>

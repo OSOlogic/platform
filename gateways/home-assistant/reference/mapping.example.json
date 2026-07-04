@@ -1,0 +1,12 @@
+{
+  "_comment": "Which HA entities to bridge into osodb, and how. Prototype schema.",
+  "domains": ["light", "switch", "sensor", "binary_sensor", "climate", "cover", "lock", "fan"],
+  "units": {
+    "sensor.temperature": "°C",
+    "sensor.humidity": "%"
+  },
+  "writable": ["light.kitchen", "switch.pump", "cover.garage"],
+  "rename": {
+    "light.kitchen_main_light": "light.kitchen"
+  }
+}
