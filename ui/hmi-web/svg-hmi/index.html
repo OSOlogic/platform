@@ -27,14 +27,17 @@
   .pill{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:5px}
   .dot.ok{background:var(--good)} .dot.err{background:var(--bad)}
-  main{flex:1;display:grid;grid-template-columns:280px 1fr 300px;min-height:0}
+  main{flex:1;display:grid;grid-template-columns:300px 1fr 320px;min-height:0}
+  [data-mode="run"] main{grid-template-columns:1fr}
+  [data-mode="run"] aside{display:none}
   aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto}
   aside.right{border-right:none;border-left:1px solid var(--line)}
   aside h3{margin:0 0 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .stage{position:relative;display:grid;place-items:center;overflow:auto;background:
+  .stage{position:relative;display:grid;place-items:center;overflow:auto;padding:24px;background:
     radial-gradient(circle at 20% 10%, #14161c, var(--bg) 60%)}
-  #svgHost{max-width:96%;max-height:96%}
-  #svgHost svg{max-width:100%;height:auto}
+  #svgHost{width:min(860px,94%)}
+  #svgHost svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;
+    background:#0b0c10;box-shadow:0 20px 50px -30px #000}
   .hint{color:var(--muted);font-size:12.5px;line-height:1.5}
   label.f{display:block;margin:9px 0 3px;color:var(--muted);font-size:12px}
   input.f,select.f,textarea.f{width:100%;background:var(--panel-2);border:1px solid var(--line);

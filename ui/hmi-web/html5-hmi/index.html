@@ -77,7 +77,14 @@
 <script>
 'use strict';
 const LS='osohmi_html5';
-let model = load() || { bg:'', widgets:[] };  // widget: {id,type,x,y,tag,text,min,max,onColor,offColor,setValue}
+// widget: {id,type,x,y,tag,text,min,max,onColor,offColor,setValue}
+let model = load() || { bg:'', widgets:[
+  {id:'w_lab', type:'label',  x:44, y:36,  text:'Motor 1'},
+  {id:'w_lmp', type:'lamp',   x:48, y:70,  tag:'2.5', onColor:'#46d17f', offColor:'#3a3f4b'},
+  {id:'w_val', type:'value',  x:120,y:74,  tag:'3.14'},
+  {id:'w_gau', type:'gauge',  x:48, y:140, tag:'3.14', min:0, max:2000},
+  {id:'w_btn', type:'button', x:48, y:180, tag:'2.5', text:'START', setValue:'1'},
+] };
 let sel=null, running=false;
 
 function load(){ try{ return JSON.parse(localStorage.getItem(LS)||'null'); }catch(_){ return null; } }

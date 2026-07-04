@@ -17,6 +17,8 @@ ui/hmi-web/
 
 ## SVG engine (`svg-hmi/`)
 
+[![SVG HMI](svg-hmi/screenshot.png)](svg-hmi/)
+
 A vector mimic where **SVG shapes change colour by tag state** — the classic
 process-diagram approach (as in Borrell Plant Manager). Import or edit an SVG (any
 element with an `id` is bindable), click a shape, and bind it to an osodb tag plus
@@ -26,6 +28,8 @@ value label. In **Run** mode it polls osodb and recolours in real time.
 Best for: P&IDs, pipes/tanks/valves, plant overviews — anything drawn.
 
 ## HTML5 engine (`html5-hmi/`)
+
+[![HTML5 HMI](html5-hmi/screenshot.png)](html5-hmi/)
 
 A widget board over a **background image**: lamps, numeric values, gauges, push
 buttons (write a set-point) and labels, drag-positioned and bound to tags. In Run
