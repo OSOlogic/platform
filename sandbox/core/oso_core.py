@@ -382,23 +382,26 @@ def fail2ban_status():
 
 # ---- firewall / iptables (osoadmin) ------------------------
 def firewall_rules():
+    demo = {"available": False, "demo": True, "rules": [
+        "-P INPUT DROP", "-P FORWARD DROP", "-P OUTPUT ACCEPT",
+        "-A INPUT -i lo -j ACCEPT",
+        "-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+        "-A INPUT -p tcp --dport 22 -j ACCEPT",
+        "-A INPUT -p tcp --dport 8080 -j ACCEPT",
+        "-A INPUT -p tcp --dport 4840 -j ACCEPT",
+        "-A INPUT -p tcp --dport 502 -s 192.168.0.0/16 -j ACCEPT"]}
     if not shutil.which("iptables"):
-        return {"available": False, "demo": True, "rules": [
-            "-P INPUT DROP", "-P FORWARD DROP", "-P OUTPUT ACCEPT",
-            "-A INPUT -i lo -j ACCEPT",
-            "-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
-            "-A INPUT -p tcp --dport 22 -j ACCEPT",
-            "-A INPUT -p tcp --dport 8080 -j ACCEPT",
-            "-A INPUT -p tcp --dport 4840 -j ACCEPT",
-            "-A INPUT -p tcp --dport 502 -s 192.168.0.0/16 -j ACCEPT"]}
+        return demo
     try:
         p = subprocess.run(["sudo", "-n", "iptables", "-S"], capture_output=True, text=True, timeout=6)
         if p.returncode != 0:
             p = subprocess.run(["iptables", "-S"], capture_output=True, text=True, timeout=6)
+        if p.returncode != 0:   # present but no privilege → demo
+            return demo
         rules = [ln for ln in p.stdout.splitlines() if ln.startswith(("-A", "-P"))]
-        return {"available": p.returncode == 0, "rules": rules, "note": p.stderr[:200]}
-    except Exception as e:
-        return {"available": False, "error": str(e), "rules": []}
+        return {"available": True, "rules": rules}
+    except Exception:
+        return demo
 
 
 # ---- network / serial discovery ----------------------------
