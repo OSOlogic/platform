@@ -57,6 +57,24 @@ with existing platforms through optional gateways, rather than duplicating their
 > Gateways use each project's **public APIs** and honour its licence — they complement
 > those projects, they don't replace or repackage them.
 
+## Time-series & historians *(roadmap)*
+
+A **Historian** module streams tags into a time-series database for trends and long-term storage —
+connection, retention and tag selection configured in osoadmin. Planned targets are the popular,
+SQL/wire-compatible ones:
+
+| TSDB | Fit |
+|---|---|
+| **InfluxDB** | the de-facto TSDB (line protocol · Flux · SQL) |
+| **TimescaleDB** | Postgres extension — plain SQL, drops straight into the data-centric model |
+| **QuestDB** | fast ingest, Postgres wire + SQL |
+| **Prometheus · VictoriaMetrics** | metrics-style pull + PromQL |
+| **Graphite** | classic and simple |
+
+Meanwhile any of these — plus **Grafana / Power BI / Tableau / Metabase / Superset** and the whole
+tool ecosystem — already reads live values straight from the `tags` table over SQL/ODBC/JDBC. See
+[read & write tags from any language](../ui/get-started/db-access.html).
+
 ## Add support
 
 - **Native driver** — implement under [`gateways/<protocol>`](../gateways/) against the osodb hub.

@@ -29,6 +29,10 @@
   .note{color:var(--muted);font-size:13px;margin:6px 0 0}
   footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:30px;padding:20px 0 46px}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:8px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+  h2{font-size:20px;margin:30px 0 6px}h2 span{color:var(--muted);font-weight:400;font-size:14px}
+  .tools{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:12px 0}@media(max-width:640px){.tools{grid-template-columns:1fr}}
+  .soft{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .soft h4{margin:0 0 9px;font-size:13px}.soft .ch{display:inline-block;font-family:var(--mono);font-size:11.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;margin:0 5px 6px 0;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -56,6 +60,23 @@
   <div class="code"><div class="lbl" id="clbl"></div><button class="cp" id="cp">copy</button><pre><code id="csnip"></code></pre></div>
   <p class="note">Permissions are enforced by the database (MariaDB <span style="font-family:var(--mono)">GRANT</span>s) — read-only users can <span style="font-family:var(--mono)">SELECT</span> but not <span style="font-family:var(--mono)">UPDATE</span>. The same works over the <a href="index.html" style="color:var(--accent)">REST API</a> and OPC-UA.</p>
 
+  <h2>Connect common software <span>— beyond code</span></h2>
+  <p class="note" style="margin-bottom:12px">Any tool that speaks <b>MySQL/MariaDB</b> (native, <b>ODBC</b> or <b>JDBC</b>)
+    reads and controls the plant — point its data source at <span style="font-family:var(--mono)">osodb</span> on
+    <span style="font-family:var(--mono)">:3306</span> (user <span style="font-family:var(--mono)">osoapp</span>).</p>
+  <div class="tools">
+    <div class="soft"><h4>📊 BI &amp; dashboards</h4><div><span class="ch">Grafana</span><span class="ch">Power BI</span><span class="ch">Tableau</span><span class="ch">Metabase</span><span class="ch">Apache Superset</span><span class="ch">Looker Studio</span><span class="ch">Redash</span></div></div>
+    <div class="soft"><h4>⏱️ Time-series &amp; historians</h4><div><span class="ch">InfluxDB</span><span class="ch">TimescaleDB</span><span class="ch">QuestDB</span><span class="ch">Prometheus</span><span class="ch">VictoriaMetrics</span><span class="ch">Graphite</span></div></div>
+    <div class="soft"><h4>🧩 Low-code / internal tools</h4><div><span class="ch">Retool</span><span class="ch">Appsmith</span><span class="ch">Budibase</span><span class="ch">NocoDB</span><span class="ch">Baserow</span></div></div>
+    <div class="soft"><h4>🏭 SCADA / HMI</h4><div><span class="ch">Ignition (SQL-native)</span><span class="ch">Node-RED</span><span class="ch">any SQL-capable SCADA</span></div></div>
+    <div class="soft"><h4>📗 Spreadsheets</h4><div><span class="ch">Excel</span><span class="ch">LibreOffice Calc</span><span class="ch">Google Sheets</span></div></div>
+    <div class="soft"><h4>🗄️ DB clients &amp; reporting</h4><div><span class="ch">DBeaver</span><span class="ch">phpMyAdmin</span><span class="ch">Adminer</span><span class="ch">HeidiSQL</span><span class="ch">DataGrip</span><span class="ch">JasperReports</span></div></div>
+    <div class="soft"><h4>🔀 Data &amp; automation</h4><div><span class="ch">Apache NiFi</span><span class="ch">n8n</span><span class="ch">Airbyte</span><span class="ch">Zapier (via DB)</span></div></div>
+    <div class="soft"><h4>📓 Notebooks &amp; science</h4><div><span class="ch">Jupyter</span><span class="ch">RStudio</span><span class="ch">MATLAB</span><span class="ch">Observable</span></div></div>
+  </div>
+  <p class="note" style="margin-top:6px">For history, an OSOLogic <b>Historian</b> module streams tags into a
+    time-series DB (InfluxDB / TimescaleDB / QuestDB…) — connection &amp; retention configured in osoadmin.</p>
+
   <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · <a href="index.html">← Get started</a></footer>
 </div>
 <div class="toast" id="toast">Copied</div>
@@ -75,6 +96,18 @@ const SNIP={
  "Rust":`// mysql crate\nlet pool = mysql::Pool::new("mysql://osoapp:osoapp@localhost:3306/osodb")?;\nlet mut conn = pool.get_conn()?;\nlet v: f64 = conn.query_first("${R}")?.unwrap();   // read\nconn.query_drop("${W}")?;                          // write`,
  "Go":`// go-sql-driver/mysql\ndb, _ := sql.Open("mysql", "osoapp:osoapp@tcp(localhost:3306)/osodb")\nvar v float64\ndb.QueryRow(\`${R}\`).Scan(&v)   // read\ndb.Exec(\`${W}\`)                 // write`,
  "C++":`// MariaDB Connector/C++\nauto* con = driver->connect("tcp://localhost:3306", "osoapp", "osoapp");\ncon->setSchema("osodb");\nauto* rs = con->createStatement()->executeQuery("${R}");   // read\nif (rs->next()) std::cout << rs->getDouble(1);\ncon->createStatement()->execute("${W}");                   // write`,
+ "Ruby":`require 'mysql2'\nc = Mysql2::Client.new(host:'localhost',username:'osoapp',password:'osoapp',database:'osodb')\nv = c.query("${R}").first['value']   # read\nc.query("${W}")                       # write`,
+ "Perl":`use DBI;\nmy $dbh = DBI->connect("dbi:mysql:database=osodb;host=localhost","osoapp","osoapp");\nmy ($v) = $dbh->selectrow_array("${R}");   # read\n$dbh->do("${W}");                          # write`,
+ "Kotlin":`// JDBC (mariadb-java-client)\nval c = DriverManager.getConnection("jdbc:mariadb://localhost:3306/osodb","osoapp","osoapp")\nval rs = c.createStatement().executeQuery("${R}"); if (rs.next()) println(rs.getDouble(1))  // read\nc.createStatement().executeUpdate("${W}")                                                  // write`,
+ "Swift":`// MySQLNIO / MySQLKit\nlet row = try db.simpleQuery("${R}").wait().first        // read\nlet v = row?.column("value")\ntry db.simpleQuery("${W}").wait()                        // write`,
+ "Julia":`using MySQL, DBInterface\nc = DBInterface.connect(MySQL.Connection, "localhost", "osoapp", "osoapp", db="osodb")\nv = DBInterface.execute(c, "${R}") |> first   # read\nDBInterface.execute(c, "${W}")                # write`,
+ "Lua":`local luasql = require "luasql.mysql"\nlocal con = luasql.mysql():connect("osodb","osoapp","osoapp","localhost",3306)\nlocal v = con:execute("${R}"):fetch()   -- read\ncon:execute("${W}")                     -- write`,
+ "Elixir":`# MyXQL\n{:ok, pid} = MyXQL.start_link(hostname: "localhost", username: "osoapp", password: "osoapp", database: "osodb")\n{:ok, res} = MyXQL.query(pid, "${R}")   # read\nMyXQL.query(pid, "${W}")                # write`,
+ "PowerShell":`# MySqlConnector (or an ODBC DSN)\n$c = [MySql.Data.MySqlClient.MySqlConnection]::new("Server=localhost;Database=osodb;Uid=osoapp;Pwd=osoapp;"); $c.Open()\n$v = [MySql.Data.MySqlClient.MySqlCommand]::new("${R}",$c).ExecuteScalar()   # read\n[MySql.Data.MySqlClient.MySqlCommand]::new("${W}",$c).ExecuteNonQuery()      # write`,
+ "Delphi / Pascal":`// FireDAC\nFDConnection1.Params.Values['Server'] := 'localhost';  FDConnection1.Params.Values['Database'] := 'osodb';\nFDConnection1.Params.Values['User_Name'] := 'osoapp';  FDConnection1.Params.Values['Password'] := 'osoapp';\nv := FDConnection1.ExecSQLScalar('${R}');   // read\nFDConnection1.ExecSQL('${W}');              // write`,
+ "Haskell":`-- mysql-simple\nconn <- connect defaultConnectInfo{connectHost="localhost",connectUser="osoapp",connectPassword="osoapp",connectDatabase="osodb"}\n[Only v] <- query_ conn "${R}"   -- read\nexecute_ conn "${W}"              -- write`,
+ "Grafana":`# Add a MySQL/MariaDB data source (osodb), then a panel query:\n${R};\n# Grafana panels are read-only; write set-points via the REST API or a button-panel plugin.`,
+ "Power BI":`// Get Data -> Database -> MySQL database -> localhost / osodb\n= MySQL.Database("localhost","osodb",[Query="${R}"])`,
  "R":`library(DBI)\ncon <- dbConnect(RMariaDB::MariaDB(), host="localhost", port=3306, user="osoapp", password="osoapp", dbname="osodb")\nv <- dbGetQuery(con, "${R}")$value   # read\ndbExecute(con, "${W}")               # write`,
  "MATLAB":`conn = database("osodb","osoapp","osoapp", ...\n   "Vendor","MySQL","Server","localhost","PortNumber",3306);\nv = fetch(conn, "${R}");    % read\nexecute(conn, "${W}");      % write`,
  "Excel / Power Query":`// Power Query (Data → Get Data → From Database → MySQL), or an ODBC data source:\n= MySQL.Database("localhost", "osodb", [Query="${R}"])\n// Writing from Excel: use an ODBC/VBA connection and run the UPDATE, or the REST API.`,
