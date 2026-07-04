@@ -1,5 +1,7 @@
 # Home Assistant driver library
 
+> These are `domain-map` **OSOLogic drivers** — see [RFC 0002 · driver model](../../../standard/rfcs/0002-osologic-driver-model.md) (file-defined, non-core) and the plan to *strip* HA integrations into drivers.
+
 **© 2026 Roig Borrell S.L. · Ibercomp S.L.** · Part of [OSOLogic](https://github.com/OSOlogic/platform) · AGPL-3.0-or-later
 
 One JSON per Home Assistant **domain**, describing how that class of device maps to an
