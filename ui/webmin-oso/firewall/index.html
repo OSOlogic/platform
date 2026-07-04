@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Firewall</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;--accent:#c23434;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--warn:#e6a417;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:24px;margin:22px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 14px;max-width:74ch}
+  .demo{background:color-mix(in srgb,var(--warn) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));color:var(--warn);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none}.demo.show{display:block}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .r{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px}
+  .r:last-child{border-bottom:none}.r .rule{flex:1;overflow-x:auto;white-space:nowrap}
+  .r .policy{color:var(--warn)}.r .accept{color:var(--good)}.r .drop{color:var(--bad)}
+  .r button{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px}.r button:hover{border-color:var(--bad);color:var(--bad)}
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 14px}
+  select,input{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 9px;font-size:12.5px;font-family:var(--mono)}
+  .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:700;border-radius:7px;padding:7px 13px;cursor:pointer;font-size:12.5px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 40px}
+  .note{color:var(--muted);font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Firewall</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>Firewall <em>· iptables</em></h1>
+  <p class="lede">The device's packet filter (INPUT chain). Add or remove simple allow/deny rules —
+    open a protocol port, restrict a source range.</p>
+  <div class="demo" id="demo">⚠ iptables not reachable here (needs root) — showing a demo ruleset. On a real device the core applies rules with <span style="font-family:var(--mono)">sudo iptables</span>.</div>
+  <div class="panel">
+    <div id="rules"></div>
+    <div class="addrow">
+      <select id="action"><option value="ACCEPT">ACCEPT</option><option value="DROP">DROP</option></select>
+      <select id="proto"><option>tcp</option><option>udp</option></select>
+      <input id="port" placeholder="port" size="6">
+      <input id="src" placeholder="source (optional, e.g. 192.168.0.0/16)" size="24">
+      <button class="btn" id="add">＋ Add rule</button>
+    </div>
+  </div>
+  <p class="note">Rule preview: <span id="prev" style="font-family:var(--mono);color:var(--accent)"></span></p>
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function spec(){ let s=''; if($('#src').value)s+='-s '+$('#src').value+' '; s+='-p '+$('#proto').value+' --dport '+($('#port').value||'0')+' -j '+$('#action').value; return s; }
+function color(r){ if(r.startsWith('-P'))return 'policy'; if(r.includes('ACCEPT'))return 'accept'; if(r.includes('DROP')||r.includes('REJECT'))return 'drop'; return ''; }
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/firewall')).json(); }catch(e){ $('#rules').innerHTML='<div class="r">core offline</div>'; return; }
+  $('#demo').classList.toggle('show',!d.available);
+  $('#rules').innerHTML=(d.rules||[]).map(r=>`<div class="r"><span class="rule ${color(r)}">${esc(r)}</span>${r.startsWith('-A')?`<button onclick="del('${esc(r.slice(3))}')">✕</button>`:''}</div>`).join('')||'<div class="r">no rules</div>';
+}
+window.del=async(rule)=>{ await fetch(BASE+'/api/v1/firewall/rule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',spec:rule.replace(/^INPUT\s*/,'')})}); load(); };
+$('#add').onclick=async()=>{ await fetch(BASE+'/api/v1/firewall/rule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',spec:spec()})}); $('#port').value=$('#src').value=''; load(); };
+['action','proto','port','src'].forEach(id=>$('#'+id).oninput=$('#'+id).onchange=()=>$('#prev').textContent='iptables -A INPUT '+spec());
+$('#prev').textContent='iptables -A INPUT '+spec();
+setInterval(load,6000);
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);load();
+</script>
+</body>
+</html>

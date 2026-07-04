@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — fail2ban</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;--accent:#c23434;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--warn:#e6a417;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  a{color:inherit;text-decoration:none}.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:24px;margin:22px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 14px;max-width:74ch}
+  .demo{background:color-mix(in srgb,var(--warn) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));color:var(--warn);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:none}
+  .demo.show{display:block}
+  .jails{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  .jail{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .jail h3{margin:0 0 6px;font-size:15px;font-family:var(--mono);display:flex;align-items:center;gap:8px}
+  .jail .n{margin-left:auto;font-size:12px;color:var(--muted)}
+  .ip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;padding:5px 0;border-top:1px solid var(--line)}
+  .ip .a{flex:1;color:var(--bad)}.ip button{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px}.ip button:hover{border-color:var(--good);color:var(--good)}
+  .none{color:var(--muted);font-size:12px;padding:6px 0}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">fail2ban</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>Intrusion protection <em>· fail2ban</em></h1>
+  <p class="lede">Jails watch auth logs and ban abusive IPs. Review the banned addresses and unban if needed.</p>
+  <div class="demo" id="demo">⚠ fail2ban is not installed on this device — showing demo data. Install it (<span style="font-family:var(--mono)">apt install fail2ban</span>) to manage real jails.</div>
+  <div class="jails" id="jails"></div>
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/fail2ban')).json(); }catch(e){ $('#jails').innerHTML='<p class="none">core offline</p>'; return; }
+  $('#demo').classList.toggle('show',!d.installed);
+  $('#jails').innerHTML=(d.jails||[]).map(j=>`<div class="jail"><h3>🛡️ ${esc(j.name)} <span class="n">${j.banned} banned · ${j.total} total</span></h3>
+    ${j.ips&&j.ips.length?j.ips.map(ip=>`<div class="ip"><span class="a">${esc(ip)}</span><button onclick="unban('${esc(j.name)}','${esc(ip)}')">unban</button></div>`).join(''):'<div class="none">no active bans</div>'}</div>`).join('');
+}
+window.unban=async(jail,ip)=>{ await fetch(BASE+'/api/v1/fail2ban/unban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jail,ip})}); load(); };
+setInterval(load,5000);
+const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+const a=(localStorage.getItem('oso-accent')||'maroon');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+root.style.setProperty('--accent',ACC[0]);load();
+</script>
+</body>
+</html>

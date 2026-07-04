@@ -350,6 +350,57 @@ def toolchain_install(lang, method):
         return {"cmd": " ".join(cmd), "error": str(e)}
 
 
+# ---- fail2ban (osoadmin) -----------------------------------
+def fail2ban_status():
+    if not shutil.which("fail2ban-client"):
+        return {"installed": False, "demo": True, "jails": [
+            {"name": "sshd", "banned": 3, "total": 47, "ips": ["203.0.113.5", "198.51.100.9", "192.0.2.7"]},
+            {"name": "nginx-http-auth", "banned": 1, "total": 12, "ips": ["203.0.113.5"]},
+            {"name": "recidive", "banned": 0, "total": 5, "ips": []}]}
+    try:
+        st = subprocess.run(["fail2ban-client", "status"], capture_output=True, text=True, timeout=6).stdout
+        names = []
+        for line in st.splitlines():
+            if "Jail list" in line:
+                names = [x.strip() for x in line.split(":", 1)[1].split(",") if x.strip()]
+        jails = []
+        for n in names:
+            s = subprocess.run(["fail2ban-client", "status", n], capture_output=True, text=True, timeout=6).stdout
+            j = {"name": n, "banned": 0, "total": 0, "ips": []}
+            for ln in s.splitlines():
+                if "Currently banned" in ln:
+                    j["banned"] = int((ln.split(":")[-1].strip() or "0"))
+                elif "Total banned" in ln:
+                    j["total"] = int((ln.split(":")[-1].strip() or "0"))
+                elif "Banned IP list" in ln:
+                    j["ips"] = ln.split(":", 1)[1].split()
+            jails.append(j)
+        return {"installed": True, "jails": jails}
+    except Exception as e:
+        return {"installed": True, "error": str(e), "jails": []}
+
+
+# ---- firewall / iptables (osoadmin) ------------------------
+def firewall_rules():
+    if not shutil.which("iptables"):
+        return {"available": False, "demo": True, "rules": [
+            "-P INPUT DROP", "-P FORWARD DROP", "-P OUTPUT ACCEPT",
+            "-A INPUT -i lo -j ACCEPT",
+            "-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+            "-A INPUT -p tcp --dport 22 -j ACCEPT",
+            "-A INPUT -p tcp --dport 8080 -j ACCEPT",
+            "-A INPUT -p tcp --dport 4840 -j ACCEPT",
+            "-A INPUT -p tcp --dport 502 -s 192.168.0.0/16 -j ACCEPT"]}
+    try:
+        p = subprocess.run(["sudo", "-n", "iptables", "-S"], capture_output=True, text=True, timeout=6)
+        if p.returncode != 0:
+            p = subprocess.run(["iptables", "-S"], capture_output=True, text=True, timeout=6)
+        rules = [ln for ln in p.stdout.splitlines() if ln.startswith(("-A", "-P"))]
+        return {"available": p.returncode == 0, "rules": rules, "note": p.stderr[:200]}
+    except Exception as e:
+        return {"available": False, "error": str(e), "rules": []}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -462,6 +513,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"config": HASS_CFG, "drivers": hass_drivers()})
         if path == "/api/v1/toolchains":
             return self._json({"toolchains": toolchain_status()})
+        if path == "/api/v1/fail2ban":
+            return self._json(fail2ban_status())
+        if path == "/api/v1/firewall":
+            return self._json(firewall_rules())
         if path.startswith("/var/") or path.startswith("/api/tags/") or path.startswith("/api/v1/tags/"):
             key = unquote(path.split("/var/", 1)[-1] if "/var/" in path else path.rsplit("/", 1)[-1])
             r = CACHE.get(key)
@@ -588,6 +643,34 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             return self._json(toolchain_install(body.get("lang", ""), body.get("method", "apt")))
+        if path == "/api/v1/fail2ban/unban":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            if shutil.which("fail2ban-client"):
+                try:
+                    subprocess.run(["fail2ban-client", "set", body.get("jail", ""), "unbanip", body.get("ip", "")],
+                                   capture_output=True, text=True, timeout=6)
+                except Exception:
+                    pass
+            log("info", f"unban {body.get('ip')} from {body.get('jail')}")
+            return self._json({"ok": True})
+        if path == "/api/v1/firewall/rule":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            flag = "-A" if body.get("action", "add") == "add" else "-D"
+            spec = body.get("spec", "")
+            if shutil.which("iptables") and spec:
+                try:
+                    subprocess.run(["sudo", "-n", "iptables", flag, "INPUT"] + spec.split(),
+                                   capture_output=True, text=True, timeout=6)
+                except Exception:
+                    pass
+            log("info", f"firewall {body.get('action', 'add')} INPUT {spec}")
+            return self._json({"ok": True})
         if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
             return self._json({"ok": True})
         return self._json({"error": "not found", "path": path}, 404)
