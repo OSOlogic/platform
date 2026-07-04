@@ -7,12 +7,19 @@
   "transport": {
     "type": "serial",
     "serial": { "port": "/dev/ttyUSB0", "baud": 9600, "data_bits": 8, "parity": "none", "stop_bits": 1 },
+    "echo": "discard",
     "framing": { "mode": "silence-gap", "silence_ms": 3.5 }
   },
 
-  "crc": {
-    "type": "modbus16",
-    "poly": "0x8005", "init": "0xFFFF", "reflect_in": true, "reflect_out": true, "append": "little"
+  "crc": { "type": "crc16-modbus" },
+
+  "states": {
+    "acme_status": {
+      "0": { "label": "stop" },
+      "1": { "label": "run" },
+      "2": { "label": "alarm", "alarm": true },
+      "3": { "label": "fault", "alarm": true }
+    }
   },
 
   "requests": [
@@ -34,6 +41,19 @@
             { "bit": 1, "tag": "tank.low",   "type": "Boolean" },
             { "bit": 2, "tag": "tank.fault", "type": "Boolean" }
           ] }
+        ]
+      }
+    },
+    {
+      "name": "read_flow",
+      "poll_ms": 2000,
+      "tx": [ { "const": "0x01" }, { "const": "0x04" }, { "const": "0x00" }, { "const": "0x10" },
+              { "const": "0x00" }, { "const": "0x03" } ],
+      "rx": {
+        "match": [ { "offset": 1, "equals": "0x04" } ],
+        "fields": [
+          { "tag": "tank.flow", "offset": 3, "size": 4, "type": "float32", "order": "CDAB", "units": "l/min" },
+          { "tag": "tank.state", "offset": 7, "size": 1, "type": "enum", "states": "acme_status" }
         ]
       }
     }

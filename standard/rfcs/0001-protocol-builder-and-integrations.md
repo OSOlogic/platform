@@ -69,12 +69,18 @@ A protocol definition is a document (JSON or XML; the web editor is a view over 
 ```
 protocol
 ├── transport      serial (RS-232/485) | tcp | udp  — port/baud/parity | host/port
+│                  echo: none | discard | verify        (RS-485 half-duplex bus echo)
 ├── framing        delimiter | fixed-length | length-prefixed | silence-gap (Modbus-style)
-├── crc            modbus16 | crc8 | xor | checksum-sum | none | script   (poly/init/reflect/order)
+├── crc            from the CRC library (modbus16, ccitt, crc8, crc32, lrc, xor, sum…) or script
 ├── requests[]     polling read commands: tx frame template + rx field map + poll interval
 ├── writes[]       set-point commands: tx frame template with a tag-bound field
-└── hooks          optional per-frame script (custom CRC / decode) — sandboxed
+├── hooks          optional per-frame script (custom CRC / decode) — sandboxed
+└── uses           the shared libraries below (CRC · numeric/float · states)
 ```
+
+**Echo.** RS-485 is a shared half-duplex bus: many transceivers echo back the bytes you transmit.
+`echo` says what to do — `none` (full-duplex/TCP), `discard` (drop the first *N* echoed bytes), or
+`verify` (confirm the echo matches, then drop it). A common, must-have real-world knob.
 
 ### Field mapping (bytes → values → bits)
 
@@ -90,6 +96,27 @@ Each rx field pulls a value out of the response frame and writes it to an osodb 
 Selectable algorithm with parameters (polynomial, init, reflect in/out, append order). When a device
 uses something non-standard, set `crc.type = "script"` and point at a small **sandboxed script** that
 receives the frame bytes and returns the check value — the escape hatch for truly custom framing.
+
+### Standard libraries (shared, reusable)
+
+The builder ships **libraries** so common decoding is a dropdown, not a re-implementation — and each
+is extensible:
+
+- **CRC / checksum library** — `crc16-modbus`, `crc16-ccitt` (XModem/Kermit), `crc8`, `crc8-dallas`
+  (1-Wire), `crc32`, `lrc`, `xor`, `sum8/16`, `none` — each with its standard parameters
+  (poly · init · reflect-in/out · xor-out · byte order), plus `script` for the exotic ones.
+- **Numeric / floating-point library** — `uint/int 8·16·32·64`, IEEE-754 `float32`/`float64`, `bcd`,
+  `ascii-number`, fixed-point (`scale`/`offset`). Full **byte/word order** control for multi-register
+  values: `ABCD` · `DCBA` · `BADC` · `CDAB` (big/little endian **and** word-swap) — the perennial
+  "my float reads garbage" fix.
+- **State library** — named **state maps** that decode a raw code or bit into a meaningful state:
+  e.g. `run/stop`, `ready/fault/alarm`, `open/closed`, Modbus exception codes, common vendor status
+  words. Define once, reuse across protocols; each named state can also raise an OSOlogic alarm/flag.
+  A field with `type: "enum"` + `states: "<name>"` resolves the code to its label and boolean tags.
+
+All three are referenced by name from a definition (`crc: "crc16-modbus"`, `type: "float32", order:
+"CDAB"`, `type: "enum", states: "acme_status"`), and the web editor exposes them as pickers with a
+live preview.
 
 ### Per-frame script hook
 
