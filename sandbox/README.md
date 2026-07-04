@@ -15,6 +15,15 @@ network and watch them move in the interfaces. It brings up, wired together:
 > This is the **base x86_64 implementation / dev sandbox**. The core here is a small Python
 > reference so the stack runs everywhere; it will be swapped for the real C++ `osoruntime`/`osodb`.
 
+## Install — 1 command / 1 double-click
+
+The fastest path is [`install/`](install/):
+
+```bash
+curl -fsSL https://osologic.com/get.sh | bash      # Linux / macOS
+irm https://osologic.com/get.ps1 | iex             # Windows (PowerShell)
+```
+
 ## Run it (Linux · Windows · macOS)
 
 Docker is the cross-platform vehicle — the **same command** everywhere:

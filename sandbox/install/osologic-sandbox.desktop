@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OSOLogic Sandbox
+Comment=Launch the OSOLogic x86_64 sandbox (Docker)
+Exec=bash -c "curl -fsSL https://osologic.com/get.sh | bash; exec bash"
+Terminal=true
+Icon=utilities-terminal
+Categories=Development;Engineering;
