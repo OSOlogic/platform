@@ -1057,6 +1057,76 @@ def projects_add(name, size_bytes=0, fmt="osoproj"):
     return p
 
 
+# ---- driver loader (instantiate a file driver → osodb tags) ------------------
+# Loading a driver reads its driver.json + map.json from the catalog and DEFINES its tags in osodb,
+# so a catalog entry becomes live and usable (visible in I/O Tags, searchable, read/writable).
+DRIVERS_DIR = os.path.join(UI_DIR, "io", "drivers")
+LOADED_DRIVERS = {}   # id -> {name, transport, path, tags:[tagids]}
+
+
+def _drivers_catalog():
+    try:
+        return json.load(open(os.path.join(DRIVERS_DIR, "catalog.json")))
+    except Exception:
+        return {"drivers": [], "candidate_drivers": []}
+
+
+def drivers_list():
+    cat = _drivers_catalog()
+    loaded = [{"id": k, "name": v["name"], "transport": v["transport"], "tag_count": len(v["tags"])}
+              for k, v in LOADED_DRIVERS.items()]
+    try:
+        ci = json.load(open(os.path.join(DRIVERS_DIR, "community-index.json")))
+        community = {"count": ci.get("count", 0), "mappable": ci.get("mappable", 0)}
+    except Exception:
+        community = {"count": 0, "mappable": 0}
+    return {"catalog": cat.get("drivers", []), "candidates": cat.get("candidate_drivers", []),
+            "loaded": loaded, "community": community}
+
+
+def _define_driver_tag(tagid, t):
+    CACHE[tagid] = {"id": tagid, "name": t.get("tag", tagid), "data_type": t.get("type", "Float"),
+                    "value": 0, "value_s": None, "required_value": None, "units": t.get("units", ""),
+                    "access": t.get("access", "ReadOnly"), "sim": None}
+
+
+def drivers_load(did):
+    if did in LOADED_DRIVERS:
+        return {"ok": True, "note": "already loaded", "tags": LOADED_DRIVERS[did]["tags"]}
+    entry = next((d for d in _drivers_catalog().get("drivers", []) if d["id"] == did), None)
+    if not entry:
+        return {"ok": False, "error": "driver not in catalog"}
+    path = os.path.join(DRIVERS_DIR, entry["path"])
+    tags = []
+    mp = os.path.join(path, "map.json")
+    if os.path.exists(mp):
+        try:
+            for t in json.load(open(mp)).get("tags", []):
+                tid = f"{did}.{t.get('tag', 'value')}"
+                _define_driver_tag(tid, t)
+                tags.append(tid)
+        except Exception as e:
+            return {"ok": False, "error": f"bad map.json: {e}"}
+    else:  # protocol driver — define its declared provides
+        for p in entry.get("provides", []):
+            tid = f"{did}.{p}"
+            _define_driver_tag(tid, {"tag": p, "type": "Float", "access": "ReadOnly"})
+            tags.append(tid)
+    LOADED_DRIVERS[did] = {"name": entry["name"], "transport": entry["transport"],
+                           "path": entry["path"], "tags": tags}
+    log("info", f"driver loaded: {did} (+{len(tags)} tags)")
+    return {"ok": True, "loaded": did, "tags": tags}
+
+
+def drivers_unload(did):
+    v = LOADED_DRIVERS.pop(did, None)
+    if v:
+        for tid in v["tags"]:
+            CACHE.pop(tid, None)
+        log("info", f"driver unloaded: {did}")
+    return {"ok": bool(v)}
+
+
 # ---- global search (DB, config, real-time, historian, hardware, alarms, logs) ----
 # One box over every domain: matches by a substring of each item's JSON, groups the hits by
 # domain, and links each to the module that owns it. Domains with no data still surface as a
@@ -1277,6 +1347,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(search(q))
         if path == "/api/v1/backup":
             return self._json(backup_status())
+        if path == "/api/v1/drivers":
+            return self._json(drivers_list())
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -1497,6 +1569,17 @@ class Handler(BaseHTTPRequestHandler):
             if act == "set":
                 return self._json(backup_set(body))
             return self._json({"error": "unknown backup action"}, 404)
+        if path.startswith("/api/v1/drivers/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "load":
+                return self._json(drivers_load(body.get("id", "")))
+            if act == "unload":
+                return self._json(drivers_unload(body.get("id", "")))
+            return self._json({"error": "unknown drivers action"}, 404)
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
