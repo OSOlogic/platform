@@ -27,6 +27,26 @@ No installation required — runs directly from source. Python 3.10+, stdlib onl
 
 ---
 
+## Runs on the runtime (no Java) / Ejecuta en el runtime (sin Java)
+
+`ostc` emits P-code **byte-compatible with the C VM** ([`../runtime/pcodevm.c`](../runtime/)),
+so its output runs directly on `osoruntime` — the free, no-Java backend for the OSOLogic PLC:
+
+```
+Ladder / ST  →  ostc  →  Intel HEX  →  osoruntime (VM)  →  osodb tags (ACL) → MariaDB
+```
+
+**Supported today (verified running):** globals + initializers, INT/DINT/REAL/BOOL, arithmetic,
+comparisons, boolean logic, `IF/ELSIF/ELSE`, `WHILE`/`REPEAT`/`FOR`/`CASE`, `PROCEDURE` and
+`FUNCTION` with parameters and locals (LINK/UNLINK/LEAVE frames), `TRAP` hardware/`osodb` calls,
+and `debug()`. See [`RETARGET_VM.md`](RETARGET_VM.md) for the opcode/encoding map and milestone
+status (M1–M3 done; M4 = strings/casts/arrays, not needed for relay/analog logic).
+
+> The Java [STLite](../compiler-java/) compiler remains the authoritative reference; `ostc` is the
+> dependency-free alternative for hosts without a JVM. The editor's backend selector picks either.
+
+---
+
 ## Module structure / Estructura del módulo
 
 ```

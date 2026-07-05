@@ -2,13 +2,18 @@
 
 **© 2026 Roig Borrell S.L. · Ibercomp S.L.** · AGPL-3.0-or-later
 
-The pure-Python compiler `ostc` currently emits its **own** bytecode scheme, which the C runtime VM
-(`runtime/pcodevm.c`) does **not** execute (`opcode desconocido …`). Only the Java **STLite** compiler
-targets this VM. To make the no-Java backend *deployable* (not just a syntax check), `ostc`'s codegen
-must emit the VM's opcodes and encoding **byte-for-byte**. This is that spec — the VM is authoritative.
+> **Status: M1–M3 DONE and verified running on `osoruntime`.** The pure-Python compiler `ostc`
+> now emits bytecode the C VM (`runtime/pcodevm.c`) executes — the no-Java backend is **deployable**
+> for relay logic, arithmetic, timers/counters/PID, sub-routines and the osodb tag path. Only M4
+> (strings/casts/arrays) remains, and Ladder doesn't need it. This document is the map that got us
+> there; the VM is authoritative.
 
-Verified already: the runtime **container/header** format is fine (the loader reads ostc HEX:
-`code=… globals=…`), and the demo runtime builds + runs. The gap is purely the **instruction encoding**.
+Historically `ostc` emitted its **own** bytecode scheme the VM didn't run (`opcode desconocido …`),
+so only Java **STLite** targeted the VM. The retarget below aligned `ostc`'s codegen to the VM's
+opcodes/encoding byte-for-byte (only `codegen.py` + `hex_writer` jump patching changed).
+
+The runtime **container/header** format was already fine (the loader reads ostc HEX: `code=… globals=…`);
+the gap was purely the **instruction encoding**.
 
 ## Value types (operand byte `t`, from `pcodevm.h`)
 
@@ -64,13 +69,19 @@ VM jumps are **relative i16**. Emit a placeholder `ci16=0`, remember the operand
 patch write `target − (operand_offset + 2)`. (ostc currently patches absolute i32 — change
 `patch_i32` sites to `patch_i16_relative`.)
 
-## Milestones (verify each by running on `osoruntime_demo`)
+## Milestones (verified by running on `osoruntime_demo`)
 
-1. **Single `main`, globals only** — counter.st: PUSH_I(t), LOAD_G/STORE_G(addr,t), typed ADD, typed
-   GE/LT, JMP/JMPF relative, HALT. → must print and loop without `opcode desconocido`.
-2. **Traps** — blink/tag programs: TRAP #12/#30/#31 (the osodb path). Needs #1 + TRAP.
-3. **Procedures with params/locals** — LINK/UNLINK/LEAVE + LOAD_L/STORE_L. pid.st (functions).
-4. **Casts / MOD / arrays** — CAST_*, MATH subops, *_GA/*_LA.
+1. ✅ **Single `main`, globals only** (commit 99dc6db) — PUSH_I(t), LOAD_G/STORE_G(addr,t), typed
+   ADD/GE/LT, relative JMP/JMPF, HALT, entry `CALL main; HALT`, global initializers, `debug` builtin.
+   *counter.st runs, prints the counter each scan, HALTs clean.*
+2. ✅ **Traps / osodb** (verified with M1) — TRAP #30/#31 fire; a Ladder tag program runs and the
+   **ACL is enforced** end-to-end (`tag_write` to a read-only binding denied).
+3. ✅ **Procedures/functions with params & locals** (commit 5445782) — LINK/UNLINK/LEAVE calling
+   convention, frame-relative LOAD_L/STORE_L (offset + 6), params-first layout, args pushed by the
+   caller, functions LEAVE their return value. **BOOL is 1 byte (VT_U8)** so bare-bool conditions
+   work. *fn(params)=115, pid.st (REAL params, float math)=20.46, Ladder sub-ladder CALL all run.*
+4. ⏳ **Casts / MOD / strings / arrays** — CAST_* (I2F/F2I), MATH subops (MOD), PUSH_S real string
+   index (not inline), *_GA/*_LA arrays. Not needed for Ladder relay/analog logic; do when a program
+   requires them.
 
-Do it milestone by milestone, re-running the example after each so a wrong byte is caught immediately.
-Keep ostc's lexer/parser/AST as-is; only `codegen.py` (+ `hex_writer` jump patching) change.
+Kept ostc's lexer/parser/AST unchanged; only `codegen.py` (+ `hex_writer` patch_i16/patch_u16) changed.
