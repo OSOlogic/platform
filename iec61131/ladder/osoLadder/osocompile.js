@@ -25,6 +25,18 @@
   const MATH_OP  = { FB_ADD: '+', FB_SUB: '-', FB_MUL: '*', FB_DIV: '/' };
   const CMP_OP   = { FB_GT: '>', FB_LT: '<', FB_GE: '>=', FB_LE: '<=', FB_EQ: '=', FB_NE: '<>' };
 
+  // Timers/counters have no native FB in the osoST dialect, so they are lowered to
+  // primitive ST (millis() trap + per-instance helper globals). Accumulated here and
+  // emitted at the top level by compileLadderToST.
+  let _helperGlobals = [];   // extra VAR_GLOBAL declarations for FB state
+  let _needMillis    = false;
+  function _ptMs(s) {
+    if (s == null) return 0;
+    const m = String(s).match(/(\d+(?:\.\d+)?)\s*(ms|s|m|h)?/i);
+    if (!m) return 0;
+    return Math.round(parseFloat(m[1]) * ({ ms: 1, s: 1000, m: 60000, h: 3600000 }[(m[2] || 'ms').toLowerCase()] || 1));
+  }
+
   // A ladder variable reference; fall back to a safe placeholder when unbound.
   function ref(name) { return (name && String(name).trim()) || '_UNBOUND_'; }
 
@@ -121,32 +133,64 @@
       if (!target) { warnings.push(`Rung ${idx + 1}: CALL with no target — skipped.`); return `(* CALL: no target *)`; }
       return `IF ${cond} THEN ${target}(); END_IF;`;
     }
-    // PID controller: emitted as an FB instance call (needs a PID block in the ST library).
+    // PID controller — lowered to primitive ST (P+I+D on globals). Per-scan integral.
     if (cell.type === 'FB_PID') {
-      edgeDecls.set(inst, 'PID');
-      warnings.push(`Rung ${idx + 1}: PID emitted as FB instance '${inst}' — provide a PID block in the ST library.`);
-      const out = p.OUT ? `\n  ${ref(p.OUT)} := ${inst}.OUT;` : '';
-      return `${inst}(EN := ${cond}, PV := ${ref(p.PV)}, SP := ${ref(p.SP)}, ` +
-             `KP := ${p.Kp || 0}, KI := ${p.Ki || 0}, KD := ${p.Kd || 0});${out}`;
+      const iid = sanitize(inst);
+      const integ = `__${iid}_i`, prev = `__${iid}_prev`;
+      _helperGlobals.push(`  ${integ} : REAL := 0.0;`, `  ${prev} : REAL := 0.0;`);
+      const PV = ref(p.PV), SP = ref(p.SP);
+      const flt = (x, d) => { const s = String(x ?? d); return /[.eE]/.test(s) ? s : s + '.0'; };
+      const kp = flt(p.Kp, '0'), ki = flt(p.Ki, '0'), kd = flt(p.Kd, '0');
+      let OUT = ref(p.OUT);
+      if (OUT === '_UNBOUND_') { OUT = `__${iid}_out`; _helperGlobals.push(`  ${OUT} : REAL := 0.0;`); }
+      const err = `(${SP} - ${PV})`;
+      return `IF ${cond} THEN\n  ${integ} := ${integ} + ${err};\n  ${OUT} := ${kp} * ${err} + ${ki} * ${integ} + ${kd} * (${err} - ${prev});\n  ${prev} := ${err};\nELSE\n  ${integ} := 0.0; ${prev} := 0.0;\nEND_IF;`;
     }
     if (TIMERS.has(cell.type)) {
-      const fb = cell.type.replace('FB_', '');           // TON/TOF/TP
-      edgeDecls.set(inst, fb);
+      // Lower TON/TOF/TP to primitive ST using millis() and helper globals.
+      _needMillis = true;
+      const iid = sanitize(inst);
+      const t0 = `__${iid}_t0`, run = `__${iid}_run`;
+      _helperGlobals.push(`  ${t0} : DINT := 0;`, `  ${run} : BOOL := FALSE;`);
       const IN = ref(p.IN) === '_UNBOUND_' ? cond : ref(p.IN);
-      const out = p.Q ? `  ${ref(p.Q)} := ${inst}.Q;` : '';
-      const et  = p.ET ? `  ${ref(p.ET)} := ${inst}.ET;` : '';
-      return `${inst}(IN := ${IN}, PT := ${p.PT || 'T#0s'});${out ? '\n' + out : ''}${et ? '\n' + et : ''}`;
+      const pt = _ptMs(p.PT);
+      let Q = ref(p.Q);
+      if (Q === '_UNBOUND_') { Q = `__${iid}_q`; _helperGlobals.push(`  ${Q} : BOOL := FALSE;`); }
+      if (cell.type === 'FB_TON') {
+        return `IF ${IN} THEN\n  IF NOT ${run} THEN ${t0} := millis(); ${run} := TRUE; END_IF;\n  IF (millis() - ${t0}) >= ${pt} THEN ${Q} := TRUE; END_IF;\nELSE\n  ${run} := FALSE; ${Q} := FALSE;\nEND_IF;`;
+      }
+      if (cell.type === 'FB_TOF') {
+        return `IF ${IN} THEN\n  ${Q} := TRUE; ${run} := FALSE;\nELSE\n  IF NOT ${run} THEN ${t0} := millis(); ${run} := TRUE; END_IF;\n  IF (millis() - ${t0}) >= ${pt} THEN ${Q} := FALSE; END_IF;\nEND_IF;`;
+      }
+      // FB_TP — one-shot pulse of PT on the rising edge of IN.
+      const ipv = `__${iid}_ip`;
+      _helperGlobals.push(`  ${ipv} : BOOL := FALSE;`);
+      return `IF ${IN} AND NOT ${ipv} AND NOT ${run} THEN ${t0} := millis(); ${run} := TRUE; END_IF;\n${ipv} := ${IN};\nIF ${run} THEN\n  IF (millis() - ${t0}) < ${pt} THEN ${Q} := TRUE; ELSE ${Q} := FALSE; ${run} := FALSE; END_IF;\nELSE\n  ${Q} := FALSE;\nEND_IF;`;
     }
     if (COUNTERS.has(cell.type)) {
-      const fb = cell.type.replace('FB_', '');           // CTU/CTD/CTUD
-      edgeDecls.set(inst, fb);
-      const args = [];
-      if (fb === 'CTU')  args.push(`CU := ${cond}`, `RESET := ${ref(p.R)}`, `PV := ${p.PV ?? 0}`);
-      if (fb === 'CTD')  args.push(`CD := ${cond}`, `LOAD := ${ref(p.LD)}`, `PV := ${p.PV ?? 0}`);
-      if (fb === 'CTUD') args.push(`CU := ${cond}`, `CD := ${ref(p.CD)}`, `RESET := ${ref(p.R)}`, `LOAD := ${ref(p.LD)}`, `PV := ${p.PV ?? 0}`);
-      const out = p.Q ? `\n  ${ref(p.Q)} := ${inst}.Q;` : '';
-      const cv  = p.CV ? `\n  ${ref(p.CV)} := ${inst}.CV;` : '';
-      return `${inst}(${args.join(', ')});${out}${cv}`;
+      // Lower CTU/CTD/CTUD to primitive ST with edge detection + a counter global.
+      const iid = sanitize(inst);
+      const cv = `__${iid}_cv`;
+      _helperGlobals.push(`  ${cv} : DINT := 0;`);
+      const PV = p.PV ?? 0;
+      const CV = ref(p.CV) !== '_UNBOUND_' ? ref(p.CV) : null;
+      const Q  = ref(p.Q)  !== '_UNBOUND_' ? ref(p.Q)  : null;
+      const lines = [];
+      if (cell.type === 'FB_CTU' || cell.type === 'FB_CTUD') {
+        const CU = ref(p.CU) === '_UNBOUND_' ? cond : ref(p.CU);
+        const R  = ref(p.R)  === '_UNBOUND_' ? 'FALSE' : ref(p.R);
+        const pu = `__${iid}_pu`; _helperGlobals.push(`  ${pu} : BOOL := FALSE;`);
+        lines.push(`IF ${R} THEN ${cv} := 0;\nELSIF ${CU} AND NOT ${pu} THEN ${cv} := ${cv} + 1; END_IF;\n${pu} := ${CU};`);
+      }
+      if (cell.type === 'FB_CTD' || cell.type === 'FB_CTUD') {
+        const CD = ref(p.CD) === '_UNBOUND_' ? cond : ref(p.CD);
+        const LD = ref(p.LD) === '_UNBOUND_' ? 'FALSE' : ref(p.LD);
+        const pd = `__${iid}_pd`; _helperGlobals.push(`  ${pd} : BOOL := FALSE;`);
+        lines.push(`IF ${LD} THEN ${cv} := ${PV};\nELSIF ${CD} AND NOT ${pd} THEN ${cv} := ${cv} - 1; END_IF;\n${pd} := ${CD};`);
+      }
+      if (CV) lines.push(`${CV} := ${cv};`);
+      if (Q)  lines.push(`${Q} := (${cv} >= ${PV});`);
+      return lines.join('\n');
     }
     if (cell.type in MATH_OP) {
       const en = `IF ${cond} THEN `;
@@ -200,6 +244,8 @@
    */
   function compileLadderToST(state) {
     const warnings = [];
+    _helperGlobals = [];
+    _needMillis = false;
     const pous = (state.subroutines && Object.keys(state.subroutines).length)
       ? state.subroutines
       : { main: state.rungs || [] };
@@ -217,11 +263,14 @@
     for (const fn of funcs) blocks.push(compilePou(fn, pous[fn], warnings));
     blocks.push(compilePou('main', pous['main'] || [], warnings));
 
+    // Helper globals (timer/counter state) are populated while compiling the blocks above.
+    const allGlobals = globals.concat(_helperGlobals);
     const st =
       `(* Generated by osoLadder → osocompile.js (prototype) *)\n` +
       `(* Source: ${(state.meta && state.meta.name) || 'untitled'} — osoST dialect (IEC 61131-3 subset) *)\n` +
       `(* POUs: main${funcs.length ? ' + ' + funcs.join(', ') : ''} *)\n\n` +
-      `VAR_GLOBAL\n${globals.length ? globals.join('\n') : '  (* no tags *)'}\nEND_VAR\n\n` +
+      (_needMillis ? `TRAP millis() : DINT   TRAP #12;\n\n` : '') +
+      `VAR_GLOBAL\n${allGlobals.length ? allGlobals.join('\n') : '  (* no tags *)'}\nEND_VAR\n\n` +
       blocks.join('\n');
 
     return { st, warnings };
