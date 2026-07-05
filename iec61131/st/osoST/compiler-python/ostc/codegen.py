@@ -62,6 +62,13 @@ class Op:
     LOAD_L    = 12
     STORE_L   = 13
 
+    # Arrays — base/off(u16) + elem type(u8) + ndims(u8) + per-dim (lo,hi,stride) i32×3.
+    # Indices are pushed before the op; STORE pushes the value first, then the indices.
+    LOAD_GA   = 98
+    STORE_GA  = 99
+    LOAD_LA   = 100
+    STORE_LA  = 101
+
     # Arithmetic — type(u8)
     ADD       = 20
     SUB       = 21
@@ -141,7 +148,12 @@ def _type_kind(typ: Node) -> str:
 
 
 def _elem_bytes(typ: Node) -> int:
-    """Bytes per stack element. / Bytes por elemento de pila."""
+    """Bytes occupied by a variable of this type. / Bytes que ocupa una variable de este tipo."""
+    if isinstance(typ, ArrayType):
+        n = 1
+        for lo, hi in typ.dimensions:
+            n *= (hi - lo + 1)
+        return n * _elem_bytes(typ.element_type)
     k = _type_kind(typ)
     if k == _TypeKind.STR:
         return 81   # 1 len + 80 chars (STLite default)
@@ -472,10 +484,9 @@ class CodeGen:
                 return _TypeKind.INT
         if isinstance(target, ArrayIndex):
             try:
-                et = getattr(self._lookup(target.name).typ, "elem_type", None)
-                if et is not None:
-                    return _type_kind(et)
-            except NameError:
+                at = self._array_symbol(target).typ
+                return _type_kind(at.element_type)
+            except (NameError, TypeError, NotImplementedError):
                 pass
         return _TypeKind.INT
 
@@ -861,14 +872,41 @@ class CodeGen:
     def _emit_debug(self, node: DebugExpr) -> None:
         self._emit_debug_call(node.args)
 
+    def _emit_array_dims(self, at: ArrayType) -> None:
+        """Emit per-dimension (lo, hi, stride) metadata the VM reads after an array op.
+        Row-major: the last dimension has stride 1; each earlier stride multiplies the sizes
+        to its right. Strides are in elements (the VM scales by the element's byte size)."""
+        w = self._writer
+        dims = at.dimensions
+        sizes = [hi - lo + 1 for lo, hi in dims]
+        strides = [1] * len(dims)
+        for i in range(len(dims) - 2, -1, -1):
+            strides[i] = strides[i + 1] * sizes[i + 1]
+        for (lo, hi), st in zip(dims, strides):
+            w.emit_i32(lo); w.emit_i32(hi); w.emit_i32(st)
+
+    def _array_symbol(self, node: ArrayIndex) -> "_Symbol":
+        if not isinstance(node.base, VarRef):
+            raise NotImplementedError("nested array indexing arr[i][j]; use arr[i, j]")
+        sym = self._lookup(node.base.name)
+        if not isinstance(sym.typ, ArrayType):
+            raise TypeError(f"{node.base.name!r} is not an array / no es un array")
+        return sym
+
     def _emit_array_load(self, node: ArrayIndex) -> None:
-        """Emit code to load an array element. / Emitir código para cargar un elemento de array."""
-        # Simplified: emit base address then index
-        # TODO: full multi-dim array support in a future revision
-        # Simplificado: emitir dirección base luego índice
-        # TODO: soporte completo de arrays multidimensionales en revisión futura
-        self._emit_expr(node.indices[0])
-        # Caller must handle further indexing; this is a stub.
+        """Load an array element: push the indices, then LOAD_GA/LOAD_LA + descriptor."""
+        w = self._writer
+        sym = self._array_symbol(node)
+        at = sym.typ
+        for idx in node.indices:
+            self._emit_operand(idx, _TypeKind.INT)
+        et_vt = self._vt(_type_kind(at.element_type))
+        if sym.scope == "global":
+            w.emit(Op.LOAD_GA); w.emit_u16(sym.offset)
+        else:
+            w.emit(Op.LOAD_LA); w.emit_u16(sym.offset + FRAME_HEADER_BYTES)
+        w.emit_u8(et_vt); w.emit_u8(len(at.dimensions))
+        self._emit_array_dims(at)
 
     # ── Store / Load helpers / Ayudantes de almacenamiento/carga ──
 
@@ -877,8 +915,20 @@ class CodeGen:
             sym = self._lookup(target.name)
             self._emit_store_sym(sym)
         elif isinstance(target, ArrayIndex):
-            # TODO: array store / Almacenamiento en array (pendiente)
-            pass
+            # The value is already on the stack (pushed by _emit_assign). Push the indices,
+            # then STORE_GA/STORE_LA pops the indices (offset) and then the value.
+            w = self._writer
+            sym = self._array_symbol(target)
+            at = sym.typ
+            for idx in target.indices:
+                self._emit_operand(idx, _TypeKind.INT)
+            et_vt = self._vt(_type_kind(at.element_type))
+            if sym.scope == "global":
+                w.emit(Op.STORE_GA); w.emit_u16(sym.offset)
+            else:
+                w.emit(Op.STORE_LA); w.emit_u16(sym.offset + FRAME_HEADER_BYTES)
+            w.emit_u8(et_vt); w.emit_u8(len(at.dimensions))
+            self._emit_array_dims(at)
         else:
             raise NotImplementedError(f"Cannot assign to {type(target).__name__}")
 
@@ -943,6 +993,11 @@ class CodeGen:
             return _TypeKind.INT
         if isinstance(node, UnaryOp):
             return self._expr_type_kind(node.operand)
+        if isinstance(node, ArrayIndex):
+            try:
+                return _type_kind(self._array_symbol(node).typ.element_type)
+            except (NameError, TypeError, NotImplementedError):
+                return _TypeKind.INT
         if isinstance(node, Ternary):
             return self._expr_type_kind(node.then_val)
         if isinstance(node, CallExpr):
@@ -997,6 +1052,11 @@ def disassemble(data: bytes, start_offset: int = 0) -> str:
             line += f"  #{data[i]}"; i += 1
         elif op == Op.MATH:
             line += f"  sub={data[i]}"; i += 1
+        elif op in (Op.CAST_I32, Op.CAST_F32):
+            line += f"  from t={data[i]}"; i += 1
+        elif op in (Op.LOAD_GA, Op.STORE_GA, Op.LOAD_LA, Op.STORE_LA):
+            base = struct.unpack_from("<H", data, i)[0]; t = data[i + 2]; nd = data[i + 3]
+            line += f"  @{base} t={t} dims={nd}"; i += 4 + nd * 12
         elif op == Op.DEBUG:
             n = data[i]; types = list(data[i + 1:i + 1 + n]); line += f"  n={n} {types}"; i += 1 + n
         lines.append(line)

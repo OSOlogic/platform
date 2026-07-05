@@ -87,10 +87,13 @@ patch write `target − (operand_offset + 2)`. (ostc currently patches absolute 
      `TRUNC`, …) lower to one cast. Function return kinds are pre-scanned so a call in a float
      expression types correctly. *cast.st runs: `7*2.5=17.5`, `TO_REAL(7)+0.5=7.5`, `REAL_TO_INT(17.5)=17`.*
    - ✅ **MOD** — `%` lowers to `MATH`+`MATH_MOD_I` with integer operands.
+   - ✅ **Arrays** — `LOAD_GA`/`STORE_GA` (global) and `LOAD_LA`/`STORE_LA` (local). The symbol is sized
+     `n × elem_bytes` (multi-dim aware); an access pushes the indices, then emits the op with base(u16),
+     element type(u8), ndims(u8) and per-dimension `(lo, hi, stride)` i32×3 (row-major strides). Stores
+     push the value first, then the indices. Non-zero lower bounds and REAL elements handled.
+     *array.st: fill+sum `[0..4]` = 100, `a[2]` = 20; array_real.st: `[1..3] OF REAL` sum = 9.0, `r[3]` = 4.5.*
    - ⏳ **Strings** — `PUSH_S` currently emits inline data; needs a real string pool (u16 index) so the
-     VM's `read_cstr`/`STRING` path works, plus VT_STR (2-byte pointer) store/load.
-   - ⏳ **Arrays** — `LOAD_GA`/`STORE_GA` (global) and `LOAD_LA`/`STORE_LA` (local): size the symbol as
-     `n × elem_bytes`, compute the index at runtime, emit base+index. `_emit_array_load`/`_emit_store`
-     are still stubs.
+     VM's `read_cstr`/`STRING` path works, plus VT_STR (2-byte pointer) store/load. Least urgent
+     (Ladder never needs it; mostly trap/debug arguments).
 
 Kept ostc's lexer/parser/AST unchanged; only `codegen.py` (+ `hex_writer` patch_i16/patch_u16) changed.
