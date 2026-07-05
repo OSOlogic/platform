@@ -1,0 +1,7 @@
+{
+  "id": "generic-rest", "name": "Generic / customizable REST API", "version": "1.0.0",
+  "kind": "domain-map", "transport": "rest", "cadence": "normal", "customizable": true,
+  "source": "generic", "provides": ["api.value"],
+  "note": "Any HTTP/JSON API — set URL/method/headers/poll, map JSON paths to tags.",
+  "license": "AGPL-3.0-or-later"
+}

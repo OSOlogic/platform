@@ -1,9 +1,13 @@
 {
   "catalog": "osologic-drivers",
   "description": "File-defined osodb drivers (RFC 0002), loaded via oso-driver \u2014 not compiled into the core.",
-  "complete": 8,
+  "complete": 14,
   "candidates": 23,
-  "note": "complete = ready file drivers (driver.json + map/protocol.json). candidates = stripped from Home Assistant manifests (oso-strip-hass), pending map.json review.",
+  "groups": {
+    "generic": "customizable protocol drivers (build-your-own)",
+    "vendor": "Ibercomp / Borrell Automation fieldbus cards",
+    "community": "stripped from Home Assistant + others"
+  },
   "drivers": [
     {
       "id": "tradfri",
@@ -15,7 +19,83 @@
         "light.brightness"
       ],
       "source": "home-assistant:tradfri",
+      "customizable": false,
       "path": "coap/tradfri"
+    },
+    {
+      "id": "generic-canopen",
+      "name": "Generic / customizable CANopen",
+      "transport": "canopen",
+      "kind": "domain-map",
+      "provides": [
+        "pdo.value",
+        "sdo.value"
+      ],
+      "source": "generic",
+      "customizable": true,
+      "path": "generic/canopen"
+    },
+    {
+      "id": "generic-modbus-rtu",
+      "name": "Generic / customizable Modbus RTU",
+      "transport": "modbus",
+      "kind": "domain-map",
+      "provides": [
+        "reg.value",
+        "coil.state"
+      ],
+      "source": "generic",
+      "customizable": true,
+      "path": "generic/modbus-rtu"
+    },
+    {
+      "id": "generic-modbus-tcp",
+      "name": "Generic / customizable Modbus TCP",
+      "transport": "modbus",
+      "kind": "domain-map",
+      "provides": [
+        "reg.value",
+        "coil.state"
+      ],
+      "source": "generic",
+      "customizable": true,
+      "path": "generic/modbus-tcp"
+    },
+    {
+      "id": "generic-opcua",
+      "name": "Generic / customizable OPC-UA client",
+      "transport": "opc-ua",
+      "kind": "domain-map",
+      "provides": [
+        "node.value"
+      ],
+      "source": "generic",
+      "customizable": true,
+      "path": "generic/opcua"
+    },
+    {
+      "id": "generic-rest",
+      "name": "Generic / customizable REST API",
+      "transport": "rest",
+      "kind": "domain-map",
+      "provides": [
+        "api.value"
+      ],
+      "source": "generic",
+      "customizable": true,
+      "path": "generic/rest"
+    },
+    {
+      "id": "generic-serial",
+      "name": "Generic serial (RS-232 / RS-422 / RS-485)",
+      "transport": "serial",
+      "kind": "protocol",
+      "provides": [
+        "line.value"
+      ],
+      "source": "generic",
+      "customizable": true,
+      "path": "generic/serial"
     },
     {
       "id": "modbus-generic",
@@ -27,6 +107,7 @@
         "coil.state"
       ],
       "source": "home-assistant:modbus",
+      "customizable": false,
       "path": "modbus/modbus-generic"
     },
     {
@@ -39,6 +120,7 @@
         "light.brightness"
       ],
       "source": "home-assistant:mqtt",
+      "customizable": false,
       "path": "mqtt/mqtt-light"
     },
     {
@@ -52,6 +134,7 @@
         "energy.wh"
       ],
       "source": "home-assistant:shelly",
+      "customizable": false,
       "path": "mqtt/shelly"
     },
     {
@@ -64,6 +147,7 @@
         "sensor.temperature"
       ],
       "source": "home-assistant:tasmota",
+      "customizable": false,
       "path": "mqtt/tasmota"
     },
     {
@@ -76,6 +160,7 @@
         "weather.windspeed"
       ],
       "source": "public-api",
+      "customizable": false,
       "path": "rest/rest-public-example"
     },
     {
@@ -87,6 +172,7 @@
         "sensor.value"
       ],
       "source": "home-assistant:rest",
+      "customizable": false,
       "path": "rest/rest-sensor"
     },
     {
@@ -99,6 +185,7 @@
         "dummy.setpoint"
       ],
       "source": "protocol-builder",
+      "customizable": false,
       "path": "serial/rs232-dummy"
     }
   ],
@@ -110,6 +197,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-command_line"
     },
     {
@@ -119,6 +207,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-deconz"
     },
     {
@@ -128,6 +217,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-esphome"
     },
     {
@@ -137,6 +227,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-fronius"
     },
     {
@@ -146,6 +237,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-homekit_controller"
     },
     {
@@ -155,6 +247,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-hue"
     },
     {
@@ -164,6 +257,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-insteon"
     },
     {
@@ -173,6 +267,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-lifx"
     },
     {
@@ -182,6 +277,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-matter"
     },
     {
@@ -191,6 +287,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-modbus"
     },
     {
@@ -200,6 +297,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-mqtt"
     },
     {
@@ -209,6 +307,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-nut"
     },
     {
@@ -218,6 +317,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-openevse"
     },
     {
@@ -227,6 +327,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-rest"
     },
     {
@@ -236,6 +337,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-shelly"
     },
     {
@@ -245,6 +347,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-sma"
     },
     {
@@ -254,6 +357,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-tasmota"
     },
     {
@@ -263,6 +367,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-tplink"
     },
     {
@@ -272,6 +377,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-upnp"
     },
     {
@@ -281,6 +387,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-wled"
     },
     {
@@ -290,6 +397,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-yeelight"
     },
     {
@@ -299,6 +407,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-zha"
     },
     {
@@ -308,6 +417,7 @@
       "kind": "bridge-adapter",
       "provides": [],
       "source": "home-assistant",
+      "customizable": false,
       "path": "_candidates/hass-zwave_js"
     }
   ]

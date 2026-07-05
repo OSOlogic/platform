@@ -1,0 +1,7 @@
+{
+  "id": "generic-modbus-tcp", "name": "Generic / customizable Modbus TCP", "version": "1.0.0",
+  "kind": "domain-map", "transport": "modbus", "cadence": "normal", "customizable": true,
+  "source": "generic", "provides": ["reg.value","coil.state"],
+  "note": "Any Modbus TCP slave — set host/port/unit id, map registers/coils to tags.",
+  "license": "AGPL-3.0-or-later"
+}

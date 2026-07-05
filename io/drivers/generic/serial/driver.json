@@ -1,0 +1,7 @@
+{
+  "id": "generic-serial", "name": "Generic serial (RS-232 / RS-422 / RS-485)", "version": "1.0.0",
+  "kind": "protocol", "transport": "serial", "cadence": "normal", "customizable": true,
+  "source": "generic", "provides": ["line.value"],
+  "note": "Any ASCII/binary serial device — define the frame with the Protocol builder (RFC 0001).",
+  "license": "AGPL-3.0-or-later"
+}

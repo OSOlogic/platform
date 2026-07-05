@@ -52,7 +52,17 @@
   </div>
 
   <div class="sec">
-    <div class="sechead"><h2>File drivers</h2><span class="via">3rd-party catalog</span><p>drop a folder · no rebuild · <a href="/io/drivers/README.md" style="color:var(--accent)">catalog</a></p></div>
+    <div class="sechead"><h2>Generic / customizable</h2><span class="via">build-your-own</span><p>point it at any device · no vendor lock-in</p></div>
+    <div class="grid" id="generic"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h2>Vendor cards</h2><span class="via">Ibercomp · Borrell Automation</span><p>fieldbus I/O · RS-485 · Modbus RTU · Modbus TCP</p></div>
+    <div class="grid" id="vendor"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h2>Community</h2><span class="via">Home Assistant catalog</span><p id="commP">…</p></div>
     <div class="grid" id="drivers"></div>
     <div class="cand" id="cand"></div>
   </div>
@@ -82,18 +92,31 @@ const NATIVE=[
 ];
 $('#native').innerHTML=NATIVE.map(d=>`<div class="dev native"><span class="pill">native</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.t)}</div><div class="p">${esc(d.p)}</div></div>`).join('');
 
+const card=d=>`<div class="dev"><span class="pill">${esc(d.kind||'')}</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.transport)}</div><div class="p">${esc((d.provides||[]).join(' · '))}</div></div>`;
+// Vendor cards — hardcoded catalog (details to come).
+const VENDOR=[
+  {name:'Ibercomp fieldbus', t:'RS-485 · Modbus RTU · Modbus TCP', p:'coming — hardcoded'},
+  {name:'Borrell Automation', t:'RS-485 · Modbus RTU · Modbus TCP', p:'coming — hardcoded'},
+];
+$('#vendor').innerHTML=VENDOR.map(d=>`<div class="dev"><span class="pill">vendor</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.t)}</div><div class="p">${esc(d.p)}</div></div>`).join('');
+
 (async()=>{
-  let c; try{ c=await (await fetch('/io/drivers/catalog.json')).json(); }catch(e){ $('#drivers').innerHTML='catalog unavailable'; return; }
+  let c={drivers:[],candidate_drivers:[]};
+  try{ c=await (await fetch('/io/drivers/catalog.json')).json(); }catch(e){}
   const complete=c.drivers||[];
-  const proto=complete.filter(d=>d.kind==='protocol');
-  const files=complete.filter(d=>d.kind!=='protocol');
-  const card=d=>`<div class="dev"><span class="pill">${esc(d.kind||'')}</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.transport)}</div><div class="p">${esc((d.provides||[]).join(' · '))}</div></div>`;
-  $('#drivers').innerHTML=files.map(card).join('')||'no file drivers';
-  $('#proto').innerHTML=proto.map(d=>card(d).replace('class="dev"','class="dev proto"')).join('')||'—';
+  $('#generic').innerHTML=complete.filter(d=>d.customizable).map(card).join('')||'—';
+  $('#proto').innerHTML=complete.filter(d=>d.kind==='protocol').map(d=>card(d).replace('class="dev"','class="dev proto"')).join('')||'—';
+  $('#drivers').innerHTML=complete.filter(d=>!d.customizable&&d.kind!=='protocol').map(card).join('')||'—';
   const cands=c.candidate_drivers||[];
-  if(cands.length){
-    $('#cand').innerHTML=`<b>${cands.length} more</b> stripped from Home Assistant integrations (<a href="../../../cli/oso-strip-hass/README.md">oso-strip-hass</a>) — candidates pending a map.json review:
-      <div class="chips">${cands.map(d=>`<span class="chip">${esc(d.id.replace('hass-',''))}</span>`).join('')}</div>`;
+  // Full community index (thousands, load on demand in the admin UI).
+  let idx=null; try{ idx=await (await fetch('/io/drivers/community-index.json')).json(); }catch(e){}
+  if(idx){
+    $('#commP').innerHTML=`<b style="color:var(--ink)">${idx.count}</b> integrations · <b style="color:var(--good)">${idx.mappable}</b> native-mappable · load on demand`;
+    const chips=cands.map(d=>d.id.replace('hass-','')).slice(0,40);
+    $('#cand').innerHTML=`Stripped from the Home Assistant catalog (<a href="../../../cli/oso-strip-hass/README.md">oso-strip-hass</a>). <b>${idx.count}</b> integrations indexed in <a href="/io/drivers/community-index.json">community-index.json</a> — the admin UI shows which are available and loads them from the repo. ${cands.length} completed candidates so far:
+      <div class="chips">${chips.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}${cands.length>40?'<span class="chip">…</span>':''}</div>`;
+  } else {
+    $('#commP').textContent='catalog unavailable';
   }
 })();
 const root=document.documentElement,t=localStorage.getItem('oso-theme');if(t)root.setAttribute('data-theme',t);

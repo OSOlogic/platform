@@ -1,0 +1,7 @@
+{
+  "id": "generic-opcua", "name": "Generic / customizable OPC-UA client", "version": "1.0.0",
+  "kind": "domain-map", "transport": "opc-ua", "cadence": "normal", "customizable": true,
+  "source": "generic", "provides": ["node.value"],
+  "note": "Any OPC-UA server — set endpoint + security, browse and map NodeIds to tags.",
+  "license": "AGPL-3.0-or-later"
+}

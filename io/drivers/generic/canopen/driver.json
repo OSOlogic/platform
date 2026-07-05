@@ -1,0 +1,7 @@
+{
+  "id": "generic-canopen", "name": "Generic / customizable CANopen", "version": "1.0.0",
+  "kind": "domain-map", "transport": "canopen", "cadence": "normal", "customizable": true,
+  "source": "generic", "provides": ["pdo.value","sdo.value"],
+  "note": "Any CANopen node — set node id + bitrate, map PDO/SDO objects to tags.",
+  "license": "AGPL-3.0-or-later"
+}

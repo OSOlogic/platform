@@ -1,0 +1,7 @@
+{
+  "id": "generic-modbus-rtu", "name": "Generic / customizable Modbus RTU", "version": "1.0.0",
+  "kind": "domain-map", "transport": "modbus", "cadence": "normal", "customizable": true,
+  "source": "generic", "provides": ["reg.value","coil.state"],
+  "note": "Point at any Modbus RTU device — set serial params, unit id, and map registers/coils to tags.",
+  "license": "AGPL-3.0-or-later"
+}
