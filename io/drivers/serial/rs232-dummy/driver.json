@@ -1,0 +1,7 @@
+{
+  "id": "rs232-dummy", "name": "RS-232 dummy device", "version": "1.0.0",
+  "kind": "protocol", "transport": "serial", "cadence": "normal",
+  "source": "protocol-builder", "provides": ["dummy.value", "dummy.setpoint"],
+  "note": "Built with the Protocol builder (RFC 0001) — a minimal ASCII RS-232 device for testing the serial path.",
+  "license": "AGPL-3.0-or-later"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "hass-zwave_js",
+  "name": "Z-Wave",
+  "version": "0.1.0-candidate",
+  "kind": "bridge-adapter",
+  "transport": "zeroconf-local",
+  "cadence": "low",
+  "source": "home-assistant",
+  "domain": "zwave_js",
+  "note": "generated candidate \u2014 review + attach map.json (RFC 0002)",
+  "license": "AGPL-3.0-or-later"
+}

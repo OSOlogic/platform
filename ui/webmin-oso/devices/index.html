@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Supported devices</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#3d8bfd;--brand:#a11313;--good:#46d17f;--warn:#e6a417;
+    --mono:ui-monospace,Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f6f7f9;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#1c2024;--muted:#6c757d}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+  a{color:inherit;text-decoration:none}.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  header .brand{display:flex;align-items:center;gap:9px}header img{width:30px;height:23px}
+  .logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:18px;font-family:var(--mono);font-size:12px;color:var(--muted)}.krumb a{color:var(--muted)}.krumb a:hover{color:var(--accent)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:auto}
+  h1{font-size:26px;margin:22px 0 4px}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 6px;max-width:80ch}
+  .sec{margin:26px 0 0}
+  .sechead{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:14px}
+  .sechead h2{margin:0;font-size:17px}.sechead .via{font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+  .sechead p{margin:0 0 0 auto;color:var(--muted);font-size:12.5px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .dev{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .dev h3{margin:0 0 3px;font-size:14px}
+  .dev .t{font-family:var(--mono);font-size:11px;color:var(--accent)}
+  .dev .p{color:var(--muted);font-size:11.5px;margin-top:5px;font-family:var(--mono)}
+  .dev.native{border-color:color-mix(in srgb,var(--good) 35%,var(--line))}
+  .dev.proto{border-color:color-mix(in srgb,var(--warn) 35%,var(--line))}
+  .pill{font-family:var(--mono);font-size:10px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
+  .cand{background:var(--panel-2);border:1px dashed var(--line);border-radius:11px;padding:12px 14px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .cand b{color:var(--ink)}.cand a{color:var(--accent)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:30px;padding:16px 0 44px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" class="brand"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb"><a href="/">Home</a> › <a href="../index.html">Admin</a> › Supported devices</span>
+    <button class="toggle" id="themeBtn">◐</button></header>
+
+  <h1>Supported devices <em>· three ways in</em></h1>
+  <p class="lede">Every device meets at osodb tags. It gets there one of three ways — a driver compiled
+    into the core, a file driver from the catalog, or a protocol you define yourself.</p>
+
+  <div class="sec">
+    <div class="sechead"><h2>Native</h2><span class="via">in the core</span><p>compiled in · fastest · always present</p></div>
+    <div class="grid" id="native"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h2>File drivers</h2><span class="via">3rd-party catalog</span><p>drop a folder · no rebuild · <a href="/io/drivers/README.md" style="color:var(--accent)">catalog</a></p></div>
+    <div class="grid" id="drivers"></div>
+    <div class="cand" id="cand"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead"><h2>Protocol builder</h2><span class="via">define your own</span><p>any serial/TCP protocol as files (RFC 0001)</p></div>
+    <div class="grid" id="proto"></div>
+    <p style="color:var(--muted);font-size:12.5px;margin-top:10px">Frame it, map fields to tags, done — no C. Open the
+      <a href="../../../iec61131/st/osoST/editor/index.html" style="color:var(--accent)">editors</a> or see
+      <a href="/io/drivers/serial/rs232-dummy/protocol.json" style="color:var(--accent)">rs232-dummy/protocol.json</a>.</p>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Native, core-compiled drivers (not files).
+const NATIVE=[
+  {name:'Modbus RTU/TCP',t:'modbus',p:'registers · coils'},
+  {name:'SPI',t:'spi',p:'sensors · ADC/DAC'},
+  {name:'GPIO',t:'gpio',p:'digital I/O'},
+  {name:'I²C',t:'i2c',p:'sensors · expanders'},
+  {name:'UART',t:'uart',p:'serial lines'},
+  {name:'OPC-UA (server)',t:'opc-ua',p:'tags → NodeId'},
+];
+$('#native').innerHTML=NATIVE.map(d=>`<div class="dev native"><span class="pill">native</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.t)}</div><div class="p">${esc(d.p)}</div></div>`).join('');
+
+(async()=>{
+  let c; try{ c=await (await fetch('/io/drivers/catalog.json')).json(); }catch(e){ $('#drivers').innerHTML='catalog unavailable'; return; }
+  const complete=c.drivers||[];
+  const proto=complete.filter(d=>d.kind==='protocol');
+  const files=complete.filter(d=>d.kind!=='protocol');
+  const card=d=>`<div class="dev"><span class="pill">${esc(d.kind||'')}</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.transport)}</div><div class="p">${esc((d.provides||[]).join(' · '))}</div></div>`;
+  $('#drivers').innerHTML=files.map(card).join('')||'no file drivers';
+  $('#proto').innerHTML=proto.map(d=>card(d).replace('class="dev"','class="dev proto"')).join('')||'—';
+  const cands=c.candidate_drivers||[];
+  if(cands.length){
+    $('#cand').innerHTML=`<b>${cands.length} more</b> stripped from Home Assistant integrations (<a href="../../../cli/oso-strip-hass/README.md">oso-strip-hass</a>) — candidates pending a map.json review:
+      <div class="chips">${cands.map(d=>`<span class="chip">${esc(d.id.replace('hass-',''))}</span>`).join('')}</div>`;
+  }
+})();
+const root=document.documentElement,t=localStorage.getItem('oso-theme');if(t)root.setAttribute('data-theme',t);
+$('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+</script>
+</body>
+</html>

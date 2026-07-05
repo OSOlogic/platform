@@ -1,0 +1,12 @@
+{
+  "id": "hass-tplink",
+  "name": "TP-Link Smart Home",
+  "version": "0.1.0-candidate",
+  "kind": "bridge-adapter",
+  "transport": "zeroconf-local",
+  "cadence": "low",
+  "source": "home-assistant",
+  "domain": "tplink",
+  "note": "generated candidate \u2014 review + attach map.json (RFC 0002)",
+  "license": "AGPL-3.0-or-later"
+}

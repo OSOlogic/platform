@@ -1,0 +1,7 @@
+{
+  "connection": { "url": "https://api.open-meteo.com/v1/forecast?latitude=41.39&longitude=2.16&current=temperature_2m,wind_speed_10m", "method": "GET", "poll_seconds": 300 },
+  "tags": [
+    { "json": "$.current.temperature_2m", "tag": "weather.temperature", "type": "Float", "access": "ReadOnly", "units": "C" },
+    { "json": "$.current.wind_speed_10m",  "tag": "weather.windspeed",   "type": "Float", "access": "ReadOnly", "units": "km/h" }
+  ]
+}

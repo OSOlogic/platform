@@ -1,0 +1,7 @@
+{
+  "id": "rest-open-meteo", "name": "Open-Meteo weather (public REST)", "version": "1.0.0",
+  "kind": "domain-map", "transport": "rest", "cadence": "slow",
+  "source": "public-api", "provides": ["weather.temperature", "weather.windspeed"],
+  "note": "A live public REST API (no key) — the working REST example for the supported-devices page.",
+  "license": "AGPL-3.0-or-later"
+}

@@ -1,12 +1,13 @@
 {
   "catalog": "osologic-drivers",
-  "description": "File-defined osodb drivers (RFC 0002) \u2014 loaded via oso-driver, not compiled into the core.",
-  "count": 6,
+  "description": "File-defined osodb drivers (RFC 0002), loaded via oso-driver \u2014 not compiled into the core.",
+  "complete": 8,
+  "candidates": 23,
+  "note": "complete = ready file drivers (driver.json + map/protocol.json). candidates = stripped from Home Assistant manifests (oso-strip-hass), pending map.json review.",
   "drivers": [
     {
       "id": "tradfri",
       "name": "IKEA Tr\u00e5dfri (CoAP)",
-      "version": "0.9.0",
       "transport": "coap",
       "kind": "bridge-adapter",
       "provides": [
@@ -19,7 +20,6 @@
     {
       "id": "modbus-generic",
       "name": "Modbus device (generic)",
-      "version": "1.0.0",
       "transport": "modbus",
       "kind": "domain-map",
       "provides": [
@@ -32,7 +32,6 @@
     {
       "id": "mqtt-light",
       "name": "MQTT Light",
-      "version": "1.0.0",
       "transport": "mqtt",
       "kind": "domain-map",
       "provides": [
@@ -45,7 +44,6 @@
     {
       "id": "shelly",
       "name": "Shelly (MQTT)",
-      "version": "1.0.0",
       "transport": "mqtt",
       "kind": "domain-map",
       "provides": [
@@ -59,7 +57,6 @@
     {
       "id": "tasmota",
       "name": "Tasmota (MQTT)",
-      "version": "1.0.0",
       "transport": "mqtt",
       "kind": "domain-map",
       "provides": [
@@ -70,9 +67,20 @@
       "path": "mqtt/tasmota"
     },
     {
+      "id": "rest-open-meteo",
+      "name": "Open-Meteo weather (public REST)",
+      "transport": "rest",
+      "kind": "domain-map",
+      "provides": [
+        "weather.temperature",
+        "weather.windspeed"
+      ],
+      "source": "public-api",
+      "path": "rest/rest-public-example"
+    },
+    {
       "id": "rest-sensor",
       "name": "REST/HTTP sensor",
-      "version": "1.0.0",
       "transport": "rest",
       "kind": "domain-map",
       "provides": [
@@ -80,6 +88,227 @@
       ],
       "source": "home-assistant:rest",
       "path": "rest/rest-sensor"
+    },
+    {
+      "id": "rs232-dummy",
+      "name": "RS-232 dummy device",
+      "transport": "serial",
+      "kind": "protocol",
+      "provides": [
+        "dummy.value",
+        "dummy.setpoint"
+      ],
+      "source": "protocol-builder",
+      "path": "serial/rs232-dummy"
+    }
+  ],
+  "candidate_drivers": [
+    {
+      "id": "hass-command_line",
+      "name": "Command Line",
+      "transport": "rest/http",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-command_line"
+    },
+    {
+      "id": "hass-deconz",
+      "name": "deCONZ",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-deconz"
+    },
+    {
+      "id": "hass-esphome",
+      "name": "ESPHome",
+      "transport": "mqtt",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-esphome"
+    },
+    {
+      "id": "hass-fronius",
+      "name": "Fronius",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-fronius"
+    },
+    {
+      "id": "hass-homekit_controller",
+      "name": "HomeKit Device",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-homekit_controller"
+    },
+    {
+      "id": "hass-hue",
+      "name": "Philips Hue",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-hue"
+    },
+    {
+      "id": "hass-insteon",
+      "name": "Insteon",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-insteon"
+    },
+    {
+      "id": "hass-lifx",
+      "name": "LIFX",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-lifx"
+    },
+    {
+      "id": "hass-matter",
+      "name": "Matter",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-matter"
+    },
+    {
+      "id": "hass-modbus",
+      "name": "Manual Modbus",
+      "transport": "modbus",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-modbus"
+    },
+    {
+      "id": "hass-mqtt",
+      "name": "MQTT",
+      "transport": "mqtt",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-mqtt"
+    },
+    {
+      "id": "hass-nut",
+      "name": "Network UPS Tools (NUT)",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-nut"
+    },
+    {
+      "id": "hass-openevse",
+      "name": "OpenEVSE",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-openevse"
+    },
+    {
+      "id": "hass-rest",
+      "name": "RESTful",
+      "transport": "rest/http",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-rest"
+    },
+    {
+      "id": "hass-shelly",
+      "name": "Shelly",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-shelly"
+    },
+    {
+      "id": "hass-sma",
+      "name": "SMA Solar",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-sma"
+    },
+    {
+      "id": "hass-tasmota",
+      "name": "Tasmota",
+      "transport": "mqtt",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-tasmota"
+    },
+    {
+      "id": "hass-tplink",
+      "name": "TP-Link Smart Home",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-tplink"
+    },
+    {
+      "id": "hass-upnp",
+      "name": "UPnP/IGD",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-upnp"
+    },
+    {
+      "id": "hass-wled",
+      "name": "WLED",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-wled"
+    },
+    {
+      "id": "hass-yeelight",
+      "name": "Yeelight",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-yeelight"
+    },
+    {
+      "id": "hass-zha",
+      "name": "Zigbee Home Automation",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-zha"
+    },
+    {
+      "id": "hass-zwave_js",
+      "name": "Z-Wave",
+      "transport": "zeroconf-local",
+      "kind": "bridge-adapter",
+      "provides": [],
+      "source": "home-assistant",
+      "path": "_candidates/hass-zwave_js"
     }
   ]
 }

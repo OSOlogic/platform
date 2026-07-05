@@ -1,0 +1,11 @@
+{
+  "name": "rs232-dummy",
+  "transport": { "type": "serial", "baud": 9600, "bits": 8, "parity": "none", "stop": 1 },
+  "framing": { "type": "line", "terminator": "\r\n" },
+  "commands": [
+    { "name": "read",  "tx": "?VALUE\r\n", "rx": "VALUE=<value>\r\n",
+      "fields": [ { "name": "value", "tag": "dummy.value", "type": "Float", "access": "ReadOnly" } ] },
+    { "name": "write", "tx": "!SET <setpoint>\r\n",
+      "fields": [ { "name": "setpoint", "tag": "dummy.setpoint", "type": "Float", "access": "ReadWrite" } ] }
+  ]
+}
