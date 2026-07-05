@@ -6,6 +6,21 @@ starting friendly and growing fiercer as the platform matures. Each is a
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
 
+## [Unreleased]
+
+Since Teddy:
+- **IEC 61131-3 ST — Milestone 4 complete.** The Python compiler (`ostc`) now runs casts and mixed
+  INT/REAL arithmetic, explicit IEC conversions, arrays (global/local, multi-dim, non-zero bounds),
+  and strings (const pool, comparison, IEC single-quotes) on the VM — verified end-to-end.
+- **osowatchdog** — service/process monitor (systemd / process / TCP / HTTP) with restart/alert
+  actions, a `/api/v1/health` endpoint, an exquisite web UI and an ncurses TUI.
+- **Date & Time** — timezone, NTP client and server, live clock; web UI + TUI.
+- **osodb pluggable DB backends** — one `SqlAdapter` over `ISqlConn` + `SqlDialect`: **SQLite**
+  (implemented + tested), an **MCU engine** with a **MariaDB emulation** layer (implemented + tested),
+  and a **PostgreSQL** driver (native libpq). osodb owns the real-time path, so the engine choice is
+  a deployment decision, not a performance one.
+- Admin modules share a three-surface pattern (core API + web UI + TUI via `packaging/oso-config`).
+
 ## [v1.0.0-beta.1] — "Teddy" — 2026-07-05
 
 The first tagged release. A functional base — the real-time PLC core, `osodb`, gateways, APIs,
