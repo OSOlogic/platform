@@ -5,13 +5,16 @@ who hold the copyright to the project. We are grateful to everyone who has helpe
 
 ## Founders
 
-- **José Roig**
-- **Miguel Zúñiga**
+- **José Roig Borrell** — Roig Borrell S.L.
+- **Ángel Miguel Zúñiga Schmemund** — Ibercomp S.L. — IEC 61131-3 Structured Text
+  toolchain (osoST: compiler, P-code runtime, Intel HEX).
 
 ## Core contributors
 
 - **Diego Arcos Sapena** — real-time PLC core, control runtime, in-memory database,
-  and protocol gateways (Modbus, SPI).
+  protocol gateways (Modbus, MQTT), Node-RED flows and the web GUI.
+- **Jorge Martín Morant** — C++ core communication layer (bus / SPI channels &
+  protocols), GPIO and hardware modules, and core utilities (errors, helpers).
 
 ## Authorship and copyright
 
