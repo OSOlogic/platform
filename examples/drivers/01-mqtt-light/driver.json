@@ -1,0 +1,11 @@
+{
+  "id": "mqtt-light",
+  "name": "MQTT Light",
+  "version": "1.0.0",
+  "kind": "domain-map",
+  "transport": "mqtt",
+  "cadence": "normal",
+  "provides": ["light.state", "light.brightness"],
+  "requires": [],
+  "license": "AGPL-3.0-or-later"
+}

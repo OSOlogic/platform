@@ -1,0 +1,11 @@
+[
+  {"id":"blink_inject","type":"inject","z":"f1","name":"every 1s","props":[{"p":"payload"}],
+   "repeat":"1","crontab":"","once":true,"payloadType":"date","x":130,"y":80,"wires":[["blink_fn"]]},
+  {"id":"blink_fn","type":"function","z":"f1","name":"toggle","outputs":1,
+   "func":"context.s = context.s ? 0 : 1;\nmsg.payload = { value: context.s };\nnode.status({text: context.s ? 'ON' : 'off'});\nreturn msg;",
+   "x":300,"y":80,"wires":[["blink_http"]]},
+  {"id":"blink_http","type":"http request","z":"f1","name":"PUT /var/hass.switch.led",
+   "method":"PUT","ret":"txt","url":"http://127.0.0.1:8080/var/hass.switch.led",
+   "headers":[{"keyType":"other","keyValue":"Content-Type","valueType":"other","valueValue":"application/json"}],
+   "x":540,"y":80,"wires":[[]]}
+]
