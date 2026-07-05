@@ -28,6 +28,10 @@
   .dev .p{color:var(--muted);font-size:11.5px;margin-top:5px;font-family:var(--mono)}
   .dev.native{border-color:color-mix(in srgb,var(--good) 35%,var(--line))}
   .dev.proto{border-color:color-mix(in srgb,var(--warn) 35%,var(--line))}
+  .dev.loaded{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .ldbtn{margin-top:9px;width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--accent);border-radius:7px;padding:5px 0;cursor:pointer;font:600 12px var(--sans)}
+  .ldbtn:hover{border-color:var(--accent)}
+  .ldbtn.on{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
   .pill{font-family:var(--mono);font-size:10px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
   .cand{background:var(--panel-2);border:1px dashed var(--line);border-radius:11px;padding:12px 14px;margin-top:10px;font-size:12.5px;color:var(--muted)}
   .cand b{color:var(--ink)}.cand a{color:var(--accent)}
@@ -92,7 +96,10 @@ const NATIVE=[
 ];
 $('#native').innerHTML=NATIVE.map(d=>`<div class="dev native"><span class="pill">native</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.t)}</div><div class="p">${esc(d.p)}</div></div>`).join('');
 
-const card=d=>`<div class="dev"><span class="pill">${esc(d.kind||'')}</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.transport)}</div><div class="p">${esc((d.provides||[]).join(' · '))}</div></div>`;
+let LOADED=new Set();
+const card=d=>{const on=LOADED.has(d.id);
+  return `<div class="dev${on?' loaded':''}"><span class="pill">${esc(d.kind||'')}</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.transport)}</div><div class="p">${esc((d.provides||[]).join(' · '))}</div>
+  <button class="ldbtn${on?' on':''}" data-id="${esc(d.id)}" data-on="${on?1:0}">${on?'● Loaded — unload':'＋ Load'}</button></div>`;};
 // Vendor cards — hardcoded catalog (details to come).
 const VENDOR=[
   {name:'Ibercomp fieldbus', t:'RS-485 · Modbus RTU · Modbus TCP', p:'coming — hardcoded'},
@@ -100,25 +107,30 @@ const VENDOR=[
 ];
 $('#vendor').innerHTML=VENDOR.map(d=>`<div class="dev"><span class="pill">vendor</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.t)}</div><div class="p">${esc(d.p)}</div></div>`).join('');
 
-(async()=>{
-  let c={drivers:[],candidate_drivers:[]};
-  try{ c=await (await fetch('/io/drivers/catalog.json')).json(); }catch(e){}
-  const complete=c.drivers||[];
-  $('#generic').innerHTML=complete.filter(d=>d.customizable).map(card).join('')||'—';
-  $('#proto').innerHTML=complete.filter(d=>d.kind==='protocol').map(d=>card(d).replace('class="dev"','class="dev proto"')).join('')||'—';
-  $('#drivers').innerHTML=complete.filter(d=>!d.customizable&&d.kind!=='protocol').map(card).join('')||'—';
-  const cands=c.candidate_drivers||[];
-  // Full community index (thousands, load on demand in the admin UI).
-  let idx=null; try{ idx=await (await fetch('/io/drivers/community-index.json')).json(); }catch(e){}
-  if(idx){
-    $('#commP').innerHTML=`<b style="color:var(--ink)">${idx.count}</b> integrations · <b style="color:var(--good)">${idx.mappable}</b> native-mappable · load on demand`;
-    const chips=cands.map(d=>d.id.replace('hass-','')).slice(0,40);
-    $('#cand').innerHTML=`Stripped from the Home Assistant catalog (<a href="../../../cli/oso-strip-hass/README.md">oso-strip-hass</a>). <b>${idx.count}</b> integrations indexed in <a href="/io/drivers/community-index.json">community-index.json</a> — the admin UI shows which are available and loads them from the repo. ${cands.length} completed candidates so far:
-      <div class="chips">${chips.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}${cands.length>40?'<span class="chip">…</span>':''}</div>`;
-  } else {
-    $('#commP').textContent='catalog unavailable';
-  }
-})();
+async function post(p,b){return (await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})).json();}
+function wireLoad(){[...document.querySelectorAll('.ldbtn')].forEach(b=>b.onclick=async()=>{
+  const id=b.dataset.id; b.disabled=true;
+  await post(b.dataset.on==='1'?'/api/v1/drivers/unload':'/api/v1/drivers/load',{id}); load();});}
+
+let CATALOG=[], COMM=null, CANDS=[];
+async function load(){
+  try{ const d=await (await fetch('/api/v1/drivers')).json();
+    CATALOG=d.catalog||[]; CANDS=d.candidates||[]; COMM=d.community||null;
+    LOADED=new Set((d.loaded||[]).map(x=>x.id));
+  }catch(e){ $('#commP').textContent='core offline'; return; }
+  render();
+}
+function render(){
+  $('#generic').innerHTML=CATALOG.filter(d=>d.customizable).map(card).join('')||'—';
+  $('#proto').innerHTML=CATALOG.filter(d=>d.kind==='protocol').map(d=>card(d).replace('class="dev','class="dev proto').replace('class="dev proto loaded','class="dev proto loaded')).join('')||'—';
+  $('#drivers').innerHTML=CATALOG.filter(d=>!d.customizable&&d.kind!=='protocol').map(card).join('')||'—';
+  if(COMM){$('#commP').innerHTML=`<b style="color:var(--ink)">${COMM.count}</b> integrations · <b style="color:var(--good)">${COMM.mappable}</b> native-mappable · load on demand`;}
+  const chips=CANDS.map(d=>d.id.replace('hass-','')).slice(0,40);
+  $('#cand').innerHTML=`Stripped from the Home Assistant catalog (<a href="../../../cli/oso-strip-hass/README.md">oso-strip-hass</a>) — bundled (~28 KB gzip). <b>${COMM?COMM.count:''}</b> integrations indexed in <a href="/io/drivers/community-index.json">community-index.json</a>; the admin loads them from the repo on demand. ${CANDS.length} completed candidates:
+    <div class="chips">${chips.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}${CANDS.length>40?'<span class="chip">…</span>':''}</div>`;
+  wireLoad();
+}
+load();
 const root=document.documentElement,t=localStorage.getItem('oso-theme');if(t)root.setAttribute('data-theme',t);
 $('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
 </script>

@@ -1127,6 +1127,19 @@ def drivers_unload(did):
     return {"ok": bool(v)}
 
 
+# A loaded driver IS a gateway instance (a transport connection feeding tags), so the gateways
+# manager and the driver loader are the same thing seen two ways.
+_DRV_PROTO = {"mqtt": "mqtt", "modbus": "modbus", "opc-ua": "opcua", "rest": "rest",
+              "coap": "coap", "serial": "serial", "canopen": "canopen"}
+
+
+def gateways_list():
+    return [{"id": did, "protocol": _DRV_PROTO.get(v["transport"], v["transport"]),
+             "state": "connected", "driver": True, "stats": {"tags": len(v["tags"])},
+             "config": {"driver": did, "path": v["path"]}}
+            for did, v in LOADED_DRIVERS.items()]
+
+
 # ---- global search (DB, config, real-time, historian, hardware, alarms, logs) ----
 # One box over every domain: matches by a substring of each item's JSON, groups the hits by
 # domain, and links each to the module that owns it. Domains with no data still surface as a
@@ -1296,7 +1309,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"hostname": "osologic-sandbox", "version": "1.0 (sandbox)",
                                "arch": "x86_64", "cores": os.cpu_count(), "tags": len(CACHE), "db": bool(_conn)})
         if path == "/api/v1/gateways":
-            return self._json([])
+            return self._json(gateways_list())
         if path == "/api/v1/projects":
             return self._json(projects_list())
         if path == "/api/v1/scan/serial":
