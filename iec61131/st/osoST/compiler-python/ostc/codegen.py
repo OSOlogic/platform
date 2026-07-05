@@ -156,7 +156,7 @@ def _elem_bytes(typ: Node) -> int:
         return n * _elem_bytes(typ.element_type)
     k = _type_kind(typ)
     if k == _TypeKind.STR:
-        return 81   # 1 len + 80 chars (STLite default)
+        return 2    # a STRING variable holds a 2-byte pointer (VT_STR), not the bytes
     if k == _TypeKind.BOOL:
         return 1    # a bool is a single byte (VT_U8) — matches JMPF/push_bool
     return 4        # I32 / F32
@@ -239,6 +239,10 @@ class CodeGen:
         # Function return kinds, for type inference in expressions / Tipos de retorno
         self._func_ret_kind: dict[str, str] = {}   # name → _TypeKind
 
+        # Const string pool (literals live in the code segment as [len][chars]) / Pool de cadenas
+        self._str_pool: dict[str, int] = {}          # string → code offset
+        self._str_refs: list[tuple[int, str]] = []   # (PUSH_S operand offset, string)
+
         # Current scope / Ámbito actual
         self._scope: Optional[_Scope] = None
         self._func_ret: Optional[_Symbol] = None   # return slot of the function being emitted
@@ -256,11 +260,13 @@ class CodeGen:
 
     @staticmethod
     def _vt(kind: str) -> int:
-        """Value-type byte for a type kind: bools are 1 byte, floats F32, ints I32."""
+        """Value-type byte for a type kind: bools 1B, floats F32, strings a 2B pointer, ints I32."""
         if kind == _TypeKind.FLOAT:
             return Op.VT_F32
         if kind == _TypeKind.BOOL:
             return Op.VT_U8
+        if kind == _TypeKind.STR:
+            return Op.VT_STR
         return Op.VT_I32
 
     def _vt_of(self, node: Node) -> int:
@@ -359,6 +365,17 @@ class CodeGen:
         # Emit procedures / Emitir procedimientos
         for pd in prog.procedures:
             self._emit_procedure(pd)
+
+        # Const string pool: append each unique literal ([len][chars]) after the code, then
+        # back-patch every PUSH_S with its code-segment offset (the VM reads it as a string ptr).
+        for s in dict.fromkeys(s for _, s in self._str_refs):
+            self._str_pool[s] = w.position()
+            data = s.encode("latin-1", "replace")[:255]
+            w.emit_u8(len(data))
+            for b in data:
+                w.emit_u8(b)
+        for patch_off, s in self._str_refs:
+            w.patch_u16(patch_off, self._str_pool[s])
 
         # Back-patch CALL main / Parchar CALL al main
         main_name = "main"
@@ -706,9 +723,11 @@ class CodeGen:
             self._emit_push_bool(node.value)
 
         elif isinstance(node, StrLit):
-            # Strings: PUSH_S + inline data (string support is a later milestone).
+            # PUSH_S pushes a u16 code-segment pointer to the literal. The bytes live in the
+            # const string pool emitted after the code; the operand is back-patched there.
             w.emit(Op.PUSH_S)
-            w.emit_string(node.value)
+            self._str_refs.append((w.position(), node.value))
+            w.emit_u16(0)
 
         elif isinstance(node, VarRef):
             # Check enum values first / Verificar valores enum primero
@@ -799,6 +818,8 @@ class CodeGen:
         rk = self._expr_type_kind(node.right)
         if lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT:
             common = _TypeKind.FLOAT
+        elif lk == _TypeKind.STR and rk == _TypeKind.STR:
+            common = _TypeKind.STR      # string comparison (VM str_cmp) — pointers, no cast
         elif lk == _TypeKind.BOOL and rk == _TypeKind.BOOL:
             common = _TypeKind.BOOL
         else:
@@ -1033,7 +1054,7 @@ def disassemble(data: bytes, start_offset: int = 0) -> str:
         elif op == Op.PUSH_F:
             line += f"  {struct.unpack_from('<f', data, i)[0]:.6g}"; i += 4
         elif op == Op.PUSH_S:
-            ln = data[i]; line += f"  str[{ln}]"; i += 1 + ln
+            off = struct.unpack_from("<H", data, i)[0]; line += f"  ->str@{off}"; i += 2
         elif op in MEM:
             addr = struct.unpack_from("<H", data, i)[0]; t = data[i + 2]
             line += f"  @{addr} t={t}"; i += 3

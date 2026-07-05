@@ -46,7 +46,7 @@ _RULES: list[tuple[str, str]] = [
     ("COMMENT_BLOCK", r"\(\*[\s\S]*?\*\)"),    # (* ... *)
     ("COMMENT_LINE",  r"//[^\n]*"),             # // ...
     # String literals / Literales de cadena
-    ("STRING_LIT",    r'"(?:[^"\\]|\\.)*"'),
+    ("STRING_LIT",    r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\""),   # 'IEC' or \"C-style\"
     # Number literals / Literales numéricos
     ("FLOAT_LIT",     r"\d+\.\d+([eE][+-]?\d+)?"),
     ("INT_LIT",       r"\d+"),
@@ -134,7 +134,7 @@ def tokenize(source: str) -> list[Token]:
         elif kind == "FLOAT_LIT":
             value = float(raw)
         elif kind == "STRING_LIT":
-            value = raw[1:-1].replace('\\"', '"').replace("\\n", "\n")
+            value = raw[1:-1].replace('\\"', '"').replace("\\'", "'").replace("\\n", "\n")
         else:
             value = raw
 

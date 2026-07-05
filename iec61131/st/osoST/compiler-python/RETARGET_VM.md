@@ -2,11 +2,11 @@
 
 **© 2026 Roig Borrell S.L. · Ibercomp S.L.** · AGPL-3.0-or-later
 
-> **Status: M1–M3 DONE and verified running on `osoruntime`.** The pure-Python compiler `ostc`
+> **Status: M1–M4 DONE and verified running on `osoruntime`.** The pure-Python compiler `ostc`
 > now emits bytecode the C VM (`runtime/pcodevm.c`) executes — the no-Java backend is **deployable**
-> for relay logic, arithmetic, timers/counters/PID, sub-routines and the osodb tag path. Only M4
-> (strings/casts/arrays) remains, and Ladder doesn't need it. This document is the map that got us
-> there; the VM is authoritative.
+> for relay logic, arithmetic, timers/counters/PID, sub-routines, the osodb tag path, **casts &
+> mixed INT/REAL math, arrays, and strings**. This document is the map that got us there; the VM is
+> authoritative.
 
 Historically `ostc` emitted its **own** bytecode scheme the VM didn't run (`opcode desconocido …`),
 so only Java **STLite** targeted the VM. The retarget below aligned `ostc`'s codegen to the VM's
@@ -80,7 +80,7 @@ patch write `target − (operand_offset + 2)`. (ostc currently patches absolute 
    convention, frame-relative LOAD_L/STORE_L (offset + 6), params-first layout, args pushed by the
    caller, functions LEAVE their return value. **BOOL is 1 byte (VT_U8)** so bare-bool conditions
    work. *fn(params)=115, pid.st (REAL params, float math)=20.46, Ladder sub-ladder CALL all run.*
-4. 🚧 **Casts + MOD DONE; strings/arrays pending.**
+4. ✅ **DONE — casts, MOD, arrays, strings.**
    - ✅ **Casts** — `CAST_F32`/`CAST_I32` (the opcode carries the *source* value-type byte). Operands
      of mixed INT/REAL arithmetic/comparisons are promoted to a common kind, assignments coerce the
      value to the target type, and explicit IEC conversions (`TO_REAL`, `INT_TO_REAL`, `REAL_TO_INT`,
@@ -92,8 +92,10 @@ patch write `target − (operand_offset + 2)`. (ostc currently patches absolute 
      element type(u8), ndims(u8) and per-dimension `(lo, hi, stride)` i32×3 (row-major strides). Stores
      push the value first, then the indices. Non-zero lower bounds and REAL elements handled.
      *array.st: fill+sum `[0..4]` = 100, `a[2]` = 20; array_real.st: `[1..3] OF REAL` sum = 9.0, `r[3]` = 4.5.*
-   - ⏳ **Strings** — `PUSH_S` currently emits inline data; needs a real string pool (u16 index) so the
-     VM's `read_cstr`/`STRING` path works, plus VT_STR (2-byte pointer) store/load. Least urgent
-     (Ladder never needs it; mostly trap/debug arguments).
+   - ✅ **Strings** — literals live in a const string pool (`[len][chars]`) appended after the code;
+     `PUSH_S` pushes the back-patched code-segment offset (a string pointer). STRING variables hold a
+     2-byte `VT_STR` pointer (init/assign store the pointer, not the bytes); comparisons use the VM's
+     `str_cmp`. The lexer now accepts IEC single-quoted strings (`'x'`) as well as `"x"`.
+     *string.st → hello / world; string_compare.st → `msg='on'` matched=1, `'off'`=0.*
 
 Kept ostc's lexer/parser/AST unchanged; only `codegen.py` (+ `hex_writer` patch_i16/patch_u16) changed.
