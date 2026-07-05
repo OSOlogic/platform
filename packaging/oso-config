@@ -274,6 +274,50 @@ watchdog_menu() {
 }
 
 # ==============================================================================
+# Database backend module (osodb source of truth)
+# ==============================================================================
+database_status_text() {
+    local j; j="$(api_get /api/v1/database)" || { echo "core offline"; return; }
+    printf 'backend: %s' "$(printf '%s' "$j" | jexpr "d['config']['backend']")"
+}
+database_view() {
+    local j; j="$(api_get /api/v1/database)"
+    ui_msg "$(printf '%s' "$j" | jexpr "'Current: '+d['config']['backend']+'  '+d['config']['dsn']+chr(10)+chr(10)+chr(10).join('%-10s %-9s %s'%(b['id'],'[ok]' if b['available'] else '[no drv]',b['desc']) for b in d['backends'])")"
+}
+database_set_backend() {
+    local j; j="$(api_get /api/v1/database)"
+    local args; args="$(printf '%s' "$j" | jexpr "' '.join('%s \"%s\"'%(b['id'],b['name']) for b in d['backends'])")"
+    eval "ui_menu 'Backend:' $args" || return 0
+    local bid="$UI_VALUE"
+    local dflt; dflt="$(printf '%s' "$j" | jexpr "next((b['default_dsn'] for b in d['backends'] if b['id']=='$bid'),'')")"
+    ui_input "Connection (DSN):" "$dflt" || return 0
+    local r; r="$(api_post /api/v1/database/set "{\"backend\":\"$bid\",\"dsn\":\"$UI_VALUE\"}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "'saved: '+d.get('config',{}).get('backend','?')+'  '+d.get('config',{}).get('dsn','')")"
+}
+database_test() {
+    local j; j="$(api_get /api/v1/database)"
+    local bid; bid="$(printf '%s' "$j" | jexpr "d['config']['backend']")"
+    local dsn; dsn="$(printf '%s' "$j" | jexpr "d['config']['dsn']")"
+    local r; r="$(api_post /api/v1/database/test "{\"backend\":\"$bid\",\"dsn\":\"$dsn\"}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "('OK: ' if d.get('ok') else 'FAIL: ')+d.get('note','')")"
+}
+database_menu() {
+    while true; do
+        ui_menu "Database — $(database_status_text)" \
+            view "View backends" \
+            set  "Choose backend + DSN" \
+            test "Test connection" \
+            back "◀ Back" || return 0
+        case "$UI_VALUE" in
+            view) database_view ;;
+            set)  database_set_backend ;;
+            test) database_test ;;
+            back) return 0 ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # Read-only monitors for other modules (extend with config actions over time)
 # ==============================================================================
 firewall_view() {
@@ -295,6 +339,7 @@ main_menu() {
             cron     "Scheduled tasks (oso-cron)" \
             datetime "Date, time, timezone & NTP" \
             watchdog "Service & process monitor" \
+            database "osodb backend & connection" \
             firewall "Packet filter (view)" \
             fail2ban "Intrusion jails (view)" \
             quit     "Exit" || return 0
@@ -303,6 +348,7 @@ main_menu() {
             cron)     cron_menu ;;
             datetime) datetime_menu ;;
             watchdog) watchdog_menu ;;
+            database) database_menu ;;
             firewall) firewall_view ;;
             fail2ban) fail2ban_view ;;
             quit)     return 0 ;;

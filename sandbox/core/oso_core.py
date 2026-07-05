@@ -833,6 +833,71 @@ def watchdog_restart(wid):
     return {"ok": False, "error": "no such watch"}
 
 
+# ---- database backend selection (osodb source of truth) ----
+# Choose which osodb adapter backs the hub and its connection string. This is a deployment
+# decision, not a performance one: osodb owns the real-time path, so the engine only persists.
+OSO_DATABASE = {"backend": "sqlite", "dsn": "/var/lib/osologic/osodb.sqlite"}
+DB_BACKENDS = [
+    {"id": "mariadb", "name": "MariaDB", "desc": "Source of truth (PRO) — MEMORY-table mirror",
+     "dsn_hint": "host=127.0.0.1 user=osologic db=osodb", "default_dsn": "host=127.0.0.1 db=osodb"},
+    {"id": "postgres", "name": "PostgreSQL", "desc": "Native libpq — plain / UNLOGGED mirror",
+     "dsn_hint": "postgresql://user@host/osodb", "default_dsn": "postgresql://osologic@127.0.0.1/osodb"},
+    {"id": "sqlite", "name": "SQLite", "desc": "Embedded, serverless (one file or :memory:)",
+     "dsn_hint": "/var/lib/osologic/osodb.sqlite or :memory:", "default_dsn": "/var/lib/osologic/osodb.sqlite"},
+    {"id": "mcu", "name": "MCU (emulated)", "desc": "Embedded store + MariaDB emulation for MCUs",
+     "dsn_hint": ":memory: or a file path", "default_dsn": ":memory:"},
+]
+
+
+def _db_available(bid):
+    if bid in ("sqlite", "mcu"):
+        return True  # sqlite3 is in the stdlib; the MCU engine is embedded
+    import ctypes.util
+    if bid == "postgres":
+        return bool(ctypes.util.find_library("pq") or shutil.which("psql"))
+    if bid == "mariadb":
+        return bool(ctypes.util.find_library("mariadb") or ctypes.util.find_library("mysqlclient")
+                    or shutil.which("mariadb") or shutil.which("mysql"))
+    return False
+
+
+def _db_test(bid, dsn):
+    try:
+        if bid in ("sqlite", "mcu"):
+            import sqlite3
+            con = sqlite3.connect(":memory:" if (bid == "mcu" or not dsn) else dsn)
+            con.execute("SELECT 1")
+            con.close()
+            return {"ok": True, "note": f"{bid}: opened and queried OK"}
+        if bid in ("postgres", "mariadb"):
+            host, port = "127.0.0.1", (5432 if bid == "postgres" else 3306)
+            for tok in dsn.replace("//", " ").replace("/", " ").replace("@", " ").replace("=", " ").split():
+                if tok.count(".") == 3:
+                    host = tok
+                if tok.isdigit():
+                    port = int(tok)
+            s = socket.create_connection((host, port), timeout=3)
+            s.close()
+            return {"ok": True, "note": f"{bid}: reachable at {host}:{port}"}
+    except Exception as e:
+        return {"ok": False, "note": str(e)}
+    return {"ok": False, "note": "unknown backend"}
+
+
+def database_status():
+    backends = [dict(b, available=_db_available(b["id"])) for b in DB_BACKENDS]
+    return {"config": OSO_DATABASE, "backends": backends}
+
+
+def database_set(body):
+    bid = body.get("backend", OSO_DATABASE["backend"])
+    if bid not in [b["id"] for b in DB_BACKENDS]:
+        return {"ok": False, "error": "unknown backend"}
+    OSO_DATABASE["backend"] = bid
+    OSO_DATABASE["dsn"] = body.get("dsn", OSO_DATABASE["dsn"])
+    return {"ok": True, "config": OSO_DATABASE}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -956,6 +1021,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "service": "oso-core", "ts": int(time.time())})
         if path == "/api/v1/watchdog":
             return self._json(watchdog_list())
+        if path == "/api/v1/database":
+            return self._json(database_status())
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -1144,6 +1211,19 @@ class Handler(BaseHTTPRequestHandler):
                 log("warn", f"watchdog restart watch {body.get('id')}")
                 return self._json(watchdog_restart(int(body.get("id", 0))))
             return self._json({"error": "unknown watchdog action"}, 404)
+        if path.startswith("/api/v1/database/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "set":
+                log("warn", f"database backend -> {body.get('backend')}")
+                return self._json(database_set(body))
+            if act == "test":
+                return self._json(_db_test(body.get("backend", OSO_DATABASE["backend"]),
+                                           body.get("dsn", OSO_DATABASE["dsn"])))
+            return self._json({"error": "unknown database action"}, 404)
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")

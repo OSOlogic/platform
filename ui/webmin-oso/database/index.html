@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Database</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#3d8bfd;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--warn:#e6a417;
+    --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f6f7f9;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#1c2024;--muted:#6c757d}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+  a{color:inherit;text-decoration:none}.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:25px;margin:22px 0 4px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 18px;max-width:76ch}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px;cursor:pointer;transition:.12s;position:relative}
+  .card:hover{border-color:var(--muted)}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .card h3{margin:0 0 3px;font-size:15px;padding-right:74px}
+  .card p{margin:0;color:var(--muted);font-size:12px;min-height:32px}
+  .av{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10px;border-radius:999px;padding:2px 7px;border:1px solid var(--line);color:var(--muted)}
+  .av.ok{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .dsnrow{display:flex;gap:8px;align-items:center}
+  input{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:9px 11px;font:13px var(--mono)}
+  .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:700;border-radius:8px;padding:9px 15px;cursor:pointer;font-size:13px}.btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:var(--panel-2);color:var(--ink);border-color:var(--line)}
+  .hint{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:7px}
+  .result{margin-top:12px;font-family:var(--mono);font-size:12.5px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);display:none}
+  .result.ok{display:block;color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+  .result.err{display:block;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+  .note{background:color-mix(in srgb,var(--accent) 8%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--muted)}
+  .note b{color:var(--ink)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 44px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:9px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Database</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>Database <em>· osodb source of truth</em></h1>
+  <p class="lede">Pick the backend osodb persists to. The real-time path is the in-memory cache, so this
+    is a deployment choice, not a performance one — the same tags work on every engine.</p>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="panel">
+    <label for="dsn">Connection (DSN)</label>
+    <div class="dsnrow">
+      <input id="dsn" placeholder="connection string">
+      <button class="btn ghost" id="test">Test</button>
+      <button class="btn" id="save">Save</button>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="note">osodb is the cache and owns the real-time loop, so the engine only has to persist and
+    carry the SQL control surface. That's why <b>PostgreSQL</b> or <b>SQLite</b> work as the source of
+    truth without MariaDB's MEMORY tables, and why a microcontroller can run the <b>MCU</b> engine
+    (embedded store + MariaDB emulation). See the osodb adapters.</div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1700);}
+async function post(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
+let BACKENDS=[], sel='sqlite';
+
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/database')).json(); }catch(e){ $('#cards').innerHTML='core offline'; return; }
+  BACKENDS=d.backends||[]; sel=d.config.backend;
+  $('#dsn').value=d.config.dsn||'';
+  render();
+}
+function render(){
+  $('#cards').innerHTML=BACKENDS.map(b=>`<div class="card ${b.id===sel?'sel':''}" data-id="${b.id}">
+      <span class="av ${b.available?'ok':''}">${b.available?'available':'no driver'}</span>
+      <h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p></div>`).join('');
+  $$('.card').forEach(c=>c.onclick=()=>{sel=c.dataset.id;const b=BACKENDS.find(x=>x.id===sel);
+    if(b&&(!$('#dsn').value||BACKENDS.some(x=>x.default_dsn===$('#dsn').value)))$('#dsn').value=b.default_dsn||'';
+    $('#hint').textContent=b?('e.g. '+b.dsn_hint):''; $('#result').className='result'; render();});
+  const cur=BACKENDS.find(x=>x.id===sel); $('#hint').textContent=cur?('e.g. '+cur.dsn_hint):'';
+}
+$('#test').onclick=async()=>{
+  const r=await post('/api/v1/database/test',{backend:sel,dsn:$('#dsn').value});
+  const el=$('#result'); el.className='result '+(r.ok?'ok':'err'); el.textContent=(r.ok?'✓ ':'✗ ')+(r.note||'');
+};
+$('#save').onclick=async()=>{
+  const r=await post('/api/v1/database/set',{backend:sel,dsn:$('#dsn').value});
+  toast(r.ok?('Saved — backend: '+sel):('error: '+(r.error||''))); load();
+};
+const root=document.documentElement,th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+load();
+</script>
+</body>
+</html>
