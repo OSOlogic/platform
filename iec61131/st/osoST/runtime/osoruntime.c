@@ -14,8 +14,8 @@
  * Options / Opciones:
  *   --scan=N     Scan cycle period in milliseconds (default: 10)
  *                Período del ciclo de scan en milisegundos (defecto: 10)
- *   --ram=N      RAM size in bytes (default: 65536)
- *                Tamaño de RAM en bytes (defecto: 65536)
+ *   --ram=N      RAM size in bytes (default: 32768)
+ *                Tamaño de RAM en bytes (defecto: 32768)
  *   --debug      Enable debug mode (breakpoints, vm_stop)
  *                Activar modo debug (breakpoints, vm_stop)
  *   --trace      Trace each instruction (stdout)
@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
         printf("osoLogic PLC Runtime — osologic.org\n");
         printf("Usage: osoruntime <program.hex> [options]\n");
         printf("  --scan=N     Scan period ms (default 10)\n");
-        printf("  --ram=N      RAM bytes (default 65536)\n");
+        printf("  --ram=N      RAM bytes (default 32768)\n");
         printf("  --debug      Debug mode\n");
         printf("  --trace      Trace instructions\n");
         printf("  --metrics    Print metrics on exit\n");
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
 
     const char *hex_path = argv[1];
     int  scan_ms  = 10;
-    int  ram_size = 65536;
+    int  ram_size = 32768;  /* VM caps string ptrs at 32768 (STR_PTR_PAYLOAD_MASK+1) */
     int  run_once = 0;
     uint8_t vm_mode = VM_MODE_NORMAL;
 

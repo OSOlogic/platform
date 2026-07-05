@@ -1228,8 +1228,8 @@ static void exec_string(VM *vm, int subop) {
  * - `VM_MODE_METRICS`: incrementa contador de instrucciones.
  * - `0`: ejecución normal sin instrumentación explícita.
  */
-static void run_vm(VM *vm) {
-    while (1) { 
+void run_vm(VM *vm) {   /* external: osoruntime.c drives the scan loop */
+    while (1) {
         switch (vm->vm_mode) {
             case VM_MODE_DEBUG:
             if (!vm->running) return; // stop => no ejecutar

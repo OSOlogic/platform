@@ -71,6 +71,11 @@ static int32_t mandelbrot_iters_native(float cx, float cy, int32_t max_iter) {
  * - `#1`  : `setBACnetAttribute(name: STRING, value: LONG)` (demo I/O).
  * - `#17` : `mandelbrot_iters(cx: FLOAT, cy: FLOAT, max_iter: LONG): LONG`.
  */
+/* The demo HAL has no physical I/O — the program reaches the world through the
+   osodb tag traps (#30/#31). These scan-image hooks are therefore no-ops. */
+void hardware_read_inputs(VM *vm)   { (void)vm; }
+void hardware_write_outputs(VM *vm) { (void)vm; }
+
 void hardware(VM *vm, uint8_t trap_id) {
     switch (trap_id) {
         case 1: { // setBACnetAttribute(name:STRING, value:LONG)

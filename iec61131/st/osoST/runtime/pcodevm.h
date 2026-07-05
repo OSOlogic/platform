@@ -202,6 +202,11 @@ void vm_release_temp_string(VM *vm, int32_t ptr);
  */
 void hardware(VM *vm, uint8_t trap_id);
 
+/* Scan loop entry points (osoruntime.c drives these). */
+void run_vm(VM *vm);
+void hardware_read_inputs(VM *vm);    /* map hardware inputs → VM globals, before main() */
+void hardware_write_outputs(VM *vm);  /* map VM globals → hardware outputs, after main() */
+
 #ifdef __cplusplus
 }
 #endif

@@ -49,8 +49,7 @@ static void osodb_load_bindings(void) {
         int idx; char tag[64], mode[16];
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\0') continue;
         if (sscanf(line, "%d %63s %15s", &idx, tag, mode) == 3 && idx >= 0 && idx < 256) {
-            strncpy(osodb_bindings[idx].tag, tag, sizeof osodb_bindings[idx].tag - 1);
-            osodb_bindings[idx].tag[sizeof osodb_bindings[idx].tag - 1] = '\0';
+            snprintf(osodb_bindings[idx].tag, sizeof osodb_bindings[idx].tag, "%s", tag);
             osodb_bindings[idx].mode = strcmp(mode, "in") == 0 ? 'i'
                                      : strcmp(mode, "out") == 0 ? 'o' : 'b';
             if (idx + 1 > osodb_nbindings) osodb_nbindings = idx + 1;
@@ -114,7 +113,7 @@ static int32_t osodb_backend_get(const char *tag) {
 }
 static void osodb_backend_set(const char *tag, int32_t v) {
     for (int i = 0; i < osodb_nstore; i++) if (!strcmp(osodb_store[i].tag, tag)) { osodb_store[i].val = v; return; }
-    if (osodb_nstore < 256) { strncpy(osodb_store[osodb_nstore].tag, tag, 63); osodb_store[osodb_nstore].tag[63] = '\0'; osodb_store[osodb_nstore].val = v; osodb_nstore++; }
+    if (osodb_nstore < 256) { snprintf(osodb_store[osodb_nstore].tag, sizeof osodb_store[osodb_nstore].tag, "%s", tag); osodb_store[osodb_nstore].val = v; osodb_nstore++; }
 }
 #endif /* USE_OSODB */
 

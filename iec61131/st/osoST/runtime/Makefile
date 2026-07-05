@@ -8,7 +8,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 CC      = gcc
-CFLAGS  = -std=c99 -Wall -Wextra -O2 -I.
+CFLAGS  = -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -O2 -I.
 LDFLAGS = -lm
 
 # ── Linux PLC runtime (default) ──────────────────────────────────
