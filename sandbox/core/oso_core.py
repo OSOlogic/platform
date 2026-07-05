@@ -898,6 +898,96 @@ def database_set(body):
     return {"ok": True, "config": OSO_DATABASE}
 
 
+# ---- global search (DB, config, real-time, historian, hardware, alarms, logs) ----
+# One box over every domain: matches by a substring of each item's JSON, groups the hits by
+# domain, and links each to the module that owns it. Domains with no data still surface as a
+# jump-to entry, so the search doubles as a navigator.
+_SEARCH_MODULES = [
+    ("SSH", "/ui/webmin-oso/ssh/index.html"), ("Scheduler", "/ui/webmin-oso/cron/index.html"),
+    ("Date & Time", "/ui/webmin-oso/datetime/index.html"), ("Watchdog", "/ui/webmin-oso/watchdog/index.html"),
+    ("Database", "/ui/webmin-oso/database/index.html"), ("Firewall", "/ui/webmin-oso/firewall/index.html"),
+    ("fail2ban", "/ui/webmin-oso/fail2ban/index.html"), ("Logs", "/ui/webmin-oso/logs/index.html"),
+    ("Alarms", "/ui/webmin-oso/alarms/index.html"), ("Historian", "/ui/webmin-oso/historian/index.html"),
+    ("Users & Roles", "/ui/webmin-oso/users/index.html"), ("I/O Tags", "/ui/webmin-oso/cockpit/oso-iotags/index.html"),
+    ("Runtime", "/ui/webmin-oso/cockpit/oso-runtime/index.html"),
+    ("PLC Projects", "/ui/webmin-oso/cockpit/oso-plc-projects/index.html"),
+    ("Gateways / Hardware", "/ui/webmin-oso/cockpit/oso-gateways/index.html"),
+]
+
+
+def _search_str(obj):
+    try:
+        return json.dumps(obj, default=str, ensure_ascii=False).lower()
+    except Exception:
+        return str(obj).lower()
+
+
+def search(q):
+    q = (q or "").strip().lower()
+    out = {"query": q, "groups": [], "total": 0}
+    if not q:
+        return out
+    groups = []
+
+    def add(domain, icon, url, items):
+        if items:
+            groups.append({"domain": domain, "icon": icon, "url": url, "results": items[:12]})
+
+    tg = []
+    for r in CACHE.values():
+        if q in _search_str(r):
+            t = tag_pub(r)
+            tg.append({"title": t.get("name") or t.get("id"),
+                       "subtitle": f"{t.get('id','')} = {t.get('value','')} {t.get('units') or ''}".strip(),
+                       "url": "/ui/webmin-oso/cockpit/oso-iotags/index.html"})
+    add("Tags · real-time / DB", "🏷️", "/ui/webmin-oso/cockpit/oso-iotags/index.html", tg)
+
+    cfg = []
+    for j in OSO_CRON:
+        if q in _search_str(j):
+            cfg.append({"title": "Scheduler: " + j["name"], "subtitle": f"{j['schedule']}  {j['command']}",
+                        "url": "/ui/webmin-oso/cron/index.html"})
+    for w in OSO_WATCHDOG:
+        if q in _search_str(w):
+            cfg.append({"title": "Watchdog: " + w["name"], "subtitle": f"{w['type']}  {w['target']}",
+                        "url": "/ui/webmin-oso/watchdog/index.html"})
+    for tn in SSH_TUNNELS:
+        if q in _search_str(tn):
+            cfg.append({"title": "SSH tunnel: " + tn.get("name", ""),
+                        "subtitle": f"{tn.get('listen','')} → {tn.get('target','')}", "url": "/ui/webmin-oso/ssh/index.html"})
+    for b in DB_BACKENDS:
+        if q in _search_str(b):
+            cfg.append({"title": "DB backend: " + b["name"], "subtitle": b["desc"],
+                        "url": "/ui/webmin-oso/database/index.html"})
+    for name, url in _SEARCH_MODULES:
+        if q in name.lower():
+            cfg.append({"title": name, "subtitle": "open module", "url": url})
+    add("Config & modules", "⚙️", "", cfg)
+
+    al = []
+    for r in ALARM_RULES:
+        if q in _search_str(r):
+            al.append({"title": r.get("label") or "alarm", "subtitle": f"{r.get('tag','')} · {r.get('severity','')}",
+                       "url": "/ui/webmin-oso/alarms/index.html"})
+    add("Alarms", "🔔", "/ui/webmin-oso/alarms/index.html", al)
+
+    hi = [{"title": k, "subtitle": f"{len(v)} samples", "url": "/ui/webmin-oso/historian/index.html"}
+          for k, v in HISTORY.items() if q in k.lower()]
+    add("Historian", "⏱️", "/ui/webmin-oso/historian/index.html", hi)
+
+    lg = [{"title": (ln.get("msg", "") or "")[:90], "subtitle": f"{ln.get('level','')} · {ln.get('time','')}",
+           "url": "/ui/webmin-oso/logs/index.html"} for ln in reversed(LOGS) if q in str(ln.get("msg", "")).lower()]
+    add("Logs", "📁", "/ui/webmin-oso/logs/index.html", lg[:12])
+
+    us = [{"title": (u.get("name") or u.get("username") or "user"), "subtitle": "role: " + str(u.get("role", "")),
+           "url": "/ui/webmin-oso/users/index.html"} for u in USERS if q in _search_str(u)]
+    add("Users & Roles", "👥", "/ui/webmin-oso/users/index.html", us)
+
+    out["groups"] = groups
+    out["total"] = sum(len(g["results"]) for g in groups)
+    return out
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -1023,6 +1113,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(watchdog_list())
         if path == "/api/v1/database":
             return self._json(database_status())
+        if path == "/api/v1/search":
+            q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "").get("q", [""])[0]
+            return self._json(search(q))
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
