@@ -838,7 +838,12 @@ def watchdog_restart(wid):
 # ---- database backend selection (osodb source of truth) ----
 # Choose which osodb adapter backs the hub and its connection string. This is a deployment
 # decision, not a performance one: osodb owns the real-time path, so the engine only persists.
-OSO_DATABASE = {"backend": "sqlite", "dsn": "/var/lib/osologic/osodb.sqlite"}
+# Reflect the backend the core actually uses as the source of truth. This build talks to MariaDB
+# via pymysql (see db_connect / _conn), so that's the real active backend — not a hardcoded default.
+# (No password in the DSN — host/user/db only.)
+OSO_DATABASE = ({"backend": "mariadb", "dsn": f"host={DB_HOST} user={DB_USER} db={DB_NAME}"}
+                if pymysql is not None
+                else {"backend": "sqlite", "dsn": "/var/lib/osologic/osodb.sqlite"})
 DB_BACKENDS = [
     {"id": "mariadb", "name": "MariaDB", "desc": "Source of truth (PRO) — MEMORY-table mirror",
      "dsn_hint": "host=127.0.0.1 user=osologic db=osodb", "default_dsn": "host=127.0.0.1 db=osodb"},
@@ -890,8 +895,12 @@ def database_status():
     active = OSO_DATABASE["backend"]
     backends = [dict(b, available=_db_available(b["id"]), active=(b["id"] == active))
                 for b in DB_BACKENDS]
-    # Live reachability of the backend osodb is actually using (the source of truth).
-    active_status = _db_test(active, OSO_DATABASE["dsn"])
+    # Live reachability of the backend osodb is actually using (the source of truth). For MariaDB,
+    # trust the core's real connection (_conn) rather than re-probing.
+    if active == "mariadb" and _conn is not None:
+        active_status = {"ok": True, "note": f"connected: {DB_HOST}/{DB_NAME}"}
+    else:
+        active_status = _db_test(active, OSO_DATABASE["dsn"])
     return {"config": OSO_DATABASE, "backends": backends, "active_status": active_status}
 
 
