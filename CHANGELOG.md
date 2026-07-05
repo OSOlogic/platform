@@ -1,14 +1,15 @@
 # Changelog
 
-OSOLogic releases are named after bears — **Teddy → Misha → Grizzly → Kodiak → Polar → Ursa** —
-starting friendly and growing fiercer as the platform matures. Each is a
-[GitHub Release](https://github.com/OSOlogic/platform/releases).
+OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
+→ Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
+releases keep the current bear (this is Teddy 1.1).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
 
-## [v1.1.0] — "Misha" — 2026-07-05
+## [v1.1.0] — "Teddy" — 2026-07-05
 
-The second bear. Everything in Teddy, plus:
+Codenames track major versions — Teddy is the whole 1.x line (Misha will be 2.0). This is Teddy 1.1;
+everything in 1.0 Beta, plus:
 
 ### IEC 61131-3
 - **Structured Text — Milestone 4 complete.** The pure-Python compiler (`ostc`) now runs casts and

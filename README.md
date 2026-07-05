@@ -184,14 +184,16 @@ repository; the build systems that produce them live in [`os-dist/`](os-dist/).
 
 ## Current Status
 
-**OSOlogic 1.0 Beta (codename _Teddy_) is out.** A functional base — the real-time PLC core,
-`osodb`, gateways, APIs and web UI — already runs on our BorrellPLC devices. We are actively
-building out the scaffold and hardening the codebase toward a stable 1.0.
+**OSOlogic 1.1 (codename _Teddy_) is out.** A functional base — the real-time PLC core, `osodb`
+with pluggable database backends (down to a bare-metal MCU store), the IEC 61131-3 toolchain,
+gateways, APIs, web + TUI admin and a global search — already runs on our BorrellPLC devices. We
+are actively building out the scaffold and hardening the codebase through the Teddy (1.x) line.
 
 ### Release codenames
 
-OSOlogic releases are named after bears — starting friendly and growing fiercer as the
-platform matures: **Teddy → Misha → Grizzly → Kodiak → Polar → Ursa**. Each codename is a
+OSOlogic **major versions** are named after bears — starting friendly and growing fiercer as the
+platform matures: **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak → Polar → Ursa**. Minor and patch
+releases keep the current bear, so all of 1.x is _Teddy_. Each is a
 [GitHub Release](https://github.com/OSOlogic/platform/releases).
 
 🐻 Meet the bears in the **[codename fan zone](https://osologic.com/bears/)** — a photo
