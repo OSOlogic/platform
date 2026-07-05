@@ -887,8 +887,12 @@ def _db_test(bid, dsn):
 
 
 def database_status():
-    backends = [dict(b, available=_db_available(b["id"])) for b in DB_BACKENDS]
-    return {"config": OSO_DATABASE, "backends": backends}
+    active = OSO_DATABASE["backend"]
+    backends = [dict(b, available=_db_available(b["id"]), active=(b["id"] == active))
+                for b in DB_BACKENDS]
+    # Live reachability of the backend osodb is actually using (the source of truth).
+    active_status = _db_test(active, OSO_DATABASE["dsn"])
+    return {"config": OSO_DATABASE, "backends": backends, "active_status": active_status}
 
 
 def database_set(body):

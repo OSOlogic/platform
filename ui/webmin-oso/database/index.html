@@ -28,6 +28,19 @@
   .card p{margin:0;color:var(--muted);font-size:12px;min-height:32px}
   .av{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10px;border-radius:999px;padding:2px 7px;border:1px solid var(--line);color:var(--muted)}
   .av.ok{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+  .av.active{color:var(--accent);border-color:var(--accent);font-weight:700;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .card.sel:not(.active){border-color:var(--warn);box-shadow:0 0 0 1px var(--warn)}
+  .hero{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:18px}
+  .hero .dot{width:12px;height:12px;border-radius:50%;background:var(--muted);flex:none}
+  .hero .dot.ok{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 20%,transparent)}
+  .hero .dot.bad{background:var(--bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 20%,transparent)}
+  .hero .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .hero .name{font-weight:700;font-size:17px;margin-top:1px}
+  .hero .dsn{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto;text-align:right}
+  .hero .conn{font-family:var(--mono);font-size:11px}
+  .switchnote{font-size:12px;color:var(--warn);margin-top:8px;display:none}
+  .switchnote.show{display:block}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
   label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
   .dsnrow{display:flex;gap:8px;align-items:center}
@@ -52,7 +65,15 @@
   <p class="lede">Pick the backend osodb persists to. The real-time path is the in-memory cache, so this
     is a deployment choice, not a performance one — the same tags work on every engine.</p>
 
+  <div class="hero" id="hero">
+    <span class="dot" id="heroDot"></span>
+    <div><div class="lbl">Active backend · osodb source of truth</div><div class="name" id="heroName">…</div></div>
+    <div class="dsn"><div id="heroDsn"></div><div class="conn" id="heroConn"></div></div>
+  </div>
+
+  <p style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Pick a backend to switch to — <b style="color:var(--warn)">Selected</b> is what you'll switch to on Save, <b style="color:var(--accent)">Active</b> is what's running now.</p>
   <div class="cards" id="cards"></div>
+  <p class="switchnote" id="switchnote"></p>
 
   <div class="panel">
     <label for="dsn">Connection (DSN)</label>
@@ -81,22 +102,38 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1700);}
 async function post(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
-let BACKENDS=[], sel='sqlite';
+let BACKENDS=[], sel='sqlite', active='sqlite';
 
 async function load(){
   let d; try{ d=await (await fetch(BASE+'/api/v1/database')).json(); }catch(e){ $('#cards').innerHTML='core offline'; return; }
-  BACKENDS=d.backends||[]; sel=d.config.backend;
+  BACKENDS=d.backends||[]; active=d.config.backend; sel=active;
   $('#dsn').value=d.config.dsn||'';
+  const ab=BACKENDS.find(b=>b.id===active)||{};
+  $('#heroName').textContent=ab.name||active;
+  $('#heroDsn').textContent=d.config.dsn||'';
+  const st=d.active_status||{};
+  $('#heroDot').className='dot '+(st.ok?'ok':'bad');
+  $('#heroConn').textContent=(st.ok?'✓ connected':'✗ '+(st.note||'unreachable'));
+  $('#heroConn').style.color=st.ok?'var(--good)':'var(--bad)';
   render();
 }
+function updateSwitchNote(){
+  const n=$('#switchnote');
+  if(sel!==active){ n.textContent='You are about to switch the source of truth from “'+active+'” to “'+sel+'”. Set its connection, then press Save.'; n.classList.add('show'); }
+  else n.classList.remove('show');
+}
 function render(){
-  $('#cards').innerHTML=BACKENDS.map(b=>`<div class="card ${b.id===sel?'sel':''}" data-id="${b.id}">
-      <span class="av ${b.available?'ok':''}">${b.available?'available':'no driver'}</span>
-      <h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p></div>`).join('');
+  $('#cards').innerHTML=BACKENDS.map(b=>{
+    const badge=b.active?'<span class="av active">● ACTIVE</span>'
+      :(b.available?'<span class="av ok">available</span>':'<span class="av">no driver</span>');
+    const cls='card'+(b.active?' active':'')+(b.id===sel&&!b.active?' sel':'');
+    return `<div class="${cls}" data-id="${b.id}">${badge}<h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p></div>`;
+  }).join('');
   $$('.card').forEach(c=>c.onclick=()=>{sel=c.dataset.id;const b=BACKENDS.find(x=>x.id===sel);
     if(b&&(!$('#dsn').value||BACKENDS.some(x=>x.default_dsn===$('#dsn').value)))$('#dsn').value=b.default_dsn||'';
     $('#hint').textContent=b?('e.g. '+b.dsn_hint):''; $('#result').className='result'; render();});
   const cur=BACKENDS.find(x=>x.id===sel); $('#hint').textContent=cur?('e.g. '+cur.dsn_hint):'';
+  updateSwitchNote();
 }
 $('#test').onclick=async()=>{
   const r=await post('/api/v1/database/test',{backend:sel,dsn:$('#dsn').value});
