@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — SSH</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#3d8bfd;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--warn:#e6a417;
+    --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f6f7f9;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#1c2024;--muted:#6c757d}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+  a{color:inherit;text-decoration:none}.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:25px;margin:22px 0 4px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 18px;max-width:76ch}
+  .demo{background:color-mix(in srgb,var(--warn) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));color:var(--warn);border-radius:10px;padding:9px 13px;font-size:12.5px;margin-bottom:16px;display:none}.demo.show{display:block}
+  /* hero */
+  .hero{display:flex;align-items:center;gap:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:8px}
+  .dot{width:14px;height:14px;border-radius:50%;background:var(--muted);box-shadow:0 0 0 4px color-mix(in srgb,var(--muted) 20%,transparent);flex:none}
+  .dot.on{background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 22%,transparent)}
+  .dot.off{background:var(--bad);box-shadow:0 0 0 4px color-mix(in srgb,var(--bad) 20%,transparent)}
+  .hero .state{font-size:17px;font-weight:700}.hero .sub{color:var(--muted);font-size:12.5px}
+  .hero .port{margin-left:auto;text-align:right;font-family:var(--mono)}.hero .port b{font-size:20px;color:var(--accent)}.hero .port span{display:block;font-size:11px;color:var(--muted)}
+  .svc{display:flex;gap:8px;margin:8px 0 20px}
+  .secnote{font-size:12px;color:var(--muted);margin:2px 0 18px;display:flex;gap:7px;align-items:center}
+  .secnote .shield{color:var(--good)}
+  /* tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font:inherit;font-weight:600;padding:9px 14px;cursor:pointer;margin-bottom:-1px}
+  .tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+  .tab{display:none}.tab.on{display:block}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .k{font-family:var(--mono);font-size:12.5px;min-width:190px;color:var(--muted)}
+  .row .v{font-family:var(--mono);font-size:13px;flex:1}
+  .row .hint{font-size:11.5px;color:var(--warn)}
+  .row.ok .hint{color:var(--good)}
+  .row input,.row select{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 9px;font:12.5px var(--mono)}
+  .keycard,.tuncard{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .keycard:last-child,.tuncard:last-child{border-bottom:none}
+  .badge{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+  .badge.ed{color:#8fe0a4;border-color:color-mix(in srgb,#8fe0a4 40%,var(--line))}
+  .badge.rsa{color:#ffd479;border-color:color-mix(in srgb,#ffd479 40%,var(--line))}
+  .fp{font-family:var(--mono);font-size:11.5px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dir{font-family:var(--mono);font-size:15px;color:var(--accent)}
+  .grow{flex:1}
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:13px 16px;background:var(--panel-2)}
+  input,select{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 9px;font:12.5px var(--mono)}
+  .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:700;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12.5px}
+  .btn:hover{filter:brightness(1.08)}.btn.ghost{background:var(--panel-2);border-color:var(--line);color:var(--ink)}
+  .btn.danger{background:var(--panel-2);border-color:var(--line);color:var(--muted)}.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .btn.small{padding:4px 10px;font-size:11.5px}
+  .x{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px}.x:hover{border-color:var(--bad);color:var(--bad)}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin:10px 16px;font:12px var(--mono);overflow-x:auto;white-space:pre;color:#d7d3cb}
+  .cardhead{display:flex;align-items:center;gap:10px;padding:12px 16px 0}.cardhead b{font-size:13px}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:26px;padding:16px 0 44px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:9px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">SSH</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>SSH <em>· access &amp; tunnels</em></h1>
+  <p class="lede">Configure the SSH server, manage authorized keys, and build port-forwarding tunnels
+    with a ready-to-run command and systemd unit. Secure by default — the server stays off until you turn it on.</p>
+  <div class="demo" id="demo">⚠ Showing effective values read from <span style="font-family:var(--mono)">sshd_config</span>. Applying changes needs privilege (the core uses <span style="font-family:var(--mono)">sudo</span> on a real device).</div>
+
+  <div class="hero">
+    <span class="dot" id="dot"></span>
+    <div><div class="state" id="state">…</div><div class="sub" id="sub">reading sshd status</div></div>
+    <div class="port"><b id="port">—</b><span>listen port</span></div>
+  </div>
+  <div class="svc">
+    <button class="btn" id="enable">⏻ Enable sshd</button>
+    <button class="btn danger" id="disable">Disable</button>
+    <button class="btn ghost small" id="refresh">↻ Refresh</button>
+  </div>
+  <div class="secnote"><span class="shield">🛡</span> Recommended posture: <b>disabled by default</b>, key-only auth, root login off — enable on demand.</div>
+
+  <div class="tabs">
+    <button class="on" data-tab="server">Server</button>
+    <button data-tab="keys">Authorized keys</button>
+    <button data-tab="tunnels">Tunnels</button>
+  </div>
+
+  <!-- SERVER -->
+  <section class="tab on" id="tab-server">
+    <div class="panel" id="settings"></div>
+    <pre id="dropin" style="display:none"></pre>
+  </section>
+
+  <!-- KEYS -->
+  <section class="tab" id="tab-keys">
+    <div class="panel">
+      <div id="keys"></div>
+      <div class="addrow">
+        <input id="newkey" placeholder="ssh-ed25519 AAAA… comment" style="flex:1;min-width:280px">
+        <button class="btn" id="addkey">＋ Add key</button>
+      </div>
+    </div>
+    <p class="secnote">Keys live in <span style="font-family:var(--mono)" id="keypath">~/.ssh/authorized_keys</span>. Prefer <b>ed25519</b>; remove keys you don't recognise.</p>
+  </section>
+
+  <!-- TUNNELS -->
+  <section class="tab" id="tab-tunnels">
+    <div class="panel">
+      <div id="tunnels"></div>
+      <div class="addrow">
+        <select id="ttype"><option value="local">local  -L</option><option value="remote">remote -R</option><option value="dynamic">dynamic -D</option></select>
+        <input id="tname" placeholder="name" size="10">
+        <input id="tlisten" placeholder="listen (e.g. 8080)" size="12">
+        <input id="ttarget" placeholder="target host:port" size="16">
+        <input id="thost" placeholder="user@ssh-host" size="16">
+        <button class="btn" id="addtun">＋ Add tunnel</button>
+      </div>
+    </div>
+    <pre id="unit" style="display:none"></pre>
+  </section>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1600);}
+function copy(txt){navigator.clipboard?.writeText(txt);toast('Copied');}
+async function post(path,body){return (await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})})).json();}
+
+// Hardening recommendations per directive.
+const RECS={
+  permitrootlogin:{good:['no','prohibit-password'],msg:'set to "no" (or prohibit-password)'},
+  passwordauthentication:{good:['no'],msg:'set to "no" once keys work'},
+  pubkeyauthentication:{good:['yes'],msg:'keep "yes"'},
+  x11forwarding:{good:['no'],msg:'set to "no"'},
+  permitemptypasswords:{good:['no'],msg:'must be "no"'},
+  maxauthtries:{good:['3','4','5','6'],msg:'keep low (≤6)'},
+};
+const ORDER=['port','permitrootlogin','passwordauthentication','pubkeyauthentication','x11forwarding','allowtcpforwarding','maxauthtries','permitemptypasswords'];
+
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/ssh')).json(); }catch(e){ $('#state').textContent='core offline'; return; }
+  const st=d.status||{};
+  $('#demo').classList.toggle('show',!!st.demo);
+  const run=!!st.running;
+  $('#dot').className='dot '+(run?'on':'off');
+  $('#state').textContent=run?'sshd running':'sshd stopped';
+  $('#sub').textContent=st.installed?(run?'accepting connections':'installed · not listening'):'not installed';
+  $('#port').textContent=(st.settings&&st.settings.port)||'—';
+  // server settings table
+  const s=st.settings||{};
+  $('#settings').innerHTML=ORDER.filter(k=>k in s).map(k=>{
+    const v=s[k], rec=RECS[k]; let hint='', ok=false;
+    if(rec){ ok=rec.good.includes(String(v).toLowerCase()); hint=ok?'✓ hardened':('⚠ '+rec.msg); }
+    return `<div class="row ${ok?'ok':''}"><span class="k">${esc(k)}</span>
+      <input class="v setval" data-k="${esc(k)}" value="${esc(v)}" size="18">
+      <span class="hint">${hint}</span>
+      <button class="btn small setbtn" data-k="${esc(k)}">Apply</button></div>`;
+  }).join('')||'<div class="row"><span class="v">no directives read</span></div>';
+  $$('.setbtn').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.k, v=$(`.setval[data-k="${k}"]`).value;
+    const r=await post('/api/v1/ssh/setting',{key:k,value:v});
+    $('#dropin').style.display='block'; $('#dropin').textContent='# '+r.note+'\n'+r.content;
+    toast(r.applied?'Applied + reloaded':'Drop-in generated'); setTimeout(load,600);
+  });
+  // keys
+  const ak=d.authkeys||{keys:[]}; $('#keypath').textContent=ak.path||'~/.ssh/authorized_keys';
+  $('#keys').innerHTML=(ak.keys||[]).map((k,i)=>{
+    const cls=k.type.includes('ed25519')?'ed':(k.type.includes('rsa')?'rsa':'');
+    return `<div class="keycard"><span class="badge ${cls}">${esc(k.type)}</span>
+      <span class="fp">${esc(k.preview)}</span>
+      <span style="color:var(--muted);font-size:12px">${esc(k.comment||'')}</span>
+      <button class="x" data-i="${i}">remove</button></div>`;
+  }).join('')||'<div class="row"><span class="v">no authorized keys</span></div>';
+  // tunnels
+  const tn=d.tunnels||[];
+  $('#tunnels').innerHTML=tn.map(t=>{
+    const arrow=t.type==='remote'?'⟵':(t.type==='dynamic'?'⟿':'⟶');
+    return `<div class="tuncard"><span class="badge">${esc(t.type)}</span>
+      <b>${esc(t.name)}</b>
+      <span class="dir">${esc(t.listen)} ${arrow} ${esc(t.target||'(socks)')}</span>
+      <span style="color:var(--muted);font-size:12px">via ${esc(t.host)}</span>
+      <span class="grow"></span>
+      <button class="x cpcmd" data-cmd="${esc(t.cmd)}">copy cmd</button>
+      <button class="x deltun" data-id="${t.id}">delete</button></div>`;
+  }).join('')||'<div class="row"><span class="v">no tunnels defined</span></div>';
+  $$('.cpcmd').forEach(b=>b.onclick=()=>copy(b.dataset.cmd));
+  $$('.deltun').forEach(b=>b.onclick=async()=>{await post('/api/v1/ssh/tunnel/delete',{id:+b.dataset.id});toast('Tunnel removed');load();});
+}
+
+$('#enable').onclick=async()=>{const r=await post('/api/v1/ssh/service',{action:'enable'});toast(r.ok?'sshd enabled':'need privilege: '+(r.note||''));setTimeout(load,800);};
+$('#disable').onclick=async()=>{const r=await post('/api/v1/ssh/service',{action:'disable'});toast(r.ok?'sshd disabled':'need privilege: '+(r.note||''));setTimeout(load,800);};
+$('#refresh').onclick=load;
+$('#addtun').onclick=async()=>{
+  const b={type:$('#ttype').value,name:$('#tname').value||'tunnel',listen:$('#tlisten').value,target:$('#ttarget').value,host:$('#thost').value};
+  const r=await post('/api/v1/ssh/tunnel',b);
+  if(r.unit){$('#unit').style.display='block';$('#unit').textContent='# systemd unit — save as /etc/systemd/system/oso-tunnel-'+esc(b.name)+'.service\n'+r.unit;}
+  toast('Tunnel added');load();
+};
+$('#addkey').onclick=()=>toast('Key management writes to authorized_keys on a real device (read-only here).');
+$$('.tabs button').forEach(b=>b.onclick=()=>{
+  $$('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+b.dataset.tab));
+});
+const root=document.documentElement,th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+load(); setInterval(load,5000);
+</script>
+</body>
+</html>

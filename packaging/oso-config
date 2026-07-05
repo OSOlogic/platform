@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# oso-config — terminal (ncurses/TUI) admin for OSOLogic
+# ==============================================================================
+# The TUI fallback for the web config modules (ui/webmin-oso/*). It talks to the
+# same core REST API (/api/v1/*), so a headless box, a serial console or an SSH
+# session gets the exact same configuration + monitoring surface as the browser.
+#
+# Frontend auto-selects dialog → whiptail → plain via lib/oso-ui.sh.
+# API base: $OSO_API (default http://127.0.0.1:8080).
+#
+# (C) Roig Borrell S.L. · Ibercomp S.L. — part of OSOLogic — AGPL-3.0
+# ==============================================================================
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/oso-ui.sh
+. "$SCRIPT_DIR/lib/oso-ui.sh"
+
+OSO_API="${OSO_API:-http://127.0.0.1:8080}"
+UI_TITLE="OSOLogic Configuration"
+UI_BACKTITLE="OSOLogic® — terminal admin · $OSO_API"
+
+# --- REST helpers -------------------------------------------------------------
+api_get()  { curl -fsS --max-time 6 "$OSO_API$1" 2>/dev/null; }
+api_post() { curl -fsS --max-time 8 -X POST -H 'Content-Type: application/json' -d "$2" "$OSO_API$1" 2>/dev/null; }
+# Extract a python expression `d…` from the JSON on stdin.
+jexpr() { python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except Exception: sys.exit(1)
+try: print(eval(sys.argv[1]))
+except Exception: print("")' "$1" 2>/dev/null; }
+
+require_core() {
+    if ! api_get /healthz >/dev/null 2>&1; then
+        ui_msg "Cannot reach the OSOLogic core at:\n  $OSO_API\n\nStart the core, or set OSO_API to its address."
+        return 1
+    fi
+}
+
+# ==============================================================================
+# SSH module (exemplar — mirrors ui/webmin-oso/ssh)
+# ==============================================================================
+ssh_status_text() {
+    local j; j="$(api_get /api/v1/ssh)" || { echo "core offline"; return; }
+    local run port; run="$(printf '%s' "$j" | jexpr "'running' if d['status'].get('running') else 'stopped'")"
+    port="$(printf '%s' "$j" | jexpr "d['status'].get('settings',{}).get('port','?')")"
+    printf 'sshd: %s   ·   port %s' "$run" "$port"
+}
+
+ssh_settings_view() {
+    local j; j="$(api_get /api/v1/ssh)"
+    local body; body="$(printf '%s' "$j" | jexpr "chr(10).join('%-24s %s'%(k,v) for k,v in d['status'].get('settings',{}).items())")"
+    ui_msg "Effective sshd directives:\n\n${body:-<none read>}\n\nEdit a directive from the menu; the core writes a drop-in and reloads sshd."
+}
+
+ssh_set_directive() {
+    ui_menu "Which directive to set?" \
+        PermitRootLogin      "root login (recommend: no)" \
+        PasswordAuthentication "password auth (recommend: no)" \
+        PubkeyAuthentication "public-key auth (recommend: yes)" \
+        X11Forwarding        "X11 forwarding (recommend: no)" \
+        MaxAuthTries         "max auth tries (recommend: 4)" \
+        Port                 "listen port" || return 0
+    local key="$UI_VALUE"
+    ui_input "New value for $key:" "" || return 0
+    local r; r="$(api_post /api/v1/ssh/setting "{\"key\":\"$key\",\"value\":\"$UI_VALUE\"}")"
+    local note; note="$(printf '%s' "$r" | jexpr "d.get('note','')")"
+    ui_msg "$note"
+}
+
+ssh_add_tunnel() {
+    ui_menu "Tunnel type:" local "-L local forward" remote "-R remote forward" dynamic "-D SOCKS proxy" || return 0
+    local ttype="$UI_VALUE"
+    ui_input "Name:" "tunnel" || return 0; local name="$UI_VALUE"
+    ui_input "Listen (e.g. 8080):" "" || return 0; local listen="$UI_VALUE"
+    local target=""
+    if [ "$ttype" != "dynamic" ]; then ui_input "Target host:port:" "" || return 0; target="$UI_VALUE"; fi
+    ui_input "SSH host (user@host):" "" || return 0; local host="$UI_VALUE"
+    local r; r="$(api_post /api/v1/ssh/tunnel "{\"type\":\"$ttype\",\"name\":\"$name\",\"listen\":\"$listen\",\"target\":\"$target\",\"host\":\"$host\"}")"
+    local cmd; cmd="$(printf '%s' "$r" | jexpr "d['tunnel']['cmd']")"
+    ui_msg "Tunnel added.\n\nCommand:\n  $cmd\n\nA systemd unit was generated (see the web UI to copy it)."
+}
+
+ssh_tunnels_view() {
+    local j; j="$(api_get /api/v1/ssh)"
+    local body; body="$(printf '%s' "$j" | jexpr "chr(10).join('%-12s %-8s %s -> %s via %s'%(t['name'],t['type'],t['listen'],t.get('target') or '(socks)',t['host']) for t in d.get('tunnels',[])) or '<none>'")"
+    ui_msg "Configured tunnels:\n\n$body"
+}
+
+ssh_menu() {
+    while true; do
+        ui_menu "SSH — $(ssh_status_text)" \
+            enable   "Enable sshd (on-demand)" \
+            disable  "Disable sshd (secure default)" \
+            settings "View server directives" \
+            harden   "Set a directive" \
+            tunnels  "View tunnels" \
+            addtun   "Add a tunnel" \
+            back     "◀ Back" || return 0
+        case "$UI_VALUE" in
+            enable)   r="$(api_post /api/v1/ssh/service '{"action":"enable"}')";  ui_msg "$(printf '%s' "$r" | jexpr "d.get('note','done')")" ;;
+            disable)  r="$(api_post /api/v1/ssh/service '{"action":"disable"}')"; ui_msg "$(printf '%s' "$r" | jexpr "d.get('note','done')")" ;;
+            settings) ssh_settings_view ;;
+            harden)   ssh_set_directive ;;
+            tunnels)  ssh_tunnels_view ;;
+            addtun)   ssh_add_tunnel ;;
+            back)     return 0 ;;
+        esac
+    done
+}
+
+# ==============================================================================
+# Read-only monitors for other modules (extend with config actions over time)
+# ==============================================================================
+firewall_view() {
+    local j; j="$(api_get /api/v1/firewall)"
+    local body; body="$(printf '%s' "$j" | jexpr "chr(10).join(d.get('rules',[])) or '<none>'")"
+    ui_msg "Firewall (iptables INPUT):\n\n$body"
+}
+fail2ban_view() {
+    local j; j="$(api_get /api/v1/fail2ban)"
+    local body; body="$(printf '%s' "$j" | jexpr "chr(10).join('%-16s banned %s / total %s'%(x['name'],x['banned'],x['total']) for x in d.get('jails',[])) or '<none>'")"
+    ui_msg "fail2ban jails:\n\n$body"
+}
+
+# ==============================================================================
+main_menu() {
+    while true; do
+        ui_menu "OSOLogic administration — pick a module" \
+            ssh      "SSH server, keys & tunnels" \
+            firewall "Packet filter (view)" \
+            fail2ban "Intrusion jails (view)" \
+            quit     "Exit" || return 0
+        case "$UI_VALUE" in
+            ssh)      ssh_menu ;;
+            firewall) firewall_view ;;
+            fail2ban) fail2ban_view ;;
+            quit)     return 0 ;;
+        esac
+    done
+}
+
+ui_init
+require_core || exit 1
+main_menu
+clear 2>/dev/null || true
+printf 'oso-config — bye.\n'

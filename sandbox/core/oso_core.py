@@ -417,6 +417,149 @@ def firewall_rules():
         return demo
 
 
+# ---- SSH configurator (osoadmin) ---------------------------
+# View sshd status + key directives, list authorized_keys, and manage SSH tunnels
+# (forwarding + a generated systemd unit). Reads are safe; writing a hardening drop-in
+# is attempted via `sudo -n` and otherwise returned for the operator to apply.
+SSH_KEY_SETTINGS = ["port", "permitrootlogin", "passwordauthentication", "pubkeyauthentication",
+                    "x11forwarding", "allowtcpforwarding", "maxauthtries", "permitemptypasswords"]
+
+
+def ssh_status():
+    running = False
+    try:
+        for svc in ("ssh", "sshd"):
+            r = subprocess.run(["systemctl", "is-active", svc], capture_output=True, text=True, timeout=4)
+            if r.stdout.strip() == "active":
+                running = True
+                break
+    except Exception:
+        running = bool(shutil.which("sshd"))
+    settings = {}
+    try:
+        r = subprocess.run(["sudo", "-n", "sshd", "-T"], capture_output=True, text=True, timeout=6)
+        text = r.stdout if r.returncode == 0 else ""
+    except Exception:
+        text = ""
+    if text:
+        for ln in text.splitlines():
+            p = ln.split(None, 1)
+            if len(p) == 2 and p[0].lower() in SSH_KEY_SETTINGS:
+                settings[p[0].lower()] = p[1].strip()
+    else:
+        try:
+            for ln in open("/etc/ssh/sshd_config"):
+                ln = ln.strip()
+                if not ln or ln.startswith("#"):
+                    continue
+                p = ln.split(None, 1)
+                if len(p) == 2 and p[0].lower() in SSH_KEY_SETTINGS:
+                    settings.setdefault(p[0].lower(), p[1].strip())
+        except Exception:
+            pass
+    if not settings:
+        return {"installed": bool(shutil.which("sshd")), "running": running, "demo": True,
+                "settings": {"port": "22", "permitrootlogin": "prohibit-password",
+                             "passwordauthentication": "yes", "pubkeyauthentication": "yes",
+                             "x11forwarding": "no", "allowtcpforwarding": "yes", "maxauthtries": "6"}}
+    return {"installed": True, "running": running, "settings": settings}
+
+
+def ssh_authkeys():
+    path = os.path.expanduser("~/.ssh/authorized_keys")
+    keys = []
+    try:
+        for ln in open(path):
+            ln = ln.strip()
+            if not ln or ln.startswith("#"):
+                continue
+            parts = ln.split()
+            if len(parts) >= 2:
+                blob = parts[1]
+                keys.append({"type": parts[0], "comment": " ".join(parts[2:]),
+                             "preview": (blob[:20] + "…" + blob[-8:]) if len(blob) > 30 else blob})
+    except Exception:
+        return {"path": path, "demo": True, "keys": [
+            {"type": "ssh-ed25519", "comment": "jose@workstation", "preview": "AAAAC3NzaC1lZDI1…a1b2c3d4"},
+            {"type": "ssh-rsa", "comment": "ci@build", "preview": "AAAAB3NzaC1yc2EA…f9e8d7c6"}]}
+    return {"path": path, "keys": keys}
+
+
+SSH_TUNNELS = [
+    {"id": 1, "name": "plc-hmi", "type": "local", "listen": "8080",
+     "target": "127.0.0.1:80", "host": "user@gateway", "enabled": False},
+]
+_SSH_TID = [2]
+
+
+def _tunnel_cmd(t):
+    if t.get("type") == "dynamic":
+        return f"ssh -D {t.get('listen','')} -N {t.get('host','')}"
+    fwd = "-R" if t.get("type") == "remote" else "-L"
+    return f"ssh {fwd} {t.get('listen','')}:{t.get('target','')} -N {t.get('host','')}"
+
+
+def _tunnel_unit(t):
+    return ("[Unit]\nDescription=OSOLogic SSH tunnel " + t["name"] + "\nAfter=network-online.target\n\n"
+            "[Service]\nExecStart=" + _tunnel_cmd(t) +
+            " -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes\nRestart=always\nRestartSec=10\n\n"
+            "[Install]\nWantedBy=multi-user.target\n")
+
+
+def ssh_tunnels():
+    return {"tunnels": [dict(t, cmd=_tunnel_cmd(t)) for t in SSH_TUNNELS]}
+
+
+def ssh_add_tunnel(body):
+    t = {"id": _SSH_TID[0], "name": body.get("name", "tunnel"), "type": body.get("type", "local"),
+         "listen": body.get("listen", ""), "target": body.get("target", ""),
+         "host": body.get("host", ""), "enabled": False}
+    _SSH_TID[0] += 1
+    SSH_TUNNELS.append(t)
+    return {"ok": True, "tunnel": dict(t, cmd=_tunnel_cmd(t)), "unit": _tunnel_unit(t)}
+
+
+def ssh_del_tunnel(tid):
+    global SSH_TUNNELS
+    SSH_TUNNELS = [t for t in SSH_TUNNELS if t["id"] != tid]
+    return {"ok": True}
+
+
+def ssh_set_setting(key, value):
+    key = "".join(c for c in str(key) if c.isalnum())
+    value = str(value).replace("\n", "").strip()
+    dropin = f"# managed by OSOLogic\n{key} {value}\n"
+    path = "/etc/ssh/sshd_config.d/99-osologic.conf"
+    applied = False
+    note = "Save this drop-in to the path and 'systemctl reload ssh' to apply."
+    try:
+        p = subprocess.run(["sudo", "-n", "tee", path], input=dropin,
+                           capture_output=True, text=True, timeout=6)
+        if p.returncode == 0:
+            subprocess.run(["sudo", "-n", "systemctl", "reload", "ssh"], capture_output=True, timeout=6)
+            applied = True
+            note = f"Wrote {path} and reloaded sshd."
+    except Exception:
+        pass
+    return {"ok": True, "applied": applied, "path": path, "content": dropin, "note": note}
+
+
+def ssh_service(action):
+    """Secure default: sshd stays DISABLED until explicitly enabled here (on-demand access)."""
+    cmds = {"enable": ["enable", "--now"], "disable": ["disable", "--now"],
+            "start": ["start"], "stop": ["stop"]}
+    if action not in cmds:
+        return ssh_status()
+    try:
+        p = subprocess.run(["sudo", "-n", "systemctl"] + cmds[action] + ["ssh"],
+                           capture_output=True, text=True, timeout=8)
+        return {"ok": p.returncode == 0, "action": action,
+                "note": ((p.stderr or p.stdout).strip()[:300]) or f"sshd {action}d",
+                "status": ssh_status()}
+    except Exception as e:
+        return {"ok": False, "action": action, "note": str(e), "status": ssh_status()}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -529,6 +672,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"config": HASS_CFG, "drivers": hass_drivers()})
         if path == "/api/v1/toolchains":
             return self._json({"toolchains": toolchain_status()})
+        if path == "/api/v1/ssh":
+            return self._json({"status": ssh_status(), "authkeys": ssh_authkeys(),
+                               "tunnels": ssh_tunnels()["tunnels"]})
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -660,6 +806,22 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             return self._json(toolchain_install(body.get("lang", ""), body.get("method", "apt")))
+        if path.startswith("/api/v1/ssh/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "setting":
+                return self._json(ssh_set_setting(body.get("key", ""), body.get("value", "")))
+            if act == "tunnel":
+                return self._json(ssh_add_tunnel(body))
+            if act == "delete":
+                return self._json(ssh_del_tunnel(int(body.get("id", 0))))
+            if act == "service":
+                log("warn", f"sshd {body.get('action')}")
+                return self._json(ssh_service(body.get("action", "status")))
+            return self._json({"error": "unknown ssh action"}, 404)
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
