@@ -1,0 +1,6 @@
+# built runtime binaries
+osoruntime
+osoruntime_demo
+osoruntime_gpiod
+osoruntime_modbus
+*.o
