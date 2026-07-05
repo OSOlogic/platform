@@ -304,7 +304,8 @@ class Parser:
                 t = self._type_ref()
                 params.append(Param(line=n.line, col=n.col,
                                     name=str(n.value), typ=t))
-                if not self._ts.match("COMMA"):
+                # IEC declarations separate with ';'; also accept ',' for convenience.
+                if not (self._ts.match("SEMICOLON") or self._ts.match("COMMA")):
                     break
         self._ts.expect("RPAREN")
         return tuple(params)

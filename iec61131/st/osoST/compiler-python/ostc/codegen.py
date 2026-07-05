@@ -216,6 +216,7 @@ class CodeGen:
 
         # Current scope / Ámbito actual
         self._scope: Optional[_Scope] = None
+        self._func_ret: Optional[_Symbol] = None   # return slot of the function being emitted
 
         # Current loop exit patches / Parches de salida de bucle
         self._exit_patches: list[list[int]] = []   # stack of patch-offset lists
@@ -288,16 +289,27 @@ class CodeGen:
         self._proc_addr[fd.name.lower()] = w.position()
         self._scope = _Scope()
 
+        # Formal parameters are locals (inputs), declared before body vars.
+        for p in fd.params:
+            self._scope.declare(VarDecl(line=p.line, col=p.col, name=p.name, typ=p.typ, scope="input"))
+
         for vb in fd.var_blocks:
             for decl in vb.decls:
                 self._scope.declare(decl)
 
+        # IEC 61131-3: a FUNCTION returns its value by assigning to a variable
+        # named after the function. Declare that return slot so `fname := expr` resolves.
+        ret_sym = self._scope.declare(
+            VarDecl(line=fd.line, col=fd.col, name=fd.name, typ=fd.return_type, scope="output"))
+        prev_ret, self._func_ret = self._func_ret, ret_sym
+
         for stmt in fd.body:
             self._emit_stmt(stmt)
 
-        # Functions must have an explicit RETURN; emit one as safety net
-        # Las funciones deben tener un RETURN explícito; emitir uno como red de seguridad
+        # Fall-through return: push the return variable's value, then RET.
+        self._emit_load_sym(ret_sym)
         w.emit(Op.RET)
+        self._func_ret = prev_ret
         self._scope = None
 
     # ── Procedure / Procedimiento ─────────────────────────────────
@@ -529,6 +541,9 @@ class CodeGen:
         w = self._writer
         if node.value:
             self._emit_expr(node.value)
+        elif self._func_ret is not None:
+            # Bare RETURN inside a function still yields the return-slot value.
+            self._emit_load_sym(self._func_ret)
         w.emit(Op.RET)
 
     def _emit_exit(self, node: ExitStmt) -> None:
