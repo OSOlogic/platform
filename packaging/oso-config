@@ -218,6 +218,62 @@ datetime_menu() {
 }
 
 # ==============================================================================
+# osowatchdog module
+# ==============================================================================
+watchdog_status_text() {
+    local j; j="$(api_get /api/v1/watchdog)" || { echo "core offline"; return; }
+    printf '%s up · %s down' \
+        "$(printf '%s' "$j" | jexpr "d['up']")" \
+        "$(printf '%s' "$j" | jexpr "d['down']")"
+}
+watchdog_list_view() {
+    local j; j="$(api_get /api/v1/watchdog)"
+    ui_msg "$(printf '%s' "$j" | jexpr "chr(10).join('%-12s %-8s %-5s %-24s %s'%(w['name'],w['type'],w['status'],w['target'][:24],'on' if w['enabled'] else 'off') for w in d['watches']) or '<none>'")"
+}
+watchdog_add_watch() {
+    ui_input "Name:" "watch" || return 0; local name="$UI_VALUE"
+    ui_menu "Type:" systemd "systemd unit" process "process pattern" tcp "host:port" http "URL" || return 0
+    local typ="$UI_VALUE"
+    ui_input "Target ($typ):" "" || return 0; local tgt="$UI_VALUE"
+    ui_menu "Action:" restart "Restart it" alert "Alert only" none "None" || return 0
+    api_post /api/v1/watchdog/add "{\"name\":\"$name\",\"type\":\"$typ\",\"target\":\"$tgt\",\"action\":\"$UI_VALUE\"}" >/dev/null
+    ui_msg "Watch '$name' added."
+}
+watchdog_pick() {
+    local j; j="$(api_get /api/v1/watchdog)"
+    local args; args="$(printf '%s' "$j" | jexpr "' '.join('%d \"%s [%s]\"'%(w['id'],w['name'],w['status']) for w in d['watches'])")"
+    [ -z "$args" ] && { ui_msg "No watches defined."; return 1; }
+    eval "ui_menu 'Which watch?' $args"
+}
+watchdog_check_one() {
+    watchdog_pick || return 0
+    local r; r="$(api_post /api/v1/watchdog/check "{\"id\":$UI_VALUE}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "'status: '+d.get('watch',{}).get('status','?')")"
+}
+watchdog_restart_one() {
+    watchdog_pick || return 0
+    local r; r="$(api_post /api/v1/watchdog/restart "{\"id\":$UI_VALUE}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note', d.get('error','done'))")"
+}
+watchdog_menu() {
+    while true; do
+        ui_menu "Watchdog — $(watchdog_status_text)" \
+            list    "View watches" \
+            add     "Add a watch" \
+            check   "Check a watch now" \
+            restart "Restart a watch's target" \
+            back    "◀ Back" || return 0
+        case "$UI_VALUE" in
+            list)    watchdog_list_view ;;
+            add)     watchdog_add_watch ;;
+            check)   watchdog_check_one ;;
+            restart) watchdog_restart_one ;;
+            back)    return 0 ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # Read-only monitors for other modules (extend with config actions over time)
 # ==============================================================================
 firewall_view() {
@@ -238,6 +294,7 @@ main_menu() {
             ssh      "SSH server, keys & tunnels" \
             cron     "Scheduled tasks (oso-cron)" \
             datetime "Date, time, timezone & NTP" \
+            watchdog "Service & process monitor" \
             firewall "Packet filter (view)" \
             fail2ban "Intrusion jails (view)" \
             quit     "Exit" || return 0
@@ -245,6 +302,7 @@ main_menu() {
             ssh)      ssh_menu ;;
             cron)     cron_menu ;;
             datetime) datetime_menu ;;
+            watchdog) watchdog_menu ;;
             firewall) firewall_view ;;
             fail2ban) fail2ban_view ;;
             quit)     return 0 ;;

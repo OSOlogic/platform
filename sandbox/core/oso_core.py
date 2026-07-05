@@ -18,6 +18,7 @@ import math
 import os
 import shutil
 import socket
+import urllib.request
 import subprocess
 import tempfile
 import threading
@@ -719,6 +720,119 @@ def datetime_set(body):
         return {"ok": False, "error": str(e), "status": datetime_status()}
 
 
+# ---- osowatchdog (service / process monitor) ---------------
+# Watches services and takes an action when one is down. A watch is one of four kinds
+# (systemd unit, process pattern, TCP endpoint, HTTP URL); the action is restart, alert or none.
+# Reference store is in-memory; a real device persists watches to the DB and runs the loop as a service.
+OSO_WATCHDOG = [
+    {"id": 1, "name": "oso-core", "type": "http", "target": "http://127.0.0.1:8080/api/v1/health",
+     "action": "alert", "enabled": True, "status": "?", "last_check": 0, "restarts": 0, "restart_cmd": ""},
+    {"id": 2, "name": "database", "type": "systemd", "target": "mariadb",
+     "action": "restart", "enabled": False, "status": "?", "last_check": 0, "restarts": 0, "restart_cmd": ""},
+]
+_WD_ID = [3]
+_WD_TYPES = ("systemd", "process", "tcp", "http")
+
+
+def _wd_probe(w):
+    t, tgt = w["type"], w["target"]
+    try:
+        if t == "systemd":
+            r = subprocess.run(["systemctl", "is-active", tgt], capture_output=True, text=True, timeout=5)
+            return r.stdout.strip() == "active"
+        if t == "process":
+            return subprocess.run(["pgrep", "-f", tgt], capture_output=True, timeout=5).returncode == 0
+        if t == "tcp":
+            host, _, port = tgt.partition(":")
+            s = socket.create_connection((host or "127.0.0.1", int(port or 0)), timeout=3)
+            s.close()
+            return True
+        if t == "http":
+            req = urllib.request.Request(tgt, method="GET")
+            with urllib.request.urlopen(req, timeout=4) as r:
+                return 200 <= getattr(r, "status", r.getcode()) < 400
+    except Exception:
+        return False
+    return False
+
+
+def _wd_refresh(w):
+    w["status"] = "up" if _wd_probe(w) else "down"
+    w["last_check"] = int(time.time())
+    return w
+
+
+def _wd_public(w):
+    return {k: w[k] for k in ("id", "name", "type", "target", "action",
+                              "enabled", "status", "last_check", "restarts", "restart_cmd")}
+
+
+def watchdog_list():
+    for w in OSO_WATCHDOG:
+        if w["enabled"]:
+            _wd_refresh(w)
+    return {"watches": [_wd_public(w) for w in OSO_WATCHDOG],
+            "up": sum(1 for w in OSO_WATCHDOG if w["status"] == "up"),
+            "down": sum(1 for w in OSO_WATCHDOG if w["status"] == "down"),
+            "types": list(_WD_TYPES)}
+
+
+def watchdog_add(body):
+    t = body.get("type", "systemd")
+    if t not in _WD_TYPES:
+        return {"ok": False, "error": "bad type"}
+    w = {"id": _WD_ID[0], "name": body.get("name", "watch"), "type": t,
+         "target": body.get("target", ""), "action": body.get("action", "alert"),
+         "enabled": bool(body.get("enabled", True)), "status": "?", "last_check": 0,
+         "restarts": 0, "restart_cmd": body.get("restart_cmd", "")}
+    _WD_ID[0] += 1
+    OSO_WATCHDOG.append(w)
+    return {"ok": True, "watch": _wd_public(_wd_refresh(w))}
+
+
+def watchdog_del(wid):
+    global OSO_WATCHDOG
+    OSO_WATCHDOG = [w for w in OSO_WATCHDOG if w["id"] != wid]
+    return {"ok": True}
+
+
+def watchdog_toggle(wid):
+    for w in OSO_WATCHDOG:
+        if w["id"] == wid:
+            w["enabled"] = not w["enabled"]
+            return {"ok": True, "enabled": w["enabled"]}
+    return {"ok": False}
+
+
+def watchdog_check(wid):
+    for w in OSO_WATCHDOG:
+        if w["id"] == wid:
+            return {"ok": True, "watch": _wd_public(_wd_refresh(w))}
+    return {"ok": False}
+
+
+def watchdog_restart(wid):
+    for w in OSO_WATCHDOG:
+        if w["id"] != wid:
+            continue
+        if w["type"] == "systemd":
+            cmd = ["sudo", "-n", "systemctl", "restart", w["target"]]
+        elif w.get("restart_cmd"):
+            cmd = ["/bin/sh", "-lc", w["restart_cmd"]]
+        else:
+            return {"ok": False, "error": "no restart action for this watch"}
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            if p.returncode == 0:
+                w["restarts"] += 1
+            _wd_refresh(w)
+            return {"ok": p.returncode == 0, "note": (p.stderr or "restarted").strip()[:200],
+                    "watch": _wd_public(w)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": "no such watch"}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -838,6 +952,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(cron_list())
         if path == "/api/v1/datetime":
             return self._json({"status": datetime_status(), "timezones": datetime_timezones()})
+        if path == "/api/v1/health":
+            return self._json({"ok": True, "service": "oso-core", "ts": int(time.time())})
+        if path == "/api/v1/watchdog":
+            return self._json(watchdog_list())
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -1008,6 +1126,24 @@ class Handler(BaseHTTPRequestHandler):
                 body = {}
             log("warn", f"datetime {body.get('action')} {body.get('timezone', body.get('time', body.get('enabled', '')))}")
             return self._json(datetime_set(body))
+        if path.startswith("/api/v1/watchdog/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "add":
+                return self._json(watchdog_add(body))
+            if act == "delete":
+                return self._json(watchdog_del(int(body.get("id", 0))))
+            if act == "toggle":
+                return self._json(watchdog_toggle(int(body.get("id", 0))))
+            if act == "check":
+                return self._json(watchdog_check(int(body.get("id", 0))))
+            if act == "restart":
+                log("warn", f"watchdog restart watch {body.get('id')}")
+                return self._json(watchdog_restart(int(body.get("id", 0))))
+            return self._json({"error": "unknown watchdog action"}, 404)
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")

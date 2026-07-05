@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Watchdog</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#3d8bfd;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--warn:#e6a417;
+    --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f6f7f9;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#1c2024;--muted:#6c757d}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+  a{color:inherit;text-decoration:none}.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:25px;margin:22px 0 4px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 16px;max-width:78ch}
+  .summary{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  .summary b.up{color:var(--good)}.summary b.down{color:var(--bad)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .w{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .w:last-child{border-bottom:none}
+  .dot{width:11px;height:11px;border-radius:50%;flex:none;background:var(--muted)}
+  .dot.up{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 20%,transparent)}
+  .dot.down{background:var(--bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 20%,transparent)}
+  .w .name{font-weight:700;min-width:120px}
+  .badge{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--accent)}
+  .tgt{font-family:var(--mono);font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .act{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .rst{font-family:var(--mono);font-size:11px;color:var(--warn)}
+  .sw{width:38px;height:22px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);position:relative;cursor:pointer;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.15s}
+  .sw.on{background:color-mix(in srgb,var(--good) 30%,var(--panel-2));border-color:var(--good)}.sw.on::after{left:18px;background:var(--good)}
+  .w button{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11.5px}
+  .w button.chk:hover{border-color:var(--accent);color:var(--accent)}
+  .w button.rs:hover{border-color:var(--warn);color:var(--warn)}
+  .w button.del:hover{border-color:var(--bad);color:var(--bad)}
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:13px 16px;background:var(--panel-2)}
+  input,select{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 9px;font:12.5px var(--mono)}
+  .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:700;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12.5px}.btn:hover{filter:brightness(1.08)}
+  .hint{font-size:11.5px;color:var(--muted);padding:0 16px 12px;font-family:var(--mono)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 44px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:9px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Watchdog</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>Watchdog <em>· service &amp; process monitor</em></h1>
+  <p class="lede">Keep an eye on the things that must stay up — a systemd unit, a process, a TCP port or an
+    HTTP endpoint. When one goes down, restart it or raise an alert.</p>
+  <div class="summary" id="summary">…</div>
+
+  <div class="panel">
+    <div id="watches"></div>
+    <div class="addrow">
+      <input id="name" placeholder="name" size="10">
+      <select id="type">
+        <option value="systemd">systemd</option><option value="process">process</option>
+        <option value="tcp">tcp</option><option value="http">http</option>
+      </select>
+      <input id="target" placeholder="unit / pattern / host:port / url" style="flex:1;min-width:180px">
+      <select id="action"><option value="restart">restart</option><option value="alert" selected>alert</option><option value="none">none</option></select>
+      <button class="btn" id="add">＋ Watch</button>
+    </div>
+    <div class="hint" id="tgthint">systemd: unit name (e.g. mariadb) · process: pgrep pattern · tcp: host:port · http: url</div>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1700);}
+async function post(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
+function ago(ts){if(!ts)return 'never';const s=Math.floor(Date.now()/1000-ts);if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';return Math.floor(s/3600)+'h';}
+const TIP={systemd:'unit name (e.g. mariadb)',process:'pgrep pattern (e.g. node oso_core)',tcp:'host:port (e.g. 127.0.0.1:502)',http:'url (e.g. http://127.0.0.1:80/)'};
+$('#type').onchange=()=>{$('#target').placeholder=TIP[$('#type').value]||'';};
+
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/watchdog')).json(); }catch(e){ $('#summary').textContent='core offline'; return; }
+  const ws=d.watches||[];
+  $('#summary').innerHTML=`<b class="up">${d.up||0}</b> up · <b class="down">${d.down||0}</b> down · ${ws.length} watch(es)`;
+  $('#watches').innerHTML=ws.map(w=>`<div class="w">
+      <span class="dot ${w.status==='up'?'up':(w.status==='down'?'down':'')}" title="${esc(w.status)}"></span>
+      <span class="name">${esc(w.name)}</span>
+      <span class="badge">${esc(w.type)}</span>
+      <span class="tgt" title="${esc(w.target)}">${esc(w.target)}</span>
+      <span class="act">${esc(w.action)}</span>
+      ${w.restarts?`<span class="rst">↻${w.restarts}</span>`:''}
+      <span class="act">${w.enabled?ago(w.last_check)+' ago':'off'}</span>
+      <span class="sw ${w.enabled?'on':''}" data-id="${w.id}"></span>
+      <button class="chk" data-id="${w.id}">Check</button>
+      ${w.action==='restart'||w.restart_cmd?`<button class="rs" data-id="${w.id}">Restart</button>`:''}
+      <button class="del" data-id="${w.id}">✕</button></div>`).join('')||'<div class="w"><span class="tgt">no watches defined</span></div>';
+  $$('.sw').forEach(s=>s.onclick=async()=>{await post('/api/v1/watchdog/toggle',{id:+s.dataset.id});load();});
+  $$('.w .del').forEach(b=>b.onclick=async()=>{await post('/api/v1/watchdog/delete',{id:+b.dataset.id});toast('Removed');load();});
+  $$('.w .chk').forEach(b=>b.onclick=async()=>{const r=await post('/api/v1/watchdog/check',{id:+b.dataset.id});toast('Checked: '+(r.watch?.status||'?'));load();});
+  $$('.w .rs').forEach(b=>b.onclick=async()=>{toast('Restarting…');const r=await post('/api/v1/watchdog/restart',{id:+b.dataset.id});toast(r.ok?'Restarted':('failed: '+(r.note||r.error||'')));load();});
+}
+$('#add').onclick=async()=>{
+  const b={name:$('#name').value||'watch',type:$('#type').value,target:$('#target').value,action:$('#action').value};
+  if(!b.target){toast('Enter a target');return;}
+  await post('/api/v1/watchdog/add',b); $('#name').value='';$('#target').value=''; toast('Watch added'); load();
+};
+const root=document.documentElement,th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+load(); setInterval(load,5000);
+</script>
+</body>
+</html>
