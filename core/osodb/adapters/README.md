@@ -35,12 +35,18 @@ The backing store only has to persist definitions/values and carry the SQL contr
 what makes Postgres (or SQLite, or the MCU engine) usable as the source of truth without MariaDB's
 MEMORY engine — the mirror becomes a plain (or `UNLOGGED`) table and latency is unchanged.
 
-**Status.** The **SQLite** backend is implemented and tested end-to-end (`adapters/sql_backend.cpp` +
-`adapters/sqlite_adapter.cpp`, `tests/test_sql_backend.cpp` — attach/read-through, `poll_control`
-with ACL enforcement, and write-back all verified against a `MemoryHub`; built by CMake when
-libsqlite3 is present). **PostgreSQL** and the **MCU engine** are the dependency-free headers (the
-contract); their drivers (libpq, the embedded engine) are the next `.cpp` layer and reuse the same
-`SqlAdapter` unchanged.
+**Status.**
+- **SQLite** — implemented and tested end-to-end (`sql_backend.cpp` + `sqlite_adapter.cpp`,
+  `tests/test_sql_backend.cpp`: attach/read-through, `poll_control` with ACL enforcement, write-back —
+  all verified against a `MemoryHub`).
+- **MCU engine** — implemented and tested (`mcu/mcudb.cpp`, `tests/test_mcudb.cpp`): MariaDB-dialect
+  SQL (backtick identifiers, `ENGINE=…`, `INSERT … ON DUPLICATE KEY UPDATE`) runs unchanged on the
+  embedded SQLite store.
+- **PostgreSQL** — driver written (`postgres_adapter.cpp`, native libpq), reusing the same
+  `SqlAdapter`; CMake builds it when libpq's dev files are present.
+
+CMake builds each backend only when its client library is found, so the core `osodb` stays
+dependency-free. `ctest` runs the SQLite + MCU tests (3/3 pass here).
 
 **MCU + MariaDB emulation.** On a microcontroller there is no server: SQLite (or a fixed-size built-in
 store) holds the data, and a **MariaDB emulation** layer accepts the `` ` ``-quoted, `ON DUPLICATE KEY`
