@@ -31,7 +31,8 @@ find_path(SQLITE3_INCLUDE sqlite3.h)
 if(SQLITE3_LIB AND SQLITE3_INCLUDE)
   # The SQLite backend, plus the MCU engine (embedded SQLite store + MariaDB emulation).
   add_library(osodb_sqlite STATIC
-    adapters/sql_backend.cpp adapters/sqlite_adapter.cpp adapters/mcu/mcudb.cpp)
+    adapters/sql_backend.cpp adapters/sqlite_adapter.cpp
+    adapters/mcu/mcudb.cpp adapters/mcu/mcustore.cpp)
   target_include_directories(osodb_sqlite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${SQLITE3_INCLUDE})
   target_link_libraries(osodb_sqlite PUBLIC osodb ${SQLITE3_LIB})
   target_compile_options(osodb_sqlite PRIVATE -Wall -Wextra)
@@ -43,6 +44,10 @@ if(SQLITE3_LIB AND SQLITE3_INCLUDE)
   add_executable(test_mcudb tests/test_mcudb.cpp)
   target_link_libraries(test_mcudb PRIVATE osodb_sqlite)
   add_test(NAME osodb_mcudb COMMAND test_mcudb)
+
+  add_executable(test_mcustore tests/test_mcustore.cpp)
+  target_link_libraries(test_mcustore PRIVATE osodb_sqlite)
+  add_test(NAME osodb_mcustore COMMAND test_mcustore)
 else()
   message(STATUS "libsqlite3 not found — skipping osodb_sqlite backend and its tests")
 endif()

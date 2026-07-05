@@ -39,9 +39,12 @@ MEMORY engine — the mirror becomes a plain (or `UNLOGGED`) table and latency i
 - **SQLite** — implemented and tested end-to-end (`sql_backend.cpp` + `sqlite_adapter.cpp`,
   `tests/test_sql_backend.cpp`: attach/read-through, `poll_control` with ACL enforcement, write-back —
   all verified against a `MemoryHub`).
-- **MCU engine** — implemented and tested (`mcu/mcudb.cpp`, `tests/test_mcudb.cpp`): MariaDB-dialect
-  SQL (backtick identifiers, `ENGINE=…`, `INSERT … ON DUPLICATE KEY UPDATE`) runs unchanged on the
-  embedded SQLite store.
+- **MCU engine** — two storage paths, both tested:
+  - *filesystem* (`mcu/mcudb.cpp`, `tests/test_mcudb.cpp`): MariaDB-dialect SQL (backtick
+    identifiers, `ENGINE=…`, `INSERT … ON DUPLICATE KEY UPDATE`) runs unchanged on an embedded SQLite store.
+  - *bare-metal* (`mcu/mcustore.cpp` + `mcustore.hpp`, `tests/test_mcustore.cpp`): a fixed-size,
+    allocation-free table store — no SQLite, no filesystem — that recognizes the osodb statement
+    subset and drives the same `SqlAdapter` (attach, `poll_control` with ACL, flush all verified).
 - **PostgreSQL** — driver written (`postgres_adapter.cpp`, native libpq), reusing the same
   `SqlAdapter`; CMake builds it when libpq's dev files are present.
 

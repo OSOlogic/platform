@@ -42,9 +42,10 @@ struct McuDbLimits {
   int max_name = 32;         ///< identifier / short-string column width
 };
 
-/// An ISqlConn over the embedded McuDb engine, emulating the MariaDB dialect. On targets
-/// with a filesystem it delegates to SQLite; otherwise to the fixed-size built-in store.
-/// The DSN is a file path, ":memory:", or empty for the built-in store.
+/// An ISqlConn over the embedded McuDb engine (SQLite storage + MariaDB emulation), for MCU
+/// targets that have a filesystem. The DSN is a file path or ":memory:".
+/// For bare-metal targets with no filesystem, use `make_mcu_bare_conn()` (see mcustore.hpp) —
+/// the fixed-size, allocation-free store. Both drive the same SqlAdapter.
 std::unique_ptr<ISqlConn> make_mcu_conn(McuDbLimits limits = {});
 
 /// The MCU dialect: presents as MariaDB-compatible (so MariaDB SQL runs) while the engine
