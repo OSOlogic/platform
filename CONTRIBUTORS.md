@@ -13,6 +13,14 @@ who hold the copyright to the project. We are grateful to everyone who has helpe
 - **Diego Arcos Sapena**
 - **Jorge Martín Morant**
 
+## Supporters
+
+- **Borrell USA Corp**
+- **Jose Borrell S.A.**
+- **Borrell Works S.L.**
+- **Roig Borrell S.L.**
+- **Ibercomp S.L.**
+
 ## Authorship and copyright
 
 Individual authorship is credited both here and in the `@author` tags within the source
