@@ -318,6 +318,56 @@ database_menu() {
 }
 
 # ==============================================================================
+# Backup module (local + remote, verifiable)
+# ==============================================================================
+backup_status_text() {
+    local j; j="$(api_get /api/v1/backup)" || { echo "core offline"; return; }
+    printf '%s snapshot(s)' "$(printf '%s' "$j" | jexpr "len(d['snapshots'])")"
+}
+backup_view() {
+    local j; j="$(api_get /api/v1/backup)"
+    ui_msg "$(printf '%s' "$j" | jexpr "'Local:     '+d['config']['local_dir']+chr(10)+'Retention: '+str(d['config']['retention'])+chr(10)+'Sources:   '+', '.join(k for k,v in d['config']['sources'].items() if v)+chr(10)+'Remote:    '+(d['config']['remote']['type']+' '+d['config']['remote'].get('target','') if d['config']['remote'].get('enabled') else 'off')+chr(10)+chr(10)+'Snapshots:'+chr(10)+(chr(10).join('  %s  %dKB  %s  [%s]'%(', '.join(s['sources']),s['size_kb'],s['dest'],'verified' if s['verified'] else 'unverified') for s in d['snapshots']) or '  <none>')")"
+}
+backup_run_now() {
+    local r; r="$(api_post /api/v1/backup/run '{"note":"tui"}')"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note', d.get('error','done'))")"
+}
+backup_pick() {
+    local j; j="$(api_get /api/v1/backup)"
+    local args; args="$(printf '%s' "$j" | jexpr "' '.join('%d \"%s (%dKB)\"'%(s['id'],', '.join(s['sources']),s['size_kb']) for s in d['snapshots'])")"
+    [ -z "$args" ] && { ui_msg "No snapshots."; return 1; }
+    eval "ui_menu 'Snapshot?' $args"
+}
+backup_verify() {
+    backup_pick || return 0
+    local r; r="$(api_post /api/v1/backup/verify "{\"id\":$UI_VALUE}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note', d.get('error','?'))")"
+}
+backup_restore() {
+    backup_pick || return 0
+    ui_yesno "Restore snapshot $UI_VALUE? It overwrites current data." || return 0
+    local r; r="$(api_post /api/v1/backup/restore "{\"id\":$UI_VALUE}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note', d.get('error','?'))")"
+}
+backup_menu() {
+    while true; do
+        ui_menu "Backup — $(backup_status_text)" \
+            view    "View config + snapshots" \
+            run     "Back up now" \
+            verify  "Verify a snapshot" \
+            restore "Restore a snapshot" \
+            back    "◀ Back" || return 0
+        case "$UI_VALUE" in
+            view)    backup_view ;;
+            run)     backup_run_now ;;
+            verify)  backup_verify ;;
+            restore) backup_restore ;;
+            back)    return 0 ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # Read-only monitors for other modules (extend with config actions over time)
 # ==============================================================================
 firewall_view() {
@@ -340,6 +390,7 @@ main_menu() {
             datetime "Date, time, timezone & NTP" \
             watchdog "Service & process monitor" \
             database "osodb backend & connection" \
+            backup   "Backup — local & remote" \
             firewall "Packet filter (view)" \
             fail2ban "Intrusion jails (view)" \
             quit     "Exit" || return 0
@@ -349,6 +400,7 @@ main_menu() {
             datetime) datetime_menu ;;
             watchdog) watchdog_menu ;;
             database) database_menu ;;
+            backup)   backup_menu ;;
             firewall) firewall_view ;;
             fail2ban) fail2ban_view ;;
             quit)     return 0 ;;

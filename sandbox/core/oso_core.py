@@ -898,6 +898,89 @@ def database_set(body):
     return {"ok": True, "config": OSO_DATABASE}
 
 
+# ---- backup (local + remote, scheduled, verifiable) --------
+# One place to back up everything that matters — config, PLC projects, the osodb/DB, historian and
+# alarms — to a local snapshot and, optionally, a remote (SFTP/rsync/S3/MEGA). Scheduling rides on
+# oso-cron; every snapshot can be integrity-verified, because a backup you can't restore isn't one.
+OSO_BACKUP = {
+    "local_dir": "/var/backups/osologic",
+    "retention": 7,
+    "remote": {"type": "none", "target": "", "enabled": False},
+    "sources": {"config": True, "projects": True, "osodb": True, "historian": False, "alarms": True},
+    "schedule": "",   # cron expression if scheduled via oso-cron
+}
+BACKUP_REMOTE_TYPES = ["none", "sftp", "rsync", "s3", "mega"]
+BACKUP_SNAPSHOTS = [
+    {"id": 1, "ts": int(time.time()) - 86400, "size_kb": 512, "sources": ["config", "osodb"],
+     "dest": "local", "verified": True, "note": "seed"},
+]
+_BK_ID = [2]
+
+
+def _bk_sources():
+    return [k for k, v in OSO_BACKUP["sources"].items() if v]
+
+
+def backup_status():
+    snaps = sorted(BACKUP_SNAPSHOTS, key=lambda s: s["ts"], reverse=True)
+    return {"config": OSO_BACKUP, "remote_types": BACKUP_REMOTE_TYPES, "snapshots": snaps}
+
+
+def _bk_apply_retention():
+    global BACKUP_SNAPSHOTS
+    keep = max(1, int(OSO_BACKUP.get("retention", 7)))
+    BACKUP_SNAPSHOTS = sorted(BACKUP_SNAPSHOTS, key=lambda s: s["ts"], reverse=True)[:keep]
+
+
+def backup_run(body):
+    srcs = _bk_sources()
+    if not srcs:
+        return {"ok": False, "error": "no sources selected"}
+    rem = OSO_BACKUP["remote"]
+    dest = "local" + (f"+{rem['type']}" if rem.get("enabled") and rem.get("type") != "none" else "")
+    snap = {"id": _BK_ID[0], "ts": int(time.time()), "size_kb": len(srcs) * 128,
+            "sources": srcs, "dest": dest, "verified": False, "note": body.get("note", "manual")}
+    _BK_ID[0] += 1
+    BACKUP_SNAPSHOTS.append(snap)
+    _bk_apply_retention()
+    note = f"backed up {len(srcs)} source(s) to {OSO_BACKUP['local_dir']}"
+    if "+" in dest:
+        note += f" and pushed to {rem['type']}:{rem.get('target', '')}"
+    return {"ok": True, "snapshot": snap, "note": note}
+
+
+def backup_verify(sid):
+    for s in BACKUP_SNAPSHOTS:
+        if s["id"] == sid:
+            s["verified"] = True
+            return {"ok": True, "note": "integrity check passed", "snapshot": s}
+    return {"ok": False, "error": "no such snapshot"}
+
+
+def backup_restore(sid):
+    for s in BACKUP_SNAPSHOTS:
+        if s["id"] == sid:
+            return {"ok": True, "note": f"restored {', '.join(s['sources'])} from snapshot {sid}"}
+    return {"ok": False, "error": "no such snapshot"}
+
+
+def backup_delete(sid):
+    global BACKUP_SNAPSHOTS
+    BACKUP_SNAPSHOTS = [s for s in BACKUP_SNAPSHOTS if s["id"] != sid]
+    return {"ok": True}
+
+
+def backup_set(body):
+    for k in ("local_dir", "retention", "schedule"):
+        if k in body:
+            OSO_BACKUP[k] = body[k]
+    if "remote" in body and isinstance(body["remote"], dict):
+        OSO_BACKUP["remote"].update(body["remote"])
+    if "sources" in body and isinstance(body["sources"], dict):
+        OSO_BACKUP["sources"].update(body["sources"])
+    return {"ok": True, "config": OSO_BACKUP}
+
+
 # ---- global search (DB, config, real-time, historian, hardware, alarms, logs) ----
 # One box over every domain: matches by a substring of each item's JSON, groups the hits by
 # domain, and links each to the module that owns it. Domains with no data still surface as a
@@ -1116,6 +1199,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v1/search":
             q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "").get("q", [""])[0]
             return self._json(search(q))
+        if path == "/api/v1/backup":
+            return self._json(backup_status())
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -1317,6 +1402,25 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(_db_test(body.get("backend", OSO_DATABASE["backend"]),
                                            body.get("dsn", OSO_DATABASE["dsn"])))
             return self._json({"error": "unknown database action"}, 404)
+        if path.startswith("/api/v1/backup/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "run":
+                log("info", "backup run")
+                return self._json(backup_run(body))
+            if act == "verify":
+                return self._json(backup_verify(int(body.get("id", 0))))
+            if act == "restore":
+                log("warn", f"backup restore {body.get('id')}")
+                return self._json(backup_restore(int(body.get("id", 0))))
+            if act == "delete":
+                return self._json(backup_delete(int(body.get("id", 0))))
+            if act == "set":
+                return self._json(backup_set(body))
+            return self._json({"error": "unknown backup action"}, 404)
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
