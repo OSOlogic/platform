@@ -27,6 +27,12 @@
 
 namespace osodb {
 
+/// Write-back policy for current values, shared by every persistence adapter.
+enum class FlushPolicy {
+  WriteThrough,  ///< flush on every change (simplest; more DB traffic)
+  WriteBack      ///< buffer and flush on flush()/timer (fewer, batched writes)
+};
+
 class IAdapter {
  public:
   virtual ~IAdapter() = default;

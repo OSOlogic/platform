@@ -35,11 +35,7 @@
 
 namespace osodb {
 
-/// Write-back policy for current values.
-enum class FlushPolicy {
-  WriteThrough,  ///< flush on every change (simplest; more DB traffic)
-  WriteBack      ///< buffer and flush on flush()/timer (fewer, batched writes)
-};
+// FlushPolicy is defined in adapter.hpp (shared by every persistence adapter).
 
 class MariaDbAdapter final : public IAdapter {
  public:
