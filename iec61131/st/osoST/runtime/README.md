@@ -63,6 +63,14 @@ make modbus                   # Linux Modbus TCP (needs libmodbus-dev)
 | 18  | `cpu`               | Demo: CPU usage placeholder              |
 | 20  | `modbus_write_coil` | Write Modbus TCP coil                    |
 | 21  | `modbus_read_coil`  | Read Modbus TCP coil → I32               |
+| 30  | `tag_read`          | Read osodb tag by binding index → I32 (ACL-filtered) |
+| 31  | `tag_write`         | Write osodb tag by binding index (ACL-filtered)      |
+
+**osodb tag traps (#30/#31)** — the Ladder→ST compiler emits an I/O image sync so a program
+reads/writes [osodb](../../../core/osodb) tags (backed by MariaDB) each scan. The binding index
+maps to a tag id + ACL mode (`in`/`out`/`inout`) via the manifest in the generated ST header; the
+HAL resolves the index and **enforces the ACL** (a `tag_write` to a read-only binding is rejected).
+See [`iec61131/ladder`](../../ladder/).
 
 ---
 
