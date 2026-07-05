@@ -145,7 +145,16 @@ def _elem_bytes(typ: Node) -> int:
     k = _type_kind(typ)
     if k == _TypeKind.STR:
         return 81   # 1 len + 80 chars (STLite default)
+    if k == _TypeKind.BOOL:
+        return 1    # a bool is a single byte (VT_U8) — matches JMPF/push_bool
     return 4        # I32 / F32
+
+
+# Frame layout in RAM (must match pcodevm.c FRAME_HEADER_BYTES + local_addr):
+#   [fp+0..1] old fp   [fp+2..3] return addr   [fp+4..5] frame size   [fp+6..] locals
+# LOAD_L/STORE_L address = fp + offset, valid for offset in [6, 6+frame_size), so a
+# local at scope byte-position p is emitted with operand (p + FRAME_HEADER_BYTES).
+FRAME_HEADER_BYTES = 6
 
 
 # ── Symbol table / Tabla de símbolos ──────────────────────────────
@@ -218,6 +227,7 @@ class CodeGen:
         # Current scope / Ámbito actual
         self._scope: Optional[_Scope] = None
         self._func_ret: Optional[_Symbol] = None   # return slot of the function being emitted
+        self._frame_active = False                 # whether the current POU LINKed a frame
 
         # Current loop exit patches / Parches de salida de bucle
         self._exit_patches: list[list[int]] = []   # stack of patch-offset lists
@@ -231,8 +241,12 @@ class CodeGen:
 
     @staticmethod
     def _vt(kind: str) -> int:
-        """ostc keeps values 4-byte → VT_F32 for floats, VT_I32 for everything else."""
-        return Op.VT_F32 if kind == _TypeKind.FLOAT else Op.VT_I32
+        """Value-type byte for a type kind: bools are 1 byte, floats F32, ints I32."""
+        if kind == _TypeKind.FLOAT:
+            return Op.VT_F32
+        if kind == _TypeKind.BOOL:
+            return Op.VT_U8
+        return Op.VT_I32
 
     def _vt_of(self, node: Node) -> int:
         return self._vt(self._expr_type_kind(node))
@@ -259,9 +273,9 @@ class CodeGen:
         w.emit_i16(target - (p + 2))
 
     def _emit_jnz(self) -> int:
-        """Jump-if-true placeholder: the VM only has JMPF, so invert with NOT then JMPF."""
+        """Jump-if-true placeholder: the VM only has JMPF, so invert a 1-byte bool (NOT) then JMPF."""
         w = self._writer
-        w.emit(Op.NOT); w.emit_u8(Op.VT_I32)
+        w.emit(Op.NOT); w.emit_u8(Op.VT_U8)
         return self._emit_jmp(Op.JMPF)
 
     def _emit_push_int(self, v: int) -> None:
@@ -271,6 +285,10 @@ class CodeGen:
     def _emit_push_float(self, v: float) -> None:
         w = self._writer
         w.emit(Op.PUSH_F); w.emit_f32(v)
+
+    def _emit_push_bool(self, v: bool) -> None:
+        w = self._writer
+        w.emit(Op.PUSH_I); w.emit_u8(Op.VT_U8); w.emit_u8(1 if v else 0)
 
     # ── Top-level / Nivel superior ────────────────────────────────
 
@@ -335,32 +353,53 @@ class CodeGen:
 
     # ── Function / Función ────────────────────────────────────────
 
+    def _declare_params(self, sig_params, var_blocks) -> int:
+        """Declare parameters first (signature params + VAR_INPUT decls). Returns pbytes
+        — their total size, contiguous from frame offset 0 so the caller's args line up."""
+        for p in sig_params:
+            self._scope.declare(VarDecl(line=p.line, col=p.col, name=p.name, typ=p.typ, scope="input"))
+        for vb in var_blocks:
+            for d in vb.decls:
+                if d.scope == "input":
+                    self._scope.declare(d)
+        return self._scope.local_bytes
+
+    def _declare_locals(self, var_blocks) -> None:
+        """Declare the non-parameter locals (VAR / VAR_OUTPUT), after the params."""
+        for vb in var_blocks:
+            for d in vb.decls:
+                if d.scope != "input":
+                    self._scope.declare(d)
+
     def _emit_function(self, fd: FunctionDecl) -> None:
         w = self._writer
         self._proc_addr[fd.name.lower()] = w.position()
         self._scope = _Scope()
 
-        # Formal parameters are locals (inputs), declared before body vars.
-        for p in fd.params:
-            self._scope.declare(VarDecl(line=p.line, col=p.col, name=p.name, typ=p.typ, scope="input"))
+        # Parameters go first (offsets 0..pbytes) so the caller's pushed args line up with
+        # what LINK copies into the frame. Functions carry params in VAR_INPUT blocks.
+        pbytes = self._declare_params(fd.params, fd.var_blocks)
+        self._declare_locals(fd.var_blocks)
 
-        for vb in fd.var_blocks:
-            for decl in vb.decls:
-                self._scope.declare(decl)
-
-        # IEC 61131-3: a FUNCTION returns its value by assigning to a variable
-        # named after the function. Declare that return slot so `fname := expr` resolves.
+        # IEC 61131-3: a FUNCTION returns its value by assigning to a variable named
+        # after the function. Declare that return slot so `fname := expr` resolves.
         ret_sym = self._scope.declare(
             VarDecl(line=fd.line, col=fd.col, name=fd.name, typ=fd.return_type, scope="output"))
-        prev_ret, self._func_ret = self._func_ret, ret_sym
+        frame = self._scope.local_bytes
 
+        prev_ret, self._func_ret = self._func_ret, ret_sym
+        prev_fr, self._frame_active = self._frame_active, True
+
+        w.emit(Op.LINK); w.emit_u16(frame); w.emit_u16(pbytes)
         for stmt in fd.body:
             self._emit_stmt(stmt)
 
-        # Fall-through return: push the return variable's value, then RET.
+        # Fall-through: yield the return slot's value, then LEAVE (4-byte return).
         self._emit_load_sym(ret_sym)
-        w.emit(Op.RET)
+        w.emit(Op.LEAVE); w.emit_u8(4)
+
         self._func_ret = prev_ret
+        self._frame_active = prev_fr
         self._scope = None
 
     # ── Procedure / Procedimiento ─────────────────────────────────
@@ -370,14 +409,22 @@ class CodeGen:
         self._proc_addr[pd.name.lower()] = w.position()
         self._scope = _Scope()
 
-        for vb in pd.var_blocks:
-            for decl in vb.decls:
-                self._scope.declare(decl)
+        pbytes = self._declare_params(pd.params, pd.var_blocks)
+        self._declare_locals(pd.var_blocks)
+        frame = self._scope.local_bytes
 
+        has_frame = frame > 0     # no params and no locals → no frame needed (e.g. a global-only main)
+        prev_fr, self._frame_active = self._frame_active, has_frame
+
+        if has_frame:
+            w.emit(Op.LINK); w.emit_u16(frame); w.emit_u16(pbytes)
         for stmt in pd.body:
             self._emit_stmt(stmt)
-
+        if has_frame:
+            w.emit(Op.UNLINK)
         w.emit(Op.RET)
+
+        self._frame_active = prev_fr
         self._scope = None
 
     # ── Statements / Sentencias ───────────────────────────────────
@@ -551,12 +598,17 @@ class CodeGen:
 
     def _emit_return(self, node: ReturnStmt) -> None:
         w = self._writer
-        if node.value:
-            self._emit_expr(node.value)
-        elif self._func_ret is not None:
-            # Bare RETURN inside a function still yields the return-slot value.
-            self._emit_load_sym(self._func_ret)
-        w.emit(Op.RET)
+        if self._func_ret is not None:
+            # Inside a function: yield the value, then LEAVE (tears down the frame).
+            if node.value:
+                self._emit_expr(node.value)
+            else:
+                self._emit_load_sym(self._func_ret)
+            w.emit(Op.LEAVE); w.emit_u8(4)
+        else:
+            if self._frame_active:
+                w.emit(Op.UNLINK)
+            w.emit(Op.RET)
 
     def _emit_exit(self, node: ExitStmt) -> None:
         patch = self._emit_jmp(Op.JMP)
@@ -567,7 +619,7 @@ class CodeGen:
         k = self._expr_type_kind(node)
         if k == _TypeKind.STR:
             return Op.VT_STR
-        return Op.VT_F32 if k == _TypeKind.FLOAT else Op.VT_I32
+        return self._vt(k)   # BOOL→U8, FLOAT→F32, INT→I32
 
     def _emit_debug_call(self, args) -> None:
         """VM DEBUG: push args, then DEBUG opcode + n + one value-type byte per arg."""
@@ -596,8 +648,10 @@ class CodeGen:
             w.emit(self._traps[name_lo] & 0xFF)
             return
 
-        # Regular procedure call: VM CALL takes a u16 absolute address.
-        # (Arguments / frames via LINK are a later milestone.)
+        # Regular procedure call: push args (the callee's LINK copies them into its
+        # frame), then CALL (u16 absolute address). Procedures leave nothing on the stack.
+        for arg in node.args:
+            self._emit_expr(arg)
         w.emit(Op.CALL)
         self._proc_calls.append((w.position(), name_lo))
         w.emit_u16(0)           # back-patched to the callee's address
@@ -614,7 +668,7 @@ class CodeGen:
             self._emit_push_float(node.value)
 
         elif isinstance(node, BoolLit):
-            self._emit_push_int(1 if node.value else 0)
+            self._emit_push_bool(node.value)
 
         elif isinstance(node, StrLit):
             # Strings: PUSH_S + inline data (string support is a later milestone).
@@ -658,14 +712,12 @@ class CodeGen:
         "=": Op.EQ, "<>": Op.NE, "<": Op.LT, "<=": Op.LE, ">": Op.GT, ">=": Op.GE,
     }
 
+    _LOGIC_OPS = {"AND", "OR", "XOR"}
+
     def _emit_binop(self, node: BinOp) -> None:
         w = self._writer
         self._emit_expr(node.left)
         self._emit_expr(node.right)
-
-        lk = self._expr_type_kind(node.left)
-        rk = self._expr_type_kind(node.right)
-        vt = Op.VT_F32 if (lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT) else Op.VT_I32
 
         op = node.op
         if op == "%":
@@ -674,6 +726,21 @@ class CodeGen:
         vm_op = self._BINOP.get(op)
         if vm_op is None:
             raise NotImplementedError(f"Unsupported binary operator: {op!r}")
+
+        # Operand value-type byte. Logic ops take bool (1-byte) operands; arithmetic and
+        # comparisons take the operands' type (float/bool/int). A comparison still yields a
+        # 1-byte bool (push_bool), so results always store/branch as bools.
+        if op in self._LOGIC_OPS:
+            vt = Op.VT_U8
+        else:
+            lk = self._expr_type_kind(node.left)
+            rk = self._expr_type_kind(node.right)
+            if lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT:
+                vt = Op.VT_F32
+            elif lk == _TypeKind.BOOL and rk == _TypeKind.BOOL:
+                vt = Op.VT_U8
+            else:
+                vt = Op.VT_I32
         w.emit(vm_op); w.emit_u8(vt)
 
     def _emit_unary(self, node: UnaryOp) -> None:
@@ -683,7 +750,7 @@ class CodeGen:
         if op == "-":
             w.emit(Op.NEG); w.emit_u8(self._vt_of(node.operand))
         elif op == "NOT":
-            w.emit(Op.NOT); w.emit_u8(Op.VT_I32)
+            w.emit(Op.NOT); w.emit_u8(Op.VT_U8)   # boolean operand (1 byte)
         else:
             raise NotImplementedError(f"Unsupported unary operator: {op!r}")
 
@@ -698,6 +765,10 @@ class CodeGen:
             w.emit(self._traps[name_lo] & 0xFF)
             return
 
+        # Function call in an expression: push args, CALL; the callee LEAVEs its
+        # return value on the stack for the surrounding expression to use.
+        for arg in node.args:
+            self._emit_expr(arg)
         w.emit(Op.CALL)
         self._proc_calls.append((w.position(), name_lo))
         w.emit_u16(0)
@@ -738,16 +809,18 @@ class CodeGen:
     def _emit_load_sym(self, sym: _Symbol) -> None:
         w = self._writer
         vt = self._vt(_type_kind(sym.typ))
-        w.emit(Op.LOAD_G if sym.scope == "global" else Op.LOAD_L)
-        w.emit_u16(sym.offset)
-        w.emit_u8(vt)
+        if sym.scope == "global":
+            w.emit(Op.LOAD_G); w.emit_u16(sym.offset); w.emit_u8(vt)
+        else:
+            w.emit(Op.LOAD_L); w.emit_u16(sym.offset + FRAME_HEADER_BYTES); w.emit_u8(vt)
 
     def _emit_store_sym(self, sym: _Symbol) -> None:
         w = self._writer
         vt = self._vt(_type_kind(sym.typ))
-        w.emit(Op.STORE_G if sym.scope == "global" else Op.STORE_L)
-        w.emit_u16(sym.offset)
-        w.emit_u8(vt)
+        if sym.scope == "global":
+            w.emit(Op.STORE_G); w.emit_u16(sym.offset); w.emit_u8(vt)
+        else:
+            w.emit(Op.STORE_L); w.emit_u16(sym.offset + FRAME_HEADER_BYTES); w.emit_u8(vt)
 
     # ── Symbol lookup / Búsqueda de símbolo ──────────────────────
 
