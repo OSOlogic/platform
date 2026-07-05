@@ -224,6 +224,9 @@ class CodeGen:
         # Trap table / Tabla de traps
         self._traps: dict[str, int] = {}       # name → trap_id
 
+        # Function return kinds, for type inference in expressions / Tipos de retorno
+        self._func_ret_kind: dict[str, str] = {}   # name → _TypeKind
+
         # Current scope / Ámbito actual
         self._scope: Optional[_Scope] = None
         self._func_ret: Optional[_Symbol] = None   # return slot of the function being emitted
@@ -310,6 +313,11 @@ class CodeGen:
                                offset=self._global_bytes, size=size)
                 self._globals[decl.name.lower()] = sym
                 self._global_bytes += size
+
+        # First pass: function return kinds, so a call in a float expression types
+        # correctly even before that function's body is emitted.
+        for fd in prog.functions:
+            self._func_ret_kind[fd.name.lower()] = _type_kind(fd.return_type)
 
         self._writer = HexWriter(global_bytes=self._global_bytes,
                                  stack_needed=self._stack_needed)
@@ -452,8 +460,24 @@ class CodeGen:
             raise NotImplementedError(f"Unsupported statement: {type(node).__name__}")
 
     def _emit_assign(self, node: AssignStmt) -> None:
-        self._emit_expr(node.value)
+        # Coerce the value to the target's kind (e.g. `real_var := int_expr`).
+        self._emit_operand(node.value, self._assign_target_kind(node.target))
         self._emit_store(node.target)
+
+    def _assign_target_kind(self, target: Node) -> str:
+        if isinstance(target, VarRef):
+            try:
+                return _type_kind(self._lookup(target.name).typ)
+            except NameError:
+                return _TypeKind.INT
+        if isinstance(target, ArrayIndex):
+            try:
+                et = getattr(self._lookup(target.name).typ, "elem_type", None)
+                if et is not None:
+                    return _type_kind(et)
+            except NameError:
+                pass
+        return _TypeKind.INT
 
     def _emit_if(self, node: IfStmt) -> None:
         end_patches: list[int] = []
@@ -714,34 +738,63 @@ class CodeGen:
 
     _LOGIC_OPS = {"AND", "OR", "XOR"}
 
+    # Explicit IEC type-conversion calls → a single VM cast.
+    _TO_FLOAT_FNS = {"to_real", "to_lreal", "int_to_real", "dint_to_real",
+                     "sint_to_real", "uint_to_real", "udint_to_real"}
+    _TO_INT_FNS = {"to_int", "to_dint", "to_sint", "to_uint", "to_udint",
+                   "real_to_int", "real_to_dint", "lreal_to_int", "trunc"}
+
+    def _emit_operand(self, node: Node, target_kind: str) -> None:
+        """Emit an expression, inserting a VM cast when its kind differs from target_kind.
+
+        Emitir una expresión, insertando un cast del VM cuando su tipo difiere del destino.
+        The cast opcode carries the *source* value-type byte (see pcodevm.c CAST_*).
+        """
+        self._emit_expr(node)
+        src = self._expr_type_kind(node)
+        w = self._writer
+        if target_kind == _TypeKind.FLOAT and src in (_TypeKind.INT, _TypeKind.BOOL):
+            w.emit(Op.CAST_F32); w.emit_u8(self._vt(src))
+        elif target_kind == _TypeKind.INT and src == _TypeKind.FLOAT:
+            w.emit(Op.CAST_I32); w.emit_u8(Op.VT_F32)
+
     def _emit_binop(self, node: BinOp) -> None:
         w = self._writer
-        self._emit_expr(node.left)
-        self._emit_expr(node.right)
-
         op = node.op
+
+        # Integer modulo (VM MATH subop) — both operands as integers.
         if op == "%":
-            w.emit(Op.MATH); w.emit_u8(Op.MATH_MOD_I)   # integer modulo
+            self._emit_operand(node.left, _TypeKind.INT)
+            self._emit_operand(node.right, _TypeKind.INT)
+            w.emit(Op.MATH); w.emit_u8(Op.MATH_MOD_I)
             return
+
         vm_op = self._BINOP.get(op)
         if vm_op is None:
             raise NotImplementedError(f"Unsupported binary operator: {op!r}")
 
-        # Operand value-type byte. Logic ops take bool (1-byte) operands; arithmetic and
-        # comparisons take the operands' type (float/bool/int). A comparison still yields a
-        # 1-byte bool (push_bool), so results always store/branch as bools.
+        # Logic ops take bool (1-byte) operands and yield a bool.
         if op in self._LOGIC_OPS:
-            vt = Op.VT_U8
+            self._emit_expr(node.left)
+            self._emit_expr(node.right)
+            w.emit(vm_op); w.emit_u8(Op.VT_U8)
+            return
+
+        # Arithmetic and comparisons: promote both operands to a common kind so the VM's
+        # typed op sees matching stack slots (a FLOAT operand promotes the whole pair —
+        # this is what makes mixed INT/REAL math like `x * 2` correct). A comparison still
+        # yields a 1-byte bool, so results always store/branch as bools.
+        lk = self._expr_type_kind(node.left)
+        rk = self._expr_type_kind(node.right)
+        if lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT:
+            common = _TypeKind.FLOAT
+        elif lk == _TypeKind.BOOL and rk == _TypeKind.BOOL:
+            common = _TypeKind.BOOL
         else:
-            lk = self._expr_type_kind(node.left)
-            rk = self._expr_type_kind(node.right)
-            if lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT:
-                vt = Op.VT_F32
-            elif lk == _TypeKind.BOOL and rk == _TypeKind.BOOL:
-                vt = Op.VT_U8
-            else:
-                vt = Op.VT_I32
-        w.emit(vm_op); w.emit_u8(vt)
+            common = _TypeKind.INT
+        self._emit_operand(node.left, common)
+        self._emit_operand(node.right, common)
+        w.emit(vm_op); w.emit_u8(self._vt(common))
 
     def _emit_unary(self, node: UnaryOp) -> None:
         w = self._writer
@@ -754,9 +807,32 @@ class CodeGen:
         else:
             raise NotImplementedError(f"Unsupported unary operator: {op!r}")
 
+    def _maybe_emit_conversion(self, node) -> bool:
+        """Handle IEC type-conversion calls (TO_REAL, REAL_TO_INT, …) as a single VM cast."""
+        nm = node.name.lower()
+        if len(node.args) != 1:
+            return False
+        w = self._writer
+        arg = node.args[0]
+        if nm in self._TO_FLOAT_FNS:
+            self._emit_expr(arg)
+            src = self._expr_type_kind(arg)
+            if src != _TypeKind.FLOAT:
+                w.emit(Op.CAST_F32); w.emit_u8(self._vt(src))
+            return True
+        if nm in self._TO_INT_FNS:
+            self._emit_expr(arg)
+            if self._expr_type_kind(arg) == _TypeKind.FLOAT:
+                w.emit(Op.CAST_I32); w.emit_u8(Op.VT_F32)
+            return True
+        return False
+
     def _emit_call_expr(self, node: CallExpr) -> None:
         w = self._writer
         name_lo = node.name.lower()
+
+        if self._maybe_emit_conversion(node):
+            return
 
         if name_lo in self._traps:
             for arg in node.args:
@@ -867,6 +943,15 @@ class CodeGen:
             return _TypeKind.INT
         if isinstance(node, UnaryOp):
             return self._expr_type_kind(node.operand)
+        if isinstance(node, Ternary):
+            return self._expr_type_kind(node.then_val)
+        if isinstance(node, CallExpr):
+            nm = node.name.lower()
+            if nm in self._TO_FLOAT_FNS:
+                return _TypeKind.FLOAT
+            if nm in self._TO_INT_FNS:
+                return _TypeKind.INT
+            return self._func_ret_kind.get(nm, _TypeKind.INT)
         return _TypeKind.INT   # conservative default
 
 

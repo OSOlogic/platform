@@ -80,8 +80,17 @@ patch write `target − (operand_offset + 2)`. (ostc currently patches absolute 
    convention, frame-relative LOAD_L/STORE_L (offset + 6), params-first layout, args pushed by the
    caller, functions LEAVE their return value. **BOOL is 1 byte (VT_U8)** so bare-bool conditions
    work. *fn(params)=115, pid.st (REAL params, float math)=20.46, Ladder sub-ladder CALL all run.*
-4. ⏳ **Casts / MOD / strings / arrays** — CAST_* (I2F/F2I), MATH subops (MOD), PUSH_S real string
-   index (not inline), *_GA/*_LA arrays. Not needed for Ladder relay/analog logic; do when a program
-   requires them.
+4. 🚧 **Casts + MOD DONE; strings/arrays pending.**
+   - ✅ **Casts** — `CAST_F32`/`CAST_I32` (the opcode carries the *source* value-type byte). Operands
+     of mixed INT/REAL arithmetic/comparisons are promoted to a common kind, assignments coerce the
+     value to the target type, and explicit IEC conversions (`TO_REAL`, `INT_TO_REAL`, `REAL_TO_INT`,
+     `TRUNC`, …) lower to one cast. Function return kinds are pre-scanned so a call in a float
+     expression types correctly. *cast.st runs: `7*2.5=17.5`, `TO_REAL(7)+0.5=7.5`, `REAL_TO_INT(17.5)=17`.*
+   - ✅ **MOD** — `%` lowers to `MATH`+`MATH_MOD_I` with integer operands.
+   - ⏳ **Strings** — `PUSH_S` currently emits inline data; needs a real string pool (u16 index) so the
+     VM's `read_cstr`/`STRING` path works, plus VT_STR (2-byte pointer) store/load.
+   - ⏳ **Arrays** — `LOAD_GA`/`STORE_GA` (global) and `LOAD_LA`/`STORE_LA` (local): size the symbol as
+     `n × elem_bytes`, compute the index at runtime, emit base+index. `_emit_array_load`/`_emit_store`
+     are still stubs.
 
 Kept ostc's lexer/parser/AST unchanged; only `codegen.py` (+ `hex_writer` patch_i16/patch_u16) changed.
