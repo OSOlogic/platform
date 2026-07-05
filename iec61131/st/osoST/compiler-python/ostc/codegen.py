@@ -41,77 +41,78 @@ from .hex_writer import HexWriter
 # ── Opcodes (must match pcodevm.c) ────────────────────────────────
 
 class Op:
-    # Stack manipulation / Manipulación de pila
-    PUSH_I    = 0x01   # push I32 literal (4 bytes follow)
-    PUSH_F    = 0x02   # push F32 literal (4 bytes follow)
-    PUSH_STR  = 0x03   # push string index (2 bytes follow)
-    POP       = 0x04   # discard top of stack
-    DUP       = 0x05   # duplicate top
+    """Opcodes as the C VM (runtime/pcodevm.c) executes them — decimal, typed.
 
-    # Variables (local / global) / Variables (locales / globales)
-    LOAD_L    = 0x10   # load local  at frame offset  (2 bytes)
-    STORE_L   = 0x11   # store local at frame offset  (2 bytes)
-    LOAD_G    = 0x12   # load global at byte offset   (4 bytes)
-    STORE_G   = 0x13   # store global at byte offset  (4 bytes)
-    LOAD_ARR  = 0x14   # array load:  base(4) elem_size(2) on stack
-    STORE_ARR = 0x15   # array store: base(4) elem_size(2) on stack
+    Encoding conventions the VM expects:
+      - Typed ops (LOAD/STORE/arith/cmp/logic) carry a value-type byte `t` (VT_*).
+      - LOAD_G/STORE_G/LOAD_L/STORE_L: addr/offset u16, then t (u8).
+      - PUSH_I: t (u8), then the literal sized by t (I32 → 4 bytes).
+      - Jumps (JMP/JMPF) take a *relative* signed i16 offset from the byte after it.
+      - CALL takes an absolute u16 address; RET pops the 2-byte return address.
+    ostc keeps every value 4-byte, so it only ever emits VT_I32 / VT_F32.
+    """
+    # Stack manipulation
+    PUSH_I    = 1    # t(u8) + value(width by t)
+    PUSH_F    = 2    # f32 (4 bytes)
+    PUSH_S    = 3    # string index (u16)
 
-    # Arithmetic (I32) / Aritmética (I32)
-    ADD_I     = 0x20
-    SUB_I     = 0x21
-    MUL_I     = 0x22
-    DIV_I     = 0x23
-    MOD_I     = 0x24
-    NEG_I     = 0x25
+    # Variables — addr/off(u16) + type(u8)
+    LOAD_G    = 10
+    STORE_G   = 11
+    LOAD_L    = 12
+    STORE_L   = 13
 
-    # Arithmetic (F32) / Aritmética (F32)
-    ADD_F     = 0x28
-    SUB_F     = 0x29
-    MUL_F     = 0x2A
-    DIV_F     = 0x2B
-    NEG_F     = 0x2C
+    # Arithmetic — type(u8)
+    ADD       = 20
+    SUB       = 21
+    MUL       = 22
+    DIV       = 23
+    NEG       = 24
 
-    # Conversions / Conversiones
-    I2F       = 0x30
-    F2I       = 0x31
+    # Comparisons — type(u8)
+    LT        = 30
+    LE        = 31
+    GT        = 32
+    GE        = 33
+    EQ        = 34
+    NE        = 35
 
-    # Comparisons (result: 0 or 1 I32) / Comparaciones (resultado: 0 ó 1 I32)
-    EQ_I      = 0x40
-    NE_I      = 0x41
-    LT_I      = 0x42
-    LE_I      = 0x43
-    GT_I      = 0x44
-    GE_I      = 0x45
-    EQ_F      = 0x48
-    NE_F      = 0x49
-    LT_F      = 0x4A
-    LE_F      = 0x4B
-    GT_F      = 0x4C
-    GE_F      = 0x4D
+    # Logic — type(u8)
+    AND       = 40
+    OR        = 41
+    NOT       = 42
+    XOR       = 43
 
-    # Logic / Lógica
-    AND_I     = 0x50
-    OR_I      = 0x51
-    XOR_I     = 0x52
-    NOT_I     = 0x53
+    # Control flow — jumps are RELATIVE i16
+    JMP       = 50   # pc += i16
+    JMPF      = 51   # pop; if not truthy: pc += i16
+    CALL      = 60   # push return pc; pc = u16 addr
+    RET       = 61   # pc = pop2()
+    HALT      = 62
+    LINK      = 63   # frame(u16) pbytes(u16)  — enter frame (locals/params)
+    UNLINK    = 64   # leave frame
+    LEAVE     = 65   # retbytes(u8) — function return-value path
 
-    # Control flow / Control de flujo
-    JMP       = 0x60   # unconditional jump, target I32 follows
-    JZ        = 0x61   # jump if zero (false), target I32 follows
-    JNZ       = 0x62   # jump if non-zero (true), target I32 follows
-    CALL      = 0x70   # call function/procedure by address, argc follows (1 byte)
-    RET       = 0x71   # return (pops frame)
-    TRAP      = 0x72   # call hardware(), trap_id follows (1 byte)
-    HALT      = 0x7F   # stop execution
+    # Debug / math / trap
+    DEBUG     = 70
+    MATH      = 73   # subop(u8)
+    TRAP      = 80   # trap_id(u8)
 
-    # Debug / Depuración
-    DEBUG_I   = 0x80   # debug print I32 (1 format byte follows: nargs)
-    DEBUG_F   = 0x81
-    DEBUG_STR = 0x82
+    # Conversions
+    CAST_I32  = 107
+    CAST_F32  = 108
 
-    # VT type tags (used by PUSH_I for typed pushes) / Etiquetas de tipo VT
-    VT_I32    = 0x04
-    VT_F32    = 0x05
+    # Value-type tags (must match pcodevm.h VT_*)
+    VT_S8  = 0
+    VT_U8  = 1
+    VT_S16 = 2
+    VT_U16 = 3
+    VT_I32 = 4
+    VT_F32 = 5
+    VT_STR = 6
+
+    # MATH subops
+    MATH_MOD_I = 106
 
 
 # ── Type system helpers / Ayudantes del sistema de tipos ──────────
@@ -226,6 +227,51 @@ class CodeGen:
         assert self._writer is not None, "Call generate() first"
         return self._writer
 
+    # ── Emit helpers for the typed VM / Ayudantes de emisión ──────
+
+    @staticmethod
+    def _vt(kind: str) -> int:
+        """ostc keeps values 4-byte → VT_F32 for floats, VT_I32 for everything else."""
+        return Op.VT_F32 if kind == _TypeKind.FLOAT else Op.VT_I32
+
+    def _vt_of(self, node: Node) -> int:
+        return self._vt(self._expr_type_kind(node))
+
+    # Relative jumps (signed i16 from the byte after the operand).
+    def _emit_jmp(self, op: int) -> int:
+        """Emit a forward jump with a placeholder; return the operand offset to patch."""
+        w = self._writer
+        w.emit(op)
+        p = w.position()
+        w.emit_i16(0)
+        return p
+
+    def _patch_jmp(self, patch: int) -> None:
+        """Patch a forward jump so it lands at the current position."""
+        w = self._writer
+        w.patch_i16(patch, w.position() - (patch + 2))
+
+    def _emit_jmp_to(self, op: int, target: int) -> None:
+        """Emit a jump (usually backward) to a known absolute target."""
+        w = self._writer
+        w.emit(op)
+        p = w.position()
+        w.emit_i16(target - (p + 2))
+
+    def _emit_jnz(self) -> int:
+        """Jump-if-true placeholder: the VM only has JMPF, so invert with NOT then JMPF."""
+        w = self._writer
+        w.emit(Op.NOT); w.emit_u8(Op.VT_I32)
+        return self._emit_jmp(Op.JMPF)
+
+    def _emit_push_int(self, v: int) -> None:
+        w = self._writer
+        w.emit(Op.PUSH_I); w.emit_u8(Op.VT_I32); w.emit_i32(v)
+
+    def _emit_push_float(self, v: float) -> None:
+        w = self._writer
+        w.emit(Op.PUSH_F); w.emit_f32(v)
+
     # ── Top-level / Nivel superior ────────────────────────────────
 
     def generate(self, prog: Program) -> None:
@@ -253,9 +299,20 @@ class CodeGen:
         # Emit a JMP to the "main" procedure (first procedure named 'main' or first proc)
         # Emitir un JMP al procedimiento "main" (primer procedimiento llamado 'main' o el primero)
         w = self._writer
-        w.emit(Op.JMP)
+        # Global initializers. The runtime clears RAM before every scan (vm_reset), so
+        # emit the declared initial values at entry — they re-apply each scan.
+        for vb in prog.global_vars:
+            for decl in vb.decls:
+                if getattr(decl, "init", None) is not None:
+                    self._emit_expr(decl.init)
+                    self._emit_store_sym(self._globals[decl.name.lower()])
+
+        # Entry: CALL main; HALT. run_vm restarts at pc=0 every scan; main RETurns to
+        # the HALT, which returns from run_vm back to the runtime's scan loop.
+        w.emit(Op.CALL)
         main_patch = w.position()
-        w.emit_i32(0)   # back-patch later / parchar después
+        w.emit_u16(0)      # back-patched to main's address / parchado a la dir de main
+        w.emit(Op.HALT)
 
         # Emit functions / Emitir funciones
         for fd in prog.functions:
@@ -265,22 +322,16 @@ class CodeGen:
         for pd in prog.procedures:
             self._emit_procedure(pd)
 
-        # Back-patch JMP to main / Parchar JMP al main
+        # Back-patch CALL main / Parchar CALL al main
         main_name = "main"
-        if main_name not in self._proc_addr:
-            # Use first procedure / Usar primer procedimiento
-            if prog.procedures:
-                main_name = prog.procedures[0].name.lower()
-
+        if main_name not in self._proc_addr and prog.procedures:
+            main_name = prog.procedures[0].name.lower()
         if main_name in self._proc_addr:
-            w.patch_i32(main_patch, self._proc_addr[main_name])
+            w.patch_u16(main_patch, self._proc_addr[main_name])
 
         # Back-patch all CALL instructions / Parchar todas las instrucciones CALL
         for patch_off, name in self._proc_calls:
-            addr = self._proc_addr.get(name.lower(), 0)
-            w.patch_i32(patch_off, addr)
-
-        w.emit(Op.HALT)
+            w.patch_u16(patch_off, self._proc_addr.get(name.lower(), 0))
 
     # ── Function / Función ────────────────────────────────────────
 
@@ -358,46 +409,33 @@ class CodeGen:
         self._emit_store(node.target)
 
     def _emit_if(self, node: IfStmt) -> None:
-        w = self._writer
         end_patches: list[int] = []
 
         # Main condition / Condición principal
         self._emit_expr(node.cond)
-        w.emit(Op.JZ)
-        next_patch = w.position()
-        w.emit_i32(0)
+        next_patch = self._emit_jmp(Op.JMPF)   # skip THEN if false
 
         for stmt in node.then_body:
             self._emit_stmt(stmt)
-
-        w.emit(Op.JMP)
-        end_patches.append(w.position())
-        w.emit_i32(0)
+        end_patches.append(self._emit_jmp(Op.JMP))
 
         # ELSIF branches / Ramas ELSIF
         for ec, eb in node.elsifs:
-            w.patch_i32(next_patch, w.position())
+            self._patch_jmp(next_patch)
             self._emit_expr(ec)
-            w.emit(Op.JZ)
-            next_patch = w.position()
-            w.emit_i32(0)
-
+            next_patch = self._emit_jmp(Op.JMPF)
             for s in eb:
                 self._emit_stmt(s)
-
-            w.emit(Op.JMP)
-            end_patches.append(w.position())
-            w.emit_i32(0)
+            end_patches.append(self._emit_jmp(Op.JMP))
 
         # ELSE / branch / Rama ELSE
-        w.patch_i32(next_patch, w.position())
+        self._patch_jmp(next_patch)
         if node.else_body:
             for s in node.else_body:
                 self._emit_stmt(s)
 
-        end_pos = w.position()
         for p in end_patches:
-            w.patch_i32(p, end_pos)
+            self._patch_jmp(p)
 
     def _emit_while(self, node: WhileStmt) -> None:
         w = self._writer
@@ -405,20 +443,16 @@ class CodeGen:
 
         self._exit_patches.append([])
         self._emit_expr(node.cond)
-        w.emit(Op.JZ)
-        exit_patch = w.position()
-        w.emit_i32(0)
+        exit_patch = self._emit_jmp(Op.JMPF)
 
         for s in node.body:
             self._emit_stmt(s)
 
-        w.emit(Op.JMP)
-        w.emit_i32(loop_start)
+        self._emit_jmp_to(Op.JMP, loop_start)
 
-        end = w.position()
-        w.patch_i32(exit_patch, end)
+        self._patch_jmp(exit_patch)
         for p in self._exit_patches.pop():
-            w.patch_i32(p, end)
+            self._patch_jmp(p)
 
     def _emit_repeat(self, node: RepeatStmt) -> None:
         w = self._writer
@@ -430,12 +464,10 @@ class CodeGen:
             self._emit_stmt(s)
 
         self._emit_expr(node.cond)
-        w.emit(Op.JZ)
-        w.emit_i32(loop_start)   # repeat until cond is true
+        self._emit_jmp_to(Op.JMPF, loop_start)   # loop back while cond is false
 
-        end = w.position()
         for p in self._exit_patches.pop():
-            w.patch_i32(p, end)
+            self._patch_jmp(p)
 
     def _emit_for(self, node: ForStmt) -> None:
         """
@@ -460,14 +492,9 @@ class CodeGen:
         # Condition: exit when past the limit
         self._emit_load_sym(sym)
         self._emit_expr(node.end)
-        if node.downto:
-            w.emit(Op.LT_I)    # exit if i < end (DOWNTO)
-        else:
-            w.emit(Op.GT_I)    # exit if i > end (TO)
-
-        w.emit(Op.JNZ)
-        exit_patch = w.position()
-        w.emit_i32(0)
+        w.emit(Op.LT if node.downto else Op.GT)   # exit if past the limit
+        w.emit_u8(Op.VT_I32)
+        exit_patch = self._emit_jnz()
 
         for s in node.body:
             self._emit_stmt(s)
@@ -477,22 +504,17 @@ class CodeGen:
         if node.step:
             self._emit_expr(node.step)
         else:
-            w.emit(Op.PUSH_I)
-            w.emit_i32(1)
+            self._emit_push_int(1)
 
-        if node.downto:
-            w.emit(Op.SUB_I)
-        else:
-            w.emit(Op.ADD_I)
+        w.emit(Op.SUB if node.downto else Op.ADD)
+        w.emit_u8(Op.VT_I32)
         self._emit_store_sym(sym)
 
-        w.emit(Op.JMP)
-        w.emit_i32(loop_start)
+        self._emit_jmp_to(Op.JMP, loop_start)
 
-        end = w.position()
-        w.patch_i32(exit_patch, end)
+        self._patch_jmp(exit_patch)
         for p in self._exit_patches.pop():
-            w.patch_i32(p, end)
+            self._patch_jmp(p)
 
     def _emit_case(self, node: CaseStmt) -> None:
         w = self._writer
@@ -503,39 +525,29 @@ class CodeGen:
             pass_patches: list[int] = []
             for lv in labels:
                 self._emit_expr(node.expr)
-                w.emit(Op.PUSH_I)
-                w.emit_i32(lv)
-                w.emit(Op.EQ_I)
-                w.emit(Op.JNZ)
-                pass_patches.append(w.position())
-                w.emit_i32(0)
+                self._emit_push_int(lv)
+                w.emit(Op.EQ); w.emit_u8(Op.VT_I32)
+                pass_patches.append(self._emit_jnz())
 
             # None matched — jump over body / Ninguno coincidió — saltar sobre cuerpo
-            w.emit(Op.JMP)
-            skip_patch = w.position()
-            w.emit_i32(0)
+            skip_patch = self._emit_jmp(Op.JMP)
 
-            here = w.position()
             for p in pass_patches:
-                w.patch_i32(p, here)
+                self._patch_jmp(p)
 
             for s in body:
                 self._emit_stmt(s)
 
-            w.emit(Op.JMP)
-            end_patches.append(w.position())
-            w.emit_i32(0)
-
-            w.patch_i32(skip_patch, w.position())
+            end_patches.append(self._emit_jmp(Op.JMP))
+            self._patch_jmp(skip_patch)
 
         # ELSE body / Cuerpo ELSE
         if node.else_body:
             for s in node.else_body:
                 self._emit_stmt(s)
 
-        end = w.position()
         for p in end_patches:
-            w.patch_i32(p, end)
+            self._patch_jmp(p)
 
     def _emit_return(self, node: ReturnStmt) -> None:
         w = self._writer
@@ -547,16 +559,34 @@ class CodeGen:
         w.emit(Op.RET)
 
     def _emit_exit(self, node: ExitStmt) -> None:
-        w = self._writer
-        w.emit(Op.JMP)
-        patch = w.position()
-        w.emit_i32(0)
+        patch = self._emit_jmp(Op.JMP)
         if self._exit_patches:
             self._exit_patches[-1].append(patch)
+
+    def _arg_vt(self, node: Node) -> int:
+        k = self._expr_type_kind(node)
+        if k == _TypeKind.STR:
+            return Op.VT_STR
+        return Op.VT_F32 if k == _TypeKind.FLOAT else Op.VT_I32
+
+    def _emit_debug_call(self, args) -> None:
+        """VM DEBUG: push args, then DEBUG opcode + n + one value-type byte per arg."""
+        w = self._writer
+        for arg in args:
+            self._emit_expr(arg)
+        w.emit(Op.DEBUG)
+        w.emit_u8(len(args) & 0xFF)
+        for arg in args:
+            w.emit_u8(self._arg_vt(arg))
 
     def _emit_call_stmt(self, node: CallStmt) -> None:
         w = self._writer
         name_lo = node.name.lower()
+
+        # Built-in debug print / Impresión de depuración incorporada
+        if name_lo == "debug":
+            self._emit_debug_call(node.args)
+            return
 
         # Is it a TRAP? / ¿Es un TRAP?
         if name_lo in self._traps:
@@ -566,17 +596,11 @@ class CodeGen:
             w.emit(self._traps[name_lo] & 0xFF)
             return
 
-        # Regular call / Llamada regular
-        for arg in node.args:
-            self._emit_expr(arg)
+        # Regular procedure call: VM CALL takes a u16 absolute address.
+        # (Arguments / frames via LINK are a later milestone.)
         w.emit(Op.CALL)
         self._proc_calls.append((w.position(), name_lo))
-        w.emit_i32(0)           # back-patch later / parchar después
-        w.emit(len(node.args) & 0xFF)
-
-        # Discard return value if any (procedure call context)
-        # Descartar valor de retorno si existe (contexto de llamada a procedimiento)
-        w.emit(Op.POP)
+        w.emit_u16(0)           # back-patched to the callee's address
 
     # ── Expressions / Expresiones ─────────────────────────────────
 
@@ -584,29 +608,24 @@ class CodeGen:
         w = self._writer
 
         if isinstance(node, IntLit):
-            w.emit(Op.PUSH_I)
-            w.emit_i32(node.value)
+            self._emit_push_int(node.value)
 
         elif isinstance(node, FloatLit):
-            w.emit(Op.PUSH_F)
-            w.emit_f32(node.value)
+            self._emit_push_float(node.value)
 
         elif isinstance(node, BoolLit):
-            w.emit(Op.PUSH_I)
-            w.emit_i32(1 if node.value else 0)
+            self._emit_push_int(1 if node.value else 0)
 
         elif isinstance(node, StrLit):
-            # Strings are emitted inline via PUSH_STR + inline data
-            # Las cadenas se emiten inline via PUSH_STR + datos inline
-            w.emit(Op.PUSH_STR)
+            # Strings: PUSH_S + inline data (string support is a later milestone).
+            w.emit(Op.PUSH_S)
             w.emit_string(node.value)
 
         elif isinstance(node, VarRef):
             # Check enum values first / Verificar valores enum primero
             ev = self._enums.get(node.name.lower())
             if ev is not None:
-                w.emit(Op.PUSH_I)
-                w.emit_i32(ev)
+                self._emit_push_int(ev)
                 return
             sym = self._lookup(node.name)
             self._emit_load_sym(sym)
@@ -632,57 +651,39 @@ class CodeGen:
         else:
             raise NotImplementedError(f"Unsupported expression: {type(node).__name__}")
 
+    # ST operator → VM opcode (all typed: a value-type byte follows).
+    _BINOP = {
+        "+": Op.ADD, "-": Op.SUB, "*": Op.MUL, "/": Op.DIV,
+        "AND": Op.AND, "OR": Op.OR, "XOR": Op.XOR,
+        "=": Op.EQ, "<>": Op.NE, "<": Op.LT, "<=": Op.LE, ">": Op.GT, ">=": Op.GE,
+    }
+
     def _emit_binop(self, node: BinOp) -> None:
         w = self._writer
         self._emit_expr(node.left)
         self._emit_expr(node.right)
 
-        # Determine if float context / Determinar si contexto float
         lk = self._expr_type_kind(node.left)
         rk = self._expr_type_kind(node.right)
-        is_float = (lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT)
+        vt = Op.VT_F32 if (lk == _TypeKind.FLOAT or rk == _TypeKind.FLOAT) else Op.VT_I32
 
         op = node.op
-        if op == "+":
-            w.emit(Op.ADD_F if is_float else Op.ADD_I)
-        elif op == "-":
-            w.emit(Op.SUB_F if is_float else Op.SUB_I)
-        elif op == "*":
-            w.emit(Op.MUL_F if is_float else Op.MUL_I)
-        elif op == "/":
-            w.emit(Op.DIV_F if is_float else Op.DIV_I)
-        elif op == "%":
-            w.emit(Op.MOD_I)
-        elif op == "AND":
-            w.emit(Op.AND_I)
-        elif op == "OR":
-            w.emit(Op.OR_I)
-        elif op == "XOR":
-            w.emit(Op.XOR_I)
-        elif op == "=":
-            w.emit(Op.EQ_F if is_float else Op.EQ_I)
-        elif op == "<>":
-            w.emit(Op.NE_F if is_float else Op.NE_I)
-        elif op == "<":
-            w.emit(Op.LT_F if is_float else Op.LT_I)
-        elif op == "<=":
-            w.emit(Op.LE_F if is_float else Op.LE_I)
-        elif op == ">":
-            w.emit(Op.GT_F if is_float else Op.GT_I)
-        elif op == ">=":
-            w.emit(Op.GE_F if is_float else Op.GE_I)
-        else:
+        if op == "%":
+            w.emit(Op.MATH); w.emit_u8(Op.MATH_MOD_I)   # integer modulo
+            return
+        vm_op = self._BINOP.get(op)
+        if vm_op is None:
             raise NotImplementedError(f"Unsupported binary operator: {op!r}")
+        w.emit(vm_op); w.emit_u8(vt)
 
     def _emit_unary(self, node: UnaryOp) -> None:
         w = self._writer
         self._emit_expr(node.operand)
         op = node.op
         if op == "-":
-            k = self._expr_type_kind(node.operand)
-            w.emit(Op.NEG_F if k == _TypeKind.FLOAT else Op.NEG_I)
+            w.emit(Op.NEG); w.emit_u8(self._vt_of(node.operand))
         elif op == "NOT":
-            w.emit(Op.NOT_I)
+            w.emit(Op.NOT); w.emit_u8(Op.VT_I32)
         else:
             raise NotImplementedError(f"Unsupported unary operator: {op!r}")
 
@@ -697,40 +698,21 @@ class CodeGen:
             w.emit(self._traps[name_lo] & 0xFF)
             return
 
-        for arg in node.args:
-            self._emit_expr(arg)
         w.emit(Op.CALL)
         self._proc_calls.append((w.position(), name_lo))
-        w.emit_i32(0)
-        w.emit(len(node.args) & 0xFF)
+        w.emit_u16(0)
 
     def _emit_ternary(self, node: Ternary) -> None:
-        w = self._writer
         self._emit_expr(node.cond)
-        w.emit(Op.JZ)
-        else_patch = w.position()
-        w.emit_i32(0)
-
+        else_patch = self._emit_jmp(Op.JMPF)
         self._emit_expr(node.then_val)
-        w.emit(Op.JMP)
-        end_patch = w.position()
-        w.emit_i32(0)
-
-        w.patch_i32(else_patch, w.position())
+        end_patch = self._emit_jmp(Op.JMP)
+        self._patch_jmp(else_patch)
         self._emit_expr(node.else_val)
-        w.patch_i32(end_patch, w.position())
+        self._patch_jmp(end_patch)
 
     def _emit_debug(self, node: DebugExpr) -> None:
-        w = self._writer
-        for arg in node.args:
-            self._emit_expr(arg)
-            k = self._expr_type_kind(arg)
-            if k == _TypeKind.FLOAT:
-                w.emit(Op.DEBUG_F)
-            elif k == _TypeKind.STR:
-                w.emit(Op.DEBUG_STR)
-            else:
-                w.emit(Op.DEBUG_I)
+        self._emit_debug_call(node.args)
 
     def _emit_array_load(self, node: ArrayIndex) -> None:
         """Emit code to load an array element. / Emitir código para cargar un elemento de array."""
@@ -755,21 +737,17 @@ class CodeGen:
 
     def _emit_load_sym(self, sym: _Symbol) -> None:
         w = self._writer
-        if sym.scope == "global":
-            w.emit(Op.LOAD_G)
-            w.emit_i32(sym.offset)
-        else:
-            w.emit(Op.LOAD_L)
-            w.emit_u16(sym.offset)
+        vt = self._vt(_type_kind(sym.typ))
+        w.emit(Op.LOAD_G if sym.scope == "global" else Op.LOAD_L)
+        w.emit_u16(sym.offset)
+        w.emit_u8(vt)
 
     def _emit_store_sym(self, sym: _Symbol) -> None:
         w = self._writer
-        if sym.scope == "global":
-            w.emit(Op.STORE_G)
-            w.emit_i32(sym.offset)
-        else:
-            w.emit(Op.STORE_L)
-            w.emit_u16(sym.offset)
+        vt = self._vt(_type_kind(sym.typ))
+        w.emit(Op.STORE_G if sym.scope == "global" else Op.STORE_L)
+        w.emit_u16(sym.offset)
+        w.emit_u8(vt)
 
     # ── Symbol lookup / Búsqueda de símbolo ──────────────────────
 
@@ -824,53 +802,44 @@ class CodeGen:
 _OP_NAMES: dict[int, str] = {v: k for k, v in vars(Op).items() if isinstance(v, int)}
 
 def disassemble(data: bytes, start_offset: int = 0) -> str:
-    """
-    Human-readable P-code dump.
-    Volcado P-code legible por humanos.
-    """
+    """Human-readable P-code dump matching the VM encoding."""
+    import struct
     lines: list[str] = []
     i = start_offset
+    TYPED = {Op.ADD, Op.SUB, Op.MUL, Op.DIV, Op.NEG, Op.LT, Op.LE, Op.GT, Op.GE,
+             Op.EQ, Op.NE, Op.AND, Op.OR, Op.NOT, Op.XOR}
+    MEM = {Op.LOAD_G, Op.STORE_G, Op.LOAD_L, Op.STORE_L}
     while i < len(data):
         op = data[i]
         name = _OP_NAMES.get(op, f"0x{op:02X}")
         line = f"  {i:06X}  {name}"
         i += 1
-
-        if op in (Op.PUSH_I, Op.JMP, Op.JZ, Op.JNZ):
-            if i + 4 <= len(data):
-                import struct
-                val = struct.unpack_from("<i", data, i)[0]
-                line += f"  {val}"
-                i += 4
+        if op == Op.PUSH_I:
+            t = data[i]; val = struct.unpack_from("<i", data, i + 1)[0]
+            line += f"  t={t} {val}"; i += 5
         elif op == Op.PUSH_F:
-            if i + 4 <= len(data):
-                import struct
-                val = struct.unpack_from("<f", data, i)[0]
-                line += f"  {val:.6g}"
-                i += 4
-        elif op in (Op.LOAD_L, Op.STORE_L):
-            if i + 2 <= len(data):
-                import struct
-                off = struct.unpack_from("<H", data, i)[0]
-                line += f"  @{off}"
-                i += 2
-        elif op in (Op.LOAD_G, Op.STORE_G):
-            if i + 4 <= len(data):
-                import struct
-                off = struct.unpack_from("<i", data, i)[0]
-                line += f"  @{off}"
-                i += 4
+            line += f"  {struct.unpack_from('<f', data, i)[0]:.6g}"; i += 4
+        elif op == Op.PUSH_S:
+            ln = data[i]; line += f"  str[{ln}]"; i += 1 + ln
+        elif op in MEM:
+            addr = struct.unpack_from("<H", data, i)[0]; t = data[i + 2]
+            line += f"  @{addr} t={t}"; i += 3
+        elif op in TYPED:
+            line += f"  t={data[i]}"; i += 1
+        elif op in (Op.JMP, Op.JMPF):
+            off = struct.unpack_from("<h", data, i)[0]
+            line += f"  {off:+d} -> {i + 2 + off:#06x}"; i += 2
         elif op == Op.CALL:
-            if i + 5 <= len(data):
-                import struct
-                addr  = struct.unpack_from("<i", data, i)[0]
-                argc  = data[i + 4]
-                line += f"  addr={addr}  argc={argc}"
-                i += 5
+            line += f"  ->{struct.unpack_from('<H', data, i)[0]}"; i += 2
+        elif op == Op.LINK:
+            line += f"  frame={struct.unpack_from('<H', data, i)[0]} pbytes={struct.unpack_from('<H', data, i + 2)[0]}"; i += 4
+        elif op == Op.LEAVE:
+            line += f"  ret={data[i]}"; i += 1
         elif op == Op.TRAP:
-            if i < len(data):
-                line += f"  #{data[i]}"
-                i += 1
-
+            line += f"  #{data[i]}"; i += 1
+        elif op == Op.MATH:
+            line += f"  sub={data[i]}"; i += 1
+        elif op == Op.DEBUG:
+            n = data[i]; types = list(data[i + 1:i + 1 + n]); line += f"  n={n} {types}"; i += 1 + n
         lines.append(line)
     return "\n".join(lines)

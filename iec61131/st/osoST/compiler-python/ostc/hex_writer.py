@@ -120,6 +120,20 @@ class HexWriter:
         self._buf.write(struct.pack("<i", value))
         self._buf.seek(pos)
 
+    def patch_i16(self, offset: int, value: int) -> None:
+        """Patch a signed 16-bit value (relative jump offset) at a previous offset."""
+        pos = self._buf.tell()
+        self._buf.seek(offset)
+        self._buf.write(struct.pack("<h", value))
+        self._buf.seek(pos)
+
+    def patch_u16(self, offset: int, value: int) -> None:
+        """Patch an unsigned 16-bit value (absolute address) at a previous offset."""
+        pos = self._buf.tell()
+        self._buf.seek(offset)
+        self._buf.write(struct.pack("<H", value & 0xFFFF))
+        self._buf.seek(pos)
+
     def position(self) -> int:
         """Current code offset (relative to code_start). / Offset de código actual."""
         return self._buf.tell()
