@@ -158,6 +158,66 @@ cron_menu() {
 }
 
 # ==============================================================================
+# Date & Time module (timedatectl)
+# ==============================================================================
+datetime_status_text() {
+    local j; j="$(api_get /api/v1/datetime)" || { echo "core offline"; return; }
+    printf '%s · NTP %s' \
+        "$(printf '%s' "$j" | jexpr "d['status']['timezone']")" \
+        "$(printf '%s' "$j" | jexpr "'on' if d['status']['ntp'] else 'off'")"
+}
+datetime_view() {
+    local j; j="$(api_get /api/v1/datetime)"
+    ui_msg "$(printf '%s' "$j" | jexpr "'Local:  '+d['status']['local_time']+chr(10)+'UTC:    '+d['status']['utc_time']+chr(10)+'Zone:   '+d['status']['timezone']+chr(10)+'NTP:    '+('on, synced' if d['status']['ntp'] and d['status']['synced'] else ('on, syncing' if d['status']['ntp'] else 'off'))")"
+}
+datetime_ntp() {
+    ui_menu "Network time (NTP):" on "Enable (auto-sync)" off "Disable" || return 0
+    local v; [ "$UI_VALUE" = on ] && v=true || v=false
+    local r; r="$(api_post /api/v1/datetime/set "{\"action\":\"ntp\",\"enabled\":$v}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note','done')")"
+}
+datetime_tz() {
+    ui_input "Timezone (Region/City, e.g. Europe/Madrid):" "" || return 0
+    local r; r="$(api_post /api/v1/datetime/set "{\"action\":\"timezone\",\"timezone\":\"$UI_VALUE\"}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note','done')")"
+}
+datetime_set_time() {
+    ui_input "Time (YYYY-MM-DD HH:MM:SS):" "" || return 0
+    local r; r="$(api_post /api/v1/datetime/set "{\"action\":\"time\",\"time\":\"$UI_VALUE\"}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note','done')")"
+}
+datetime_server() {
+    ui_menu "NTP server (serve time to the LAN):" on "Enable" off "Disable" || return 0
+    local r
+    if [ "$UI_VALUE" = on ]; then
+        ui_input "Allowed subnet:" "192.168.0.0/16" || return 0
+        r="$(api_post /api/v1/datetime/set "{\"action\":\"ntp_server\",\"enabled\":true,\"subnet\":\"$UI_VALUE\"}")"
+    else
+        r="$(api_post /api/v1/datetime/set '{"action":"ntp_server","enabled":false}')"
+    fi
+    ui_msg "$(printf '%s' "$r" | jexpr "d.get('note','done')")"
+}
+datetime_menu() {
+    while true; do
+        ui_menu "Date & Time — $(datetime_status_text)" \
+            view    "View clock / zone / NTP" \
+            ntp     "Toggle network time (NTP client)" \
+            server  "NTP server (serve the LAN)" \
+            tz      "Set timezone" \
+            settime "Set time manually" \
+            back    "◀ Back" || return 0
+        case "$UI_VALUE" in
+            view)    datetime_view ;;
+            ntp)     datetime_ntp ;;
+            server)  datetime_server ;;
+            tz)      datetime_tz ;;
+            settime) datetime_set_time ;;
+            back)    return 0 ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # Read-only monitors for other modules (extend with config actions over time)
 # ==============================================================================
 firewall_view() {
@@ -177,12 +237,14 @@ main_menu() {
         ui_menu "OSOLogic administration — pick a module" \
             ssh      "SSH server, keys & tunnels" \
             cron     "Scheduled tasks (oso-cron)" \
+            datetime "Date, time, timezone & NTP" \
             firewall "Packet filter (view)" \
             fail2ban "Intrusion jails (view)" \
             quit     "Exit" || return 0
         case "$UI_VALUE" in
             ssh)      ssh_menu ;;
             cron)     cron_menu ;;
+            datetime) datetime_menu ;;
             firewall) firewall_view ;;
             fail2ban) fail2ban_view ;;
             quit)     return 0 ;;

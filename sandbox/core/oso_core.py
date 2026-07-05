@@ -632,6 +632,93 @@ def cron_run(jid):
     return {"ok": False, "error": "no such job"}
 
 
+# ---- date & time (timedatectl) -----------------------------
+_NTP_SERVER_DROPIN = "/etc/chrony/conf.d/oso-server.conf"
+
+
+def _ntp_server_on():
+    """True if chrony is configured to serve time (an uncommented `allow` directive)."""
+    paths = ["/etc/chrony/chrony.conf", "/etc/chrony.conf", _NTP_SERVER_DROPIN]
+    paths += glob.glob("/etc/chrony/conf.d/*.conf")
+    for p in paths:
+        try:
+            for ln in open(p):
+                if ln.strip().startswith("allow"):
+                    return True
+        except Exception:
+            pass
+    return False
+
+
+def datetime_status():
+    info = {}
+    try:
+        r = subprocess.run(["timedatectl", "show"], capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            for ln in r.stdout.splitlines():
+                if "=" in ln:
+                    k, v = ln.split("=", 1)
+                    info[k] = v.strip()
+    except Exception:
+        pass
+    base = {"local_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "utc_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "chrony": bool(shutil.which("chronyd") or shutil.which("chronyc")),
+            "ntp_server": _ntp_server_on()}
+    if not info:
+        base.update({"demo": True, "timezone": time.strftime("%Z") or "UTC",
+                     "ntp": True, "synced": True, "local_rtc": False})
+        return base
+    base.update({"timezone": info.get("Timezone", "?"),
+                 "ntp": info.get("NTP") == "yes",
+                 "synced": info.get("NTPSynchronized") == "yes",
+                 "local_rtc": info.get("LocalRTC") == "yes"})
+    return base
+
+
+def datetime_timezones():
+    try:
+        r = subprocess.run(["timedatectl", "list-timezones"], capture_output=True, text=True, timeout=6)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.split()
+    except Exception:
+        pass
+    return ["UTC", "Europe/Madrid", "Europe/London", "America/New_York", "America/Chicago",
+            "America/Los_Angeles", "America/Mexico_City", "Asia/Tokyo", "Asia/Shanghai", "Australia/Sydney"]
+
+
+def datetime_set(body):
+    act = body.get("action")
+    try:
+        if act == "timezone":
+            cmd = ["sudo", "-n", "timedatectl", "set-timezone", str(body.get("timezone", ""))]
+        elif act == "ntp":
+            cmd = ["sudo", "-n", "timedatectl", "set-ntp", "true" if body.get("enabled") else "false"]
+        elif act == "time":
+            cmd = ["sudo", "-n", "timedatectl", "set-time", str(body.get("time", ""))]
+        elif act == "ntp_server":
+            # Serve time to the LAN via chrony `allow <subnet>` (or stop serving).
+            if body.get("enabled"):
+                subnet = str(body.get("subnet", "192.168.0.0/16"))
+                content = f"# managed by OSOLogic — NTP server\nallow {subnet}\n"
+                p = subprocess.run(["sudo", "-n", "tee", _NTP_SERVER_DROPIN],
+                                   input=content, capture_output=True, text=True, timeout=6)
+                subprocess.run(["sudo", "-n", "systemctl", "restart", "chrony"], capture_output=True, timeout=8)
+                ok = p.returncode == 0
+                return {"ok": ok, "note": (f"chrony now serves time to {subnet}" if ok else (p.stderr or "need privilege").strip()),
+                        "content": content, "status": datetime_status()}
+            subprocess.run(["sudo", "-n", "rm", "-f", _NTP_SERVER_DROPIN], capture_output=True, timeout=6)
+            subprocess.run(["sudo", "-n", "systemctl", "restart", "chrony"], capture_output=True, timeout=8)
+            return {"ok": True, "note": "NTP server disabled", "status": datetime_status()}
+        else:
+            return {"ok": False, "error": "unknown action"}
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=8)
+        return {"ok": p.returncode == 0, "note": (p.stderr or p.stdout or "done").strip()[:200],
+                "status": datetime_status()}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "status": datetime_status()}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -749,6 +836,8 @@ class Handler(BaseHTTPRequestHandler):
                                "tunnels": ssh_tunnels()["tunnels"]})
         if path == "/api/v1/cron":
             return self._json(cron_list())
+        if path == "/api/v1/datetime":
+            return self._json({"status": datetime_status(), "timezones": datetime_timezones()})
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -912,6 +1001,13 @@ class Handler(BaseHTTPRequestHandler):
                 log("info", f"cron run job {body.get('id')}")
                 return self._json(cron_run(int(body.get("id", 0))))
             return self._json({"error": "unknown cron action"}, 404)
+        if path == "/api/v1/datetime/set":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            log("warn", f"datetime {body.get('action')} {body.get('timezone', body.get('time', body.get('enabled', '')))}")
+            return self._json(datetime_set(body))
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
