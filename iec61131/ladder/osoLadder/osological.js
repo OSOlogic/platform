@@ -208,6 +208,7 @@ let simRunning    = false; // ladder simulation engine
 let simPaused     = false; // debugger: auto-scan paused, step manually
 let simState      = {};    // runtime variable values during simulation
 let simTimer      = null;
+let simHistory    = {};    // per-variable ring buffer for the PID/trend chart
 
 function createDefaultProject() {
   return {
@@ -1213,6 +1214,7 @@ function simParseTime(s) {
 }
 function simInit() {
   simState = {};
+  simHistory = {};
   state.variables.forEach(v => { simState[v.name] = (v.dataType === 'BOOL') ? false : 0; });
   state.rungs.forEach(r => (r.cells||[]).forEach(row => (row||[]).forEach(c => {
     if (c) { delete c._et; delete c._cv; delete c._prev; delete c._prevCU; delete c._prevCD; delete c._pulse; delete c._prevIN; c._energized = false; }
@@ -1333,8 +1335,67 @@ function simRung(rung, dt) {
 }
 function simTick() {
   state.rungs.forEach(r => simRung(r, SIM_SCAN_MS));
+  // sample numeric tags for the trend chart (ring buffer)
+  for (const k in simState) {
+    const v = simState[k];
+    if (typeof v === 'number') {
+      (simHistory[k] || (simHistory[k] = [])).push(v);
+      if (simHistory[k].length > 150) simHistory[k].shift();
+    }
+  }
   renderAll();
   updateLiveCells();
+  drawTrend();
+}
+
+// PID / analog trend: plots the selected PID's SP·PV·OUT (or the first PID) live.
+function pidTrendSeries() {
+  let pid = null;
+  if (selectedCell) {
+    const cc = getRung(selectedCell.rungId)?.cells[selectedCell.row]?.[selectedCell.col];
+    if (cc && cc.type === 'FB_PID') pid = cc;
+  }
+  if (!pid) {
+    for (const rung of state.rungs) for (const row of (rung.cells || [])) for (const c of (row || []))
+      if (c && c.type === 'FB_PID') { pid = c; break; }
+  }
+  if (!pid) return [];
+  const p = pid.params || {};
+  return [
+    { name: p.SP, label: 'SP', color: '#8fe0a4' },
+    { name: p.PV, label: 'PV', color: '#ffd479' },
+    { name: p.OUT, label: 'OUT', color: '#5aa0ff' },
+  ].filter(s => s.name);
+}
+function drawTrend() {
+  const panel = document.getElementById('sim-trend'); if (!panel) return;
+  const series = simRunning ? pidTrendSeries() : [];
+  if (!series.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const cv = panel.querySelector('canvas'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, pad = 6;
+  ctx.clearRect(0, 0, W, H);
+  let min = Infinity, max = -Infinity;
+  const data = series.map(s => {
+    const arr = simHistory[s.name] || [];
+    for (const v of arr) { if (v < min) min = v; if (v > max) max = v; }
+    return { s, arr };
+  });
+  if (!isFinite(min)) { min = 0; max = 1; }
+  if (min === max) max = min + 1;
+  const X = (i, len) => pad + (i / Math.max(len - 1, 1)) * (W - 2 * pad);
+  const Y = v => H - pad - ((v - min) / (max - min)) * (H - 2 * pad);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, H - pad); ctx.lineTo(W - pad, H - pad); ctx.stroke();
+  for (const { s, arr } of data) {
+    if (arr.length < 2) continue;
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1.6; ctx.beginPath();
+    arr.forEach((v, i) => { const px = X(i, arr.length), py = Y(v); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.stroke();
+  }
+  panel.querySelector('.trend-title').innerHTML =
+    series.map(s => `<span style="color:${s.color}">■ ${s.label}</span>`).join(' ') +
+    ` <span style="color:#8b8f99;float:right">${min.toFixed(1)}–${max.toFixed(1)}</span>`;
 }
 function simToggleInput(cell) {
   // Click a contact in sim mode to force its variable (bit) — a virtual push-button.
@@ -1350,6 +1411,7 @@ function toggleSimulation() {
   if (simRunning) { simInit(); simTimer = setInterval(simTick, SIM_SCAN_MS); simTick(); }
   else { clearInterval(simTimer); simTimer = null; renderAll(); updateLiveCells(); }
   updateSimControls();
+  drawTrend();
 }
 // Debugger controls: pause the auto-scan and step one scan at a time.
 function updateSimControls() {
