@@ -17,6 +17,8 @@ import json
 import math
 import os
 import shutil
+import hashlib
+import re
 import socket
 import urllib.request
 import subprocess
@@ -981,6 +983,67 @@ def backup_set(body):
     return {"ok": True, "config": OSO_BACKUP}
 
 
+# ---- PLC projects (versioned: loaded, active, history, rollback) -------------
+# Projects are versioned by name: every upload of a name is a new version, the history is kept,
+# and rollback is just activating an older version. Exactly one project is active at a time.
+OSO_PROJECTS = []
+_PROJ_ID = [1]
+
+
+def _proj_checksum(name, ver, ts):
+    return hashlib.sha256(f"{name}:{ver}:{ts}".encode()).hexdigest()[:16]
+
+
+def _proj_seed():
+    now = int(time.time())
+    seed = [("line-1-sorter", 1, now - 172800, 131072, False),
+            ("line-1-sorter", 2, now - 3600, 133120, True),
+            ("packer-cell", 1, now - 86400, 65536, False)]
+    for name, ver, ts, size, active in seed:
+        OSO_PROJECTS.append({
+            "id": _PROJ_ID[0], "name": name, "version": ver,
+            "uploaded_at": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(ts)),
+            "size_bytes": size, "checksum": _proj_checksum(name, ver, ts),
+            "format": "osoproj", "active": active})
+        _PROJ_ID[0] += 1
+
+
+_proj_seed()
+
+
+def projects_list():
+    return sorted(OSO_PROJECTS, key=lambda p: (p["name"], -p["version"]))
+
+
+def projects_activate(pid):
+    found = False
+    for p in OSO_PROJECTS:
+        if p["id"] == pid:
+            p["active"] = True
+            found = True
+        else:
+            p["active"] = False
+    return {"ok": found}
+
+
+def projects_delete(pid):
+    global OSO_PROJECTS
+    OSO_PROJECTS = [p for p in OSO_PROJECTS if p["id"] != pid]
+    return {"ok": True}
+
+
+def projects_add(name, size_bytes=0, fmt="osoproj"):
+    ver = max([p["version"] for p in OSO_PROJECTS if p["name"] == name], default=0) + 1
+    ts = int(time.time())
+    p = {"id": _PROJ_ID[0], "name": name, "version": ver,
+         "uploaded_at": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(ts)),
+         "size_bytes": int(size_bytes), "checksum": _proj_checksum(name, ver, ts),
+         "format": fmt, "active": False}
+    _PROJ_ID[0] += 1
+    OSO_PROJECTS.append(p)
+    return p
+
+
 # ---- global search (DB, config, real-time, historian, hardware, alarms, logs) ----
 # One box over every domain: matches by a substring of each item's JSON, groups the hits by
 # domain, and links each to the module that owns it. Domains with no data still surface as a
@@ -1152,7 +1215,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v1/gateways":
             return self._json([])
         if path == "/api/v1/projects":
-            return self._json([])
+            return self._json(projects_list())
         if path == "/api/v1/scan/serial":
             return self._json(scan_serial())
         if path == "/api/v1/scan/tcp":
@@ -1449,8 +1512,31 @@ class Handler(BaseHTTPRequestHandler):
                     pass
             log("info", f"firewall {body.get('action', 'add')} INPUT {spec}")
             return self._json({"ok": True})
-        if path.startswith("/api/v1/projects/"):   # activate / etc — accepted stub
+        if path == "/api/v1/projects":   # upload → a new version
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0)
+            name = "uploaded-project"
+            m = re.search(rb'filename="([^"]+)"', raw)
+            if m:
+                fn = m.group(1).decode("utf-8", "replace")
+                name = re.sub(r"\.(osoproj|zip|bin)$", "", fn, flags=re.I) or fn
+            log("info", f"project upload {name}")
+            return self._json(projects_add(name, size_bytes=len(raw)))
+        if path.startswith("/api/v1/projects/"):
+            tail = path[len("/api/v1/projects/"):]
+            pid = int(re.match(r"\d+", tail).group(0)) if re.match(r"\d+", tail) else 0
+            if tail.endswith("/activate"):
+                log("warn", f"project activate {pid}")
+                return self._json(projects_activate(pid))
             return self._json({"ok": True})
+        return self._json({"error": "not found", "path": path}, 404)
+
+    def do_DELETE(self):
+        path = self.path.split("?", 1)[0]
+        if path.startswith("/api/v1/projects/"):
+            tail = path[len("/api/v1/projects/"):]
+            pid = int(re.match(r"\d+", tail).group(0)) if re.match(r"\d+", tail) else 0
+            log("warn", f"project delete {pid}")
+            return self._json(projects_delete(pid))
         return self._json({"error": "not found", "path": path}, 404)
 
     def do_PUT(self):
