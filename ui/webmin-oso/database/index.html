@@ -13,6 +13,10 @@
   header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
   header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
   .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .crumbs a{color:var(--muted);text-decoration:none;border-bottom:1px dotted transparent}
+  .crumbs a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .related{border-top:1px solid var(--line);margin-top:22px;padding-top:14px;font-size:12.5px;color:var(--muted)}
+  .related a{color:var(--accent);text-decoration:none;margin:0 4px}.related a:hover{text-decoration:underline}
   .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
   h1{font-size:25px;margin:22px 0 4px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--accent)}
   .lede{color:var(--muted);margin:0 0 18px;max-width:76ch}
@@ -43,7 +47,7 @@
 <body>
 <div class="wrap">
   <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
-    <span class="krumb">Database</span><button class="toggle" id="themeBtn">◐</button></header>
+    <span class="krumb crumbs"><a href="/">Home</a> › <a href="../index.html">Admin</a> › <span>Database</span></span><button class="toggle" id="themeBtn">◐</button></header>
   <h1>Database <em>· osodb source of truth</em></h1>
   <p class="lede">Pick the backend osodb persists to. The real-time path is the in-memory cache, so this
     is a deployment choice, not a performance one — the same tags work on every engine.</p>
@@ -66,6 +70,7 @@
     truth without MariaDB's MEMORY tables, and why a microcontroller can run the <b>MCU</b> engine
     (embedded store + MariaDB emulation). See the osodb adapters.</div>
 
+  <nav class="related">Related: <a href="../cockpit/oso-iotags/index.html">I/O Tags</a> · <a href="../cockpit/oso-runtime/index.html">Runtime</a> · <a href="../historian/index.html">Historian</a> · <a href="../index.html">All admin modules ↗</a></nav>
   <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
 </div>
 <div class="toast" id="toast"></div>
