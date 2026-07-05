@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "pcodevm.h"
+#include "osodb_tags.h"   /* osodb tag I/O bridge (trap #30/#31, ACL-enforced) */
 
 /**
  * @file hardware.c
@@ -105,6 +106,19 @@ void hardware(VM *vm, uint8_t trap_id) {
             printf("stack_free_now=%d temp_free_now=%d (zona libre compartida)\n", free_gap, free_gap);
             printf("math_error=%u rng_state=%d running=%u\n",
                    (unsigned) vm->math_error, vm->rng_state, (unsigned) vm->running);
+            return;
+        }
+        /* trap #30: function tag_read(id:long) : long — osodb (ACL) */
+        case 30: {
+            int32_t id = popi(vm, VT_I32);
+            pushi(vm, VT_I32, osodb_tag_read(id));
+            return;
+        }
+        /* trap #31: procedure tag_write(id:long; value:long) — osodb (ACL) */
+        case 31: {
+            int32_t value = popi(vm, VT_I32);
+            int32_t id    = popi(vm, VT_I32);
+            osodb_tag_write(id, value);
             return;
         }
         default:

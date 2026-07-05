@@ -36,6 +36,7 @@
 #include <stdint.h>
 #include <time.h>
 #include "pcodevm.h"
+#include "osodb_tags.h"   /* osodb tag I/O bridge (trap #30/#31, ACL-enforced) */
 
 #ifdef USE_GPIOD
 #  include <gpiod.h>
@@ -213,6 +214,21 @@ void hardware(VM *vm, uint8_t trap_id) {
             fprintf(stderr,"[HAL] modbus_read_coil(addr=%d) -> 0 [stub]\n", addr);
 #endif
             pushi(vm, VT_I32, val);
+            return;
+        }
+
+        /* ── trap #30: function tag_read(id:long) : long — osodb (ACL) ─ */
+        case 30: {
+            int32_t id = popi(vm, VT_I32);
+            pushi(vm, VT_I32, osodb_tag_read(id));
+            return;
+        }
+
+        /* ── trap #31: procedure tag_write(id:long; value:long) — osodb (ACL) */
+        case 31: {
+            int32_t value = popi(vm, VT_I32);
+            int32_t id    = popi(vm, VT_I32);
+            osodb_tag_write(id, value);
             return;
         }
 
