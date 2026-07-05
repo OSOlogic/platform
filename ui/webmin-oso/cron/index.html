@@ -16,8 +16,12 @@
   .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
   h1{font-size:25px;margin:22px 0 4px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--accent)}
   .lede{color:var(--muted);margin:0 0 16px;max-width:76ch}
-  .summary{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  .summary{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:4px}
   .summary b{color:var(--accent)}
+  .clockbox{display:flex;align-items:center;gap:16px;margin:2px 0 18px}
+  .clock{flex:none}
+  .dtime{font:600 24px/1 var(--mono);letter-spacing:.02em}
+  .ddate{color:var(--muted);font-size:12.5px;text-transform:capitalize;margin-top:3px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
   .job{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
   .job:last-child{border-bottom:none}
@@ -46,7 +50,21 @@
   <h1>Scheduler <em>· oso-cron</em></h1>
   <p class="lede">Schedule tasks — backups, reports, maintenance scripts. Run a job on demand, and copy a
     ready crontab line or systemd timer to install it on the device.</p>
-  <div class="summary" id="summary">…</div>
+  <div class="clockbox">
+    <svg class="clock" viewBox="0 0 100 100" width="76" height="76" aria-hidden="true">
+      <circle cx="50" cy="50" r="47" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/>
+      <g id="ticks" stroke="var(--muted)" stroke-width="1.5"></g>
+      <line id="hh" x1="50" y1="52" x2="50" y2="30" stroke="var(--ink)" stroke-width="3.4" stroke-linecap="round"/>
+      <line id="mh" x1="50" y1="54" x2="50" y2="18" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round"/>
+      <line id="sh" x1="50" y1="58" x2="50" y2="14" stroke="var(--accent)" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="2.6" fill="var(--accent)"/>
+    </svg>
+    <div>
+      <div class="dtime" id="dtime">--:--:--</div>
+      <div class="ddate" id="ddate"></div>
+      <div class="summary" id="summary">…</div>
+    </div>
+  </div>
 
   <div class="panel">
     <div id="jobs"></div>
@@ -123,6 +141,20 @@ $('#add').onclick=async()=>{
   if(r.timer){$('#timer').style.display='block';$('#timer').textContent=r.timer;}
   $('#name').value='';$('#cmd').value=''; toast('Job added'); load();
 };
+// analog + digital clock
+(function(){
+  let t=''; for(let i=0;i<12;i++){const a=i*30*Math.PI/180,x1=50+40*Math.sin(a),y1=50-40*Math.cos(a),x2=50+45*Math.sin(a),y2=50-45*Math.cos(a);t+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;}
+  $('#ticks').innerHTML=t;
+})();
+function tickClock(){
+  const n=new Date(),h=n.getHours(),m=n.getMinutes(),s=n.getSeconds();
+  $('#hh').setAttribute('transform',`rotate(${(h%12)*30+m*0.5} 50 50)`);
+  $('#mh').setAttribute('transform',`rotate(${m*6+s*0.1} 50 50)`);
+  $('#sh').setAttribute('transform',`rotate(${s*6} 50 50)`);
+  $('#dtime').textContent=n.toLocaleTimeString();
+  $('#ddate').textContent=n.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
+}
+setInterval(tickClock,1000); tickClock();
 const root=document.documentElement,th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
 $('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
 load(); setInterval(load,6000);
