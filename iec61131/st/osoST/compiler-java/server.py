@@ -237,6 +237,58 @@ def compile_endpoint():
         return jsonify({"ok": False, "errors": [traceback.format_exc()]}), 500
 
 
+def compile_python(source: str) -> dict:
+    """
+    Compile ST with the pure-Python compiler (ostc) — the no-Java alternative backend.
+    Same response shape as compile_st() so the editor renders both identically.
+
+    Compila ST con el compilador Python puro (ostc) — backend alternativo sin Java.
+    """
+    here = Path(__file__).parent.parent / "compiler-python"
+    with tempfile.TemporaryDirectory(prefix="osost_py_") as tmpdir:
+        src_path = Path(tmpdir) / "program.st"
+        hex_path = Path(tmpdir) / "program.hex"
+        src_path.write_text(source, encoding="utf-8")
+        t0 = time.monotonic()
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "ostc", str(src_path), "-o", str(hex_path)],
+                cwd=str(here), capture_output=True, text=True, timeout=COMPILE_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "errors": [f"Compiler timeout after {COMPILE_TIMEOUT}s"],
+                    "warnings": [], "backend": "python"}
+        elapsed = time.monotonic() - t0
+        if result.returncode != 0 or not hex_path.exists():
+            msg = (result.stderr or result.stdout or "compile failed").strip()
+            errs = [ln for ln in msg.splitlines() if ln.strip()] or ["compile failed"]
+            return {"ok": False, "errors": errs, "warnings": [], "backend": "python"}
+        hex_bytes = hex_path.read_bytes()
+        return {
+            "ok": True,
+            "hex": base64.b64encode(hex_bytes).decode("ascii"),
+            "hex_raw": hex_bytes.decode("ascii"),
+            "size_bytes": len(hex_bytes),
+            "compile_ms": int(elapsed * 1000),
+            "warnings": [],
+            "backend": "python",
+        }
+
+
+@app.route("/compile/python", methods=["POST"])
+def compile_python_endpoint():
+    """Compile ST via the pure-Python backend (no Java). Body: { "source": "..." }"""
+    try:
+        data   = request.get_json(force=True)
+        source = data.get("source", "")
+        if not source:
+            return jsonify({"ok": False, "errors": ["Body must contain 'source'"]}), 400
+        result = compile_python(source)
+        return jsonify(result), (200 if result["ok"] else 422)
+    except Exception:
+        return jsonify({"ok": False, "errors": [traceback.format_exc()]}), 500
+
+
 @app.route("/compile/file", methods=["POST"])
 def compile_file_endpoint():
     """
