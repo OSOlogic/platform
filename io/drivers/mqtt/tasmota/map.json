@@ -1,0 +1,7 @@
+{
+  "connection": { "broker": "tcp://127.0.0.1:1883", "base_topic": "tasmota_XXXX" },
+  "tags": [
+    { "topic": "cmnd/POWER", "set_topic": "cmnd/POWER", "tag": "power.state", "type": "Boolean", "access": "ReadWrite", "on": "ON", "off": "OFF" },
+    { "topic": "tele/SENSOR", "json": "$.DS18B20.Temperature", "tag": "sensor.temperature", "type": "Float", "access": "ReadOnly", "units": "C" }
+  ]
+}

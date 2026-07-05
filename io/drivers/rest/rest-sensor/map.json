@@ -1,0 +1,6 @@
+{
+  "connection": { "url": "http://127.0.0.1/api/status", "method": "GET", "poll_seconds": 30 },
+  "tags": [
+    { "json": "$.temperature", "tag": "sensor.value", "type": "Float", "access": "ReadOnly", "units": "C" }
+  ]
+}

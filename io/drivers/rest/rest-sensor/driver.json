@@ -1,0 +1,6 @@
+{
+  "id": "rest-sensor", "name": "REST/HTTP sensor", "version": "1.0.0",
+  "kind": "domain-map", "transport": "rest", "cadence": "slow",
+  "source": "home-assistant:rest", "provides": ["sensor.value"],
+  "license": "AGPL-3.0-or-later"
+}

@@ -1,0 +1,7 @@
+{
+  "connection": { "host": "192.168.1.50", "identity": "OSOLOGIC", "psk": "<from-hub-sticker>" },
+  "tags": [
+    { "path": "3311/0/5850", "tag": "light.state",      "type": "Boolean", "access": "ReadWrite" },
+    { "path": "3311/0/5851", "tag": "light.brightness", "type": "UInt16",  "access": "ReadWrite", "units": "%" }
+  ]
+}

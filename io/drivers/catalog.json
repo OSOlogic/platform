@@ -1,0 +1,85 @@
+{
+  "catalog": "osologic-drivers",
+  "description": "File-defined osodb drivers (RFC 0002) \u2014 loaded via oso-driver, not compiled into the core.",
+  "count": 6,
+  "drivers": [
+    {
+      "id": "tradfri",
+      "name": "IKEA Tr\u00e5dfri (CoAP)",
+      "version": "0.9.0",
+      "transport": "coap",
+      "kind": "bridge-adapter",
+      "provides": [
+        "light.state",
+        "light.brightness"
+      ],
+      "source": "home-assistant:tradfri",
+      "path": "coap/tradfri"
+    },
+    {
+      "id": "modbus-generic",
+      "name": "Modbus device (generic)",
+      "version": "1.0.0",
+      "transport": "modbus",
+      "kind": "domain-map",
+      "provides": [
+        "reg.value",
+        "coil.state"
+      ],
+      "source": "home-assistant:modbus",
+      "path": "modbus/modbus-generic"
+    },
+    {
+      "id": "mqtt-light",
+      "name": "MQTT Light",
+      "version": "1.0.0",
+      "transport": "mqtt",
+      "kind": "domain-map",
+      "provides": [
+        "light.state",
+        "light.brightness"
+      ],
+      "source": "home-assistant:mqtt",
+      "path": "mqtt/mqtt-light"
+    },
+    {
+      "id": "shelly",
+      "name": "Shelly (MQTT)",
+      "version": "1.0.0",
+      "transport": "mqtt",
+      "kind": "domain-map",
+      "provides": [
+        "relay.state",
+        "power.w",
+        "energy.wh"
+      ],
+      "source": "home-assistant:shelly",
+      "path": "mqtt/shelly"
+    },
+    {
+      "id": "tasmota",
+      "name": "Tasmota (MQTT)",
+      "version": "1.0.0",
+      "transport": "mqtt",
+      "kind": "domain-map",
+      "provides": [
+        "power.state",
+        "sensor.temperature"
+      ],
+      "source": "home-assistant:tasmota",
+      "path": "mqtt/tasmota"
+    },
+    {
+      "id": "rest-sensor",
+      "name": "REST/HTTP sensor",
+      "version": "1.0.0",
+      "transport": "rest",
+      "kind": "domain-map",
+      "provides": [
+        "sensor.value"
+      ],
+      "source": "home-assistant:rest",
+      "path": "rest/rest-sensor"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "id": "tasmota", "name": "Tasmota (MQTT)", "version": "1.0.0",
+  "kind": "domain-map", "transport": "mqtt", "cadence": "normal",
+  "source": "home-assistant:tasmota", "provides": ["power.state", "sensor.temperature"],
+  "license": "AGPL-3.0-or-later"
+}

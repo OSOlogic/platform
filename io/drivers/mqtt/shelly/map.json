@@ -1,0 +1,8 @@
+{
+  "connection": { "broker": "tcp://127.0.0.1:1883", "base_topic": "shellies/shelly1-XXXXXX" },
+  "tags": [
+    { "topic": "relay/0",         "tag": "relay.state", "type": "Boolean", "access": "ReadWrite", "on": "on", "off": "off" },
+    { "topic": "relay/0/power",   "tag": "power.w",     "type": "Float",   "access": "ReadOnly", "units": "W" },
+    { "topic": "relay/0/energy",  "tag": "energy.wh",   "type": "Float",   "access": "ReadOnly", "units": "Wh" }
+  ]
+}

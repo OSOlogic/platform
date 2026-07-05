@@ -1,0 +1,7 @@
+{
+  "connection": { "broker": "tcp://127.0.0.1:1883", "base_topic": "home/light1" },
+  "tags": [
+    { "topic": "state",      "tag": "light.state",      "type": "Boolean", "access": "ReadWrite", "on": "ON", "off": "OFF" },
+    { "topic": "brightness", "tag": "light.brightness", "type": "UInt16",  "access": "ReadWrite", "units": "%" }
+  ]
+}

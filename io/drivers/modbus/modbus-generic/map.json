@@ -1,0 +1,7 @@
+{
+  "connection": { "type": "tcp", "host": "127.0.0.1", "port": 502, "unit_id": 1 },
+  "tags": [
+    { "register": 40001, "fc": 3, "tag": "reg.value",  "type": "UInt16",  "access": "ReadWrite", "scale": 0.1, "units": "bar" },
+    { "register": 1,     "fc": 1, "tag": "coil.state",  "type": "Boolean", "access": "ReadWrite" }
+  ]
+}

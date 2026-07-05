@@ -1,0 +1,6 @@
+{
+  "id": "shelly", "name": "Shelly (MQTT)", "version": "1.0.0",
+  "kind": "domain-map", "transport": "mqtt", "cadence": "normal",
+  "source": "home-assistant:shelly", "provides": ["relay.state", "power.w", "energy.wh"],
+  "license": "AGPL-3.0-or-later"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "modbus-generic", "name": "Modbus device (generic)", "version": "1.0.0",
+  "kind": "domain-map", "transport": "modbus", "cadence": "fast",
+  "source": "home-assistant:modbus", "provides": ["reg.value", "coil.state"],
+  "license": "AGPL-3.0-or-later"
+}

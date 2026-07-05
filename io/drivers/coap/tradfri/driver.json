@@ -1,0 +1,7 @@
+{
+  "id": "tradfri", "name": "IKEA Trådfri (CoAP)", "version": "0.9.0",
+  "kind": "bridge-adapter", "transport": "coap", "cadence": "normal",
+  "source": "home-assistant:tradfri", "provides": ["light.state", "light.brightness"],
+  "note": "CoAP/DTLS gateway — needs the hub PSK in the connection config.",
+  "license": "AGPL-3.0-or-later"
+}
