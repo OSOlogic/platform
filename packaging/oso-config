@@ -110,6 +110,54 @@ ssh_menu() {
 }
 
 # ==============================================================================
+# oso-cron module
+# ==============================================================================
+cron_status_text() {
+    local j; j="$(api_get /api/v1/cron)" || { echo "core offline"; return; }
+    printf '%s job(s) · %s enabled' \
+        "$(printf '%s' "$j" | jexpr "len(d['jobs'])")" \
+        "$(printf '%s' "$j" | jexpr "d['enabled_count']")"
+}
+cron_list_view() {
+    local j; j="$(api_get /api/v1/cron)"
+    local body; body="$(printf '%s' "$j" | jexpr "chr(10).join('%-14s %-14s %s  [%s]'%(x['name'],x['schedule'],x['command'],'on' if x['enabled'] else 'off') for x in d['jobs']) or '<none>'")"
+    ui_msg "Scheduled jobs:\n\n$body"
+}
+cron_add_job() {
+    ui_input "Name:" "job" || return 0; local name="$UI_VALUE"
+    ui_menu "Schedule:" "@daily" "every day" "@hourly" "every hour" "@weekly" "every week" \
+        "every-5m" "every 5 minutes" "custom" "cron expression" || return 0
+    local sched="$UI_VALUE"
+    [ "$sched" = custom ] && { ui_input "Cron (min hr dom mon dow):" "* * * * *" || return 0; sched="$UI_VALUE"; }
+    ui_input "Command:" "" || return 0; local cmd="$UI_VALUE"
+    api_post /api/v1/cron/add "{\"name\":\"$name\",\"schedule\":\"$sched\",\"command\":\"$cmd\"}" >/dev/null
+    ui_msg "Job '$name' added  ($sched)."
+}
+cron_run_job() {
+    local j; j="$(api_get /api/v1/cron)"
+    local args; args="$(printf '%s' "$j" | jexpr "' '.join('%d \"%s\"'%(x['id'],x['name'].replace(chr(34),chr(39))) for x in d['jobs'])")"
+    [ -z "$args" ] && { ui_msg "No jobs defined."; return 0; }
+    eval "ui_menu 'Run which job now?' $args" || return 0
+    local r; r="$(api_post /api/v1/cron/run "{\"id\":$UI_VALUE}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "'status: '+str(d.get('status',d.get('error','?')))+chr(10)+chr(10)+(d.get('output') or '(no output)')")"
+}
+cron_menu() {
+    while true; do
+        ui_menu "Scheduler — $(cron_status_text)" \
+            list "View jobs" \
+            add  "Add a job" \
+            run  "Run a job now" \
+            back "◀ Back" || return 0
+        case "$UI_VALUE" in
+            list) cron_list_view ;;
+            add)  cron_add_job ;;
+            run)  cron_run_job ;;
+            back) return 0 ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # Read-only monitors for other modules (extend with config actions over time)
 # ==============================================================================
 firewall_view() {
@@ -128,11 +176,13 @@ main_menu() {
     while true; do
         ui_menu "OSOLogic administration — pick a module" \
             ssh      "SSH server, keys & tunnels" \
+            cron     "Scheduled tasks (oso-cron)" \
             firewall "Packet filter (view)" \
             fail2ban "Intrusion jails (view)" \
             quit     "Exit" || return 0
         case "$UI_VALUE" in
             ssh)      ssh_menu ;;
+            cron)     cron_menu ;;
             firewall) firewall_view ;;
             fail2ban) fail2ban_view ;;
             quit)     return 0 ;;

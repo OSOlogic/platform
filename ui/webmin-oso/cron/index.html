@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OSOLogic — Scheduler</title>
+<style>
+  :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
+    --accent:#3d8bfd;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--warn:#e6a417;
+    --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+  :root[data-theme="light"]{--bg:#f6f7f9;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#1c2024;--muted:#6c757d}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+  a{color:inherit;text-decoration:none}.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+  header img{width:30px;height:23px}.logo{font-weight:800;font-size:18px}.logo b{color:var(--accent)}
+  .krumb{margin-left:auto;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:10px}
+  h1{font-size:25px;margin:22px 0 4px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);margin:0 0 16px;max-width:76ch}
+  .summary{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  .summary b{color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .job{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .job:last-child{border-bottom:none}
+  .sw{width:38px;height:22px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);position:relative;cursor:pointer;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.15s}
+  .sw.on{background:color-mix(in srgb,var(--good) 30%,var(--panel-2));border-color:var(--good)}.sw.on::after{left:18px;background:var(--good)}
+  .job .name{font-weight:700;min-width:130px}
+  .sched{font-family:var(--mono);font-size:11.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--accent)}
+  .cmd{font-family:var(--mono);font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .last{font-family:var(--mono);font-size:11px}.last.ok{color:var(--good)}.last.err{color:var(--bad)}
+  .job button{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11.5px}
+  .job button.run:hover{border-color:var(--good);color:var(--good)}.job button.del:hover{border-color:var(--bad);color:var(--bad)}
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:13px 16px;background:var(--panel-2)}
+  input,select{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 9px;font:12.5px var(--mono)}
+  .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:700;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12.5px}.btn:hover{filter:brightness(1.08)}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin:0 16px 14px;font:12px var(--mono);overflow-x:auto;white-space:pre;color:#d7d3cb;display:none}
+  .cronhint{font-size:11.5px;color:var(--muted);padding:0 16px 12px;font-family:var(--mono)}
+  footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px;padding:16px 0 44px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:9px;padding:9px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="../index.html" style="display:flex;gap:9px;align-items:center"><img src="../../shared/oso-mark.svg" alt="OSOLogic" onerror="this.style.display='none'"><span class="logo">OSO<b>logic</b></span></a>
+    <span class="krumb">Scheduler</span><button class="toggle" id="themeBtn">◐</button></header>
+  <h1>Scheduler <em>· oso-cron</em></h1>
+  <p class="lede">Schedule tasks — backups, reports, maintenance scripts. Run a job on demand, and copy a
+    ready crontab line or systemd timer to install it on the device.</p>
+  <div class="summary" id="summary">…</div>
+
+  <div class="panel">
+    <div id="jobs"></div>
+    <div class="addrow">
+      <input id="name" placeholder="name" size="12">
+      <select id="sched">
+        <option value="@hourly">@hourly</option><option value="@daily" selected>@daily</option>
+        <option value="@weekly">@weekly</option><option value="every-5m">every 5 min</option>
+        <option value="every-min">every minute</option><option value="@reboot">@reboot</option>
+        <option value="custom">custom…</option>
+      </select>
+      <span id="builder" style="display:none;gap:4px;align-items:center">
+        <input class="cf" id="cf-m" value="*" size="2" title="minute (0-59)">
+        <input class="cf" id="cf-h" value="*" size="2" title="hour (0-23)">
+        <input class="cf" id="cf-dom" value="*" size="2" title="day of month (1-31)">
+        <input class="cf" id="cf-mon" value="*" size="2" title="month (1-12)">
+        <input class="cf" id="cf-dow" value="*" size="2" title="day of week (0-6)">
+      </span>
+      <input id="cmd" placeholder="command  (e.g. oso backup tags)" style="flex:1;min-width:200px">
+      <button class="btn" id="add">＋ Add job</button>
+    </div>
+    <div class="cronhint">cron fields: minute hour day-of-month month day-of-week</div>
+    <pre id="timer"></pre>
+  </div>
+
+  <div class="panel" id="outwrap" style="display:none">
+    <div class="job" style="border:none"><b style="font-size:13px">Last run output</b></div>
+    <pre id="out" style="display:block;margin-top:0"></pre>
+  </div>
+
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const BASE=(JSON.parse(localStorage.getItem('osodb_client_cfg')||'{}').baseUrl||location.origin).replace(/\/$/,'');
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1600);}
+async function post(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
+function ago(ts){if(!ts)return 'never';const s=Math.floor(Date.now()/1000-ts);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+
+async function load(){
+  let d; try{ d=await (await fetch(BASE+'/api/v1/cron')).json(); }catch(e){ $('#summary').textContent='core offline'; return; }
+  const jobs=d.jobs||[];
+  $('#summary').innerHTML=`<b>${jobs.length}</b> job(s) · <b>${d.enabled_count||0}</b> enabled`;
+  $('#jobs').innerHTML=jobs.map(j=>{
+    const st=j.last_status; const cls=st==='ok'?'ok':(st?'err':'');
+    return `<div class="job">
+      <span class="sw ${j.enabled?'on':''}" data-id="${j.id}"></span>
+      <span class="name">${esc(j.name)}</span>
+      <span class="sched">${esc(j.schedule)}</span>
+      <span class="cmd" title="${esc(j.crontab)}">${esc(j.command)}</span>
+      <span class="last ${cls}">${st?esc(st)+' · '+ago(j.last_run):'—'}</span>
+      <button class="run" data-id="${j.id}">▶ Run</button>
+      <button class="del" data-id="${j.id}">✕</button></div>`;
+  }).join('')||'<div class="job"><span class="cmd">no jobs defined</span></div>';
+  $$('.sw').forEach(s=>s.onclick=async()=>{await post('/api/v1/cron/toggle',{id:+s.dataset.id});load();});
+  $$('.job .del').forEach(b=>b.onclick=async()=>{await post('/api/v1/cron/delete',{id:+b.dataset.id});toast('Deleted');load();});
+  $$('.job .run').forEach(b=>b.onclick=async()=>{
+    toast('Running…'); const r=await post('/api/v1/cron/run',{id:+b.dataset.id});
+    $('#outwrap').style.display='block'; $('#out').textContent=(r.output||'(no output)')+'\n['+(r.status||(r.ok?'ok':'error'))+']';
+    load();
+  });
+}
+$('#sched').onchange=()=>{$('#builder').style.display=$('#sched').value==='custom'?'inline-flex':'none';};
+$('#add').onclick=async()=>{
+  const sched=$('#sched').value==='custom'
+    ? [$('#cf-m').value,$('#cf-h').value,$('#cf-dom').value,$('#cf-mon').value,$('#cf-dow').value].map(x=>x.trim()||'*').join(' ')
+    : $('#sched').value;
+  const b={name:$('#name').value||'job',schedule:sched,command:$('#cmd').value};
+  if(!b.command){toast('Enter a command');return;}
+  const r=await post('/api/v1/cron/add',b);
+  if(r.timer){$('#timer').style.display='block';$('#timer').textContent=r.timer;}
+  $('#name').value='';$('#cmd').value=''; toast('Job added'); load();
+};
+const root=document.documentElement,th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
+$('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
+load(); setInterval(load,6000);
+</script>
+</body>
+</html>

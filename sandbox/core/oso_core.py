@@ -560,6 +560,78 @@ def ssh_service(action):
         return {"ok": False, "action": action, "note": str(e), "status": ssh_status()}
 
 
+# ---- oso-cron (scheduled tasks) ----------------------------
+# A simple scheduler surface: define jobs (schedule + command), enable/disable, run now,
+# and get a ready crontab line + systemd timer to deploy them. Reference store is in-memory;
+# a real device persists to the DB and installs the units.
+OSO_CRON = [
+    {"id": 1, "name": "backup-tags", "schedule": "0 2 * * *",
+     "command": "echo backup tags", "enabled": False, "last_run": 0, "last_status": ""},
+]
+_CRON_ID = [2]
+_CRON_PRESETS = {"@hourly": "0 * * * *", "@daily": "0 0 * * *", "@weekly": "0 0 * * 0",
+                 "@reboot": "@reboot", "every-5m": "*/5 * * * *", "every-min": "* * * * *"}
+
+
+def _cron_line(j):
+    sched = _CRON_PRESETS.get(j["schedule"], j["schedule"])
+    return f"{sched} {j['command']}"
+
+
+def _cron_timer(j):
+    unit = "oso-" + "".join(c if c.isalnum() else "-" for c in j["name"])
+    return (f"# {unit}.service\n[Unit]\nDescription=OSOLogic job {j['name']}\n\n"
+            f"[Service]\nType=oneshot\nExecStart=/bin/sh -lc '{j['command']}'\n\n"
+            f"# {unit}.timer  (schedule: {j['schedule']})\n[Timer]\n"
+            f"# translate the cron/preset to OnCalendar for the target\n[Install]\nWantedBy=timers.target\n")
+
+
+def cron_list():
+    return {"enabled_count": sum(1 for j in OSO_CRON if j["enabled"]),
+            "jobs": [dict(j, crontab=_cron_line(j)) for j in OSO_CRON]}
+
+
+def cron_add(body):
+    j = {"id": _CRON_ID[0], "name": body.get("name", "job"),
+         "schedule": body.get("schedule", "@daily"), "command": body.get("command", ""),
+         "enabled": bool(body.get("enabled", False)), "last_run": 0, "last_status": ""}
+    _CRON_ID[0] += 1
+    OSO_CRON.append(j)
+    return {"ok": True, "job": dict(j, crontab=_cron_line(j)), "timer": _cron_timer(j)}
+
+
+def cron_del(jid):
+    global OSO_CRON
+    OSO_CRON = [j for j in OSO_CRON if j["id"] != jid]
+    return {"ok": True}
+
+
+def cron_toggle(jid):
+    for j in OSO_CRON:
+        if j["id"] == jid:
+            j["enabled"] = not j["enabled"]
+            return {"ok": True, "enabled": j["enabled"]}
+    return {"ok": False}
+
+
+def cron_run(jid):
+    if not EXEC_ENABLE:
+        return {"ok": False, "error": "execution disabled"}
+    for j in OSO_CRON:
+        if j["id"] == jid:
+            try:
+                p = subprocess.run(["/bin/sh", "-lc", j["command"]],
+                                   capture_output=True, text=True, timeout=20)
+                j["last_run"] = int(time.time())
+                j["last_status"] = ("ok" if p.returncode == 0 else f"exit {p.returncode}")
+                out = (p.stdout + p.stderr).strip()[-1500:]
+                return {"ok": p.returncode == 0, "status": j["last_status"], "output": out}
+            except Exception as e:
+                j["last_status"] = "error"
+                return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": "no such job"}
+
+
 # ---- network / serial discovery ----------------------------
 PORT_NAMES = {502: "Modbus TCP", 102: "S7comm", 44818: "EtherNet/IP", 4840: "OPC-UA",
               1883: "MQTT", 8883: "MQTT/TLS", 20000: "DNP3", 47808: "BACnet",
@@ -675,6 +747,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v1/ssh":
             return self._json({"status": ssh_status(), "authkeys": ssh_authkeys(),
                                "tunnels": ssh_tunnels()["tunnels"]})
+        if path == "/api/v1/cron":
+            return self._json(cron_list())
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -822,6 +896,22 @@ class Handler(BaseHTTPRequestHandler):
                 log("warn", f"sshd {body.get('action')}")
                 return self._json(ssh_service(body.get("action", "status")))
             return self._json({"error": "unknown ssh action"}, 404)
+        if path.startswith("/api/v1/cron/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "add":
+                return self._json(cron_add(body))
+            if act == "delete":
+                return self._json(cron_del(int(body.get("id", 0))))
+            if act == "toggle":
+                return self._json(cron_toggle(int(body.get("id", 0))))
+            if act == "run":
+                log("info", f"cron run job {body.get('id')}")
+                return self._json(cron_run(int(body.get("id", 0))))
+            return self._json({"error": "unknown cron action"}, 404)
         if path == "/api/v1/fail2ban/unban":
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
