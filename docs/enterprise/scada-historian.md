@@ -32,4 +32,4 @@ GET /api/v1/history?node=ns=2;s=2.0&from=2026-07-01T00:00Z&to=2026-07-02T00:00Z&
 Scale-out SCADA, historian storage engines, and analytics are operational, high-value
 capabilities delivered and supported as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)

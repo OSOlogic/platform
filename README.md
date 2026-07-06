@@ -222,7 +222,7 @@ OSOlogic uses a **dual-license model**:
 The **AGPL-3.0** ensures the platform stays open even in cloud/network deployments.
 The **Apache-2.0 SDK** lets any application — open or proprietary — integrate with OSOlogic without license friction.
 
-A **commercial license** is available for organizations that need to embed OSOlogic in closed products or require SLA support. Contact: **licensing@osologic.com**
+A **commercial license** is available for organizations that need to embed OSOlogic in closed products or require SLA support. Contact: **osologic.team@gmail.com**
 
 See [LICENSING.md](./LICENSING.md) for the full breakdown, [CLA.md](./CLA.md) for contribution terms, and [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 

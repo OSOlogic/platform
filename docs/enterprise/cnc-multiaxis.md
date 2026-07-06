@@ -69,4 +69,4 @@ asyncio.run(main())
 Real-time multi-axis interpolation, kinematics, and G-code runtime are high-value,
 safety-relevant, and tuned per machine — delivered and supported as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)

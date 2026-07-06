@@ -45,7 +45,7 @@ See each add-on page for a concrete, runnable connection example.
 
 ## Get Enterprise
 
-Contact **licensing@osologic.com** or visit **[osologic.com](https://osologic.com)**.
+Contact **osologic.team@gmail.com** or visit **[osologic.com](https://osologic.com)**.
 
 ---
 

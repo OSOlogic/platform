@@ -36,4 +36,4 @@ Object Redundancy      [ns=2;s=ha]
 Deterministic failover and state replication are safety-relevant and validated per
 deployment, delivered and supported as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)

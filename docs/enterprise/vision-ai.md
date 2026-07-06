@@ -73,4 +73,4 @@ The exact same pattern works over **REST/WebSocket** ([`api/`](../../api/)) and 
 Vision/AI carries model IP, accelerated-inference back-ends, a training pipeline, and
 per-customer tuning — packaged, supported, and certified as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)

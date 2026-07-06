@@ -19,7 +19,7 @@ Industrial control systems have real-world safety implications. If you discover 
 vulnerability — especially anything affecting the runtime scan cycle, the I/O layer,
 the gateways, or authentication — report it privately:
 
-- **Email:** security@osologic.com
+- **Email:** osologic.team@gmail.com
 - Alternatively, use GitHub's [private vulnerability reporting](https://docs.github.com/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
   on this repository (Security → Report a vulnerability).
 

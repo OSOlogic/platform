@@ -78,7 +78,7 @@ license** to organizations that:
 - Require enterprise support, SLA or indemnification.
 - Operate regulated environments requiring custom licensing terms.
 
-Commercial licensing inquiries: **licensing@osologic.com**
+Commercial licensing inquiries: **osologic.team@gmail.com**
 
 ---
 

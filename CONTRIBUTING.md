@@ -8,7 +8,7 @@ Thank you for helping build the future of open industrial automation!
 
 1. **Read the [CLA](./CLA.md).** By submitting a pull request you agree
    to the Contributor License Agreement. Corporate contributors must
-   contact us at **licensing@osologic.com** before contributing.
+   contact us at **jose@borrell-usa.com** before contributing.
 
 2. **Check existing issues and discussions** to avoid duplicating work.
 
@@ -108,10 +108,10 @@ Scope: the directory or module affected (e.g. `core`, `iec61131`, `sdk`).
 ## Reporting security issues
 
 Do **not** open a public issue for security vulnerabilities.
-Send details to **security@osologic.com** (PGP key available on request).
+Send details to **osologic.team@gmail.com** (PGP key available on request).
 
 ---
 
 ## Questions?
 
-Open a GitHub Discussion or e-mail **hello@osologic.com**.
+Open a GitHub Discussion or e-mail **osologic.team@gmail.com**.

@@ -31,4 +31,4 @@ under the corresponding device Object, addressable with the usual reversible Nod
 These stacks carry **conformance certification costs** (PI, ODVA) and licensed protocol
 implementations, delivered and supported as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)

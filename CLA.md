@@ -124,7 +124,7 @@ confirm that you have read, understood, and agree to the terms of this
 CLA.
 
 For **corporate contributors** (entities, not individuals), please
-contact us at **licensing@osologic.com** to sign a Corporate CLA before
+contact us at **jose@borrell-usa.com** to sign a Corporate CLA before
 submitting contributions.
 
 ---
@@ -132,6 +132,6 @@ submitting contributions.
 ## 10. Contact
 
 Roig Borrell S.L.
-E-mail: **licensing@osologic.com**
+E-mail: **osologic.team@gmail.com**
 Web: **https://osologic.com**
 GitHub: **https://github.com/OSOlogic/platform**

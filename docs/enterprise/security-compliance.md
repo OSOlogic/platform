@@ -29,4 +29,4 @@ safety mechanism remains in the Community Edition; the certified, audited layer 
 RBAC/SSO integration, audit infrastructure, and IEC 62443 compliance packs are governed,
 supported deliverables provided as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)

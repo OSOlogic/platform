@@ -35,4 +35,4 @@ enrolment_token = <issued-by-fleet>
 Fleet inventory, staged OTA, and provisioning are operational services delivered and
 supported as an Enterprise add-on.
 
-**Get it:** licensing@osologic.com · [osologic.com](https://osologic.com)
+**Get it:** osologic.team@gmail.com · [osologic.com](https://osologic.com)
