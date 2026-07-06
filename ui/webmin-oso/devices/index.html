@@ -61,6 +61,11 @@
   </div>
 
   <div class="sec">
+    <div class="sechead"><h2>OSOlogic PLC</h2><span class="via">hardware · coming soon</span><p>the reference controllers</p></div>
+    <div class="grid" id="osoplc"></div>
+  </div>
+
+  <div class="sec">
     <div class="sechead"><h2>Vendor cards</h2><span class="via">Ibercomp · Borrell Automation</span><p>fieldbus I/O · RS-485 · Modbus RTU · Modbus TCP</p></div>
     <div class="grid" id="vendor"></div>
   </div>
@@ -79,7 +84,9 @@
       <a href="/io/drivers/serial/rs232-dummy/protocol.json" style="color:var(--accent)">rs232-dummy/protocol.json</a>.</p>
   </div>
 
-  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0</footer>
+  <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® · AGPL-3.0
+    <div style="margin-top:6px;font-size:11.5px;opacity:.8">OSOlogic® is a trademark of Roig Borrell S.L., managed under the OSOlogic collaboration agreement with the project's member companies.</div>
+  </footer>
 </div>
 <script>
 'use strict';
@@ -100,6 +107,12 @@ let LOADED=new Set();
 const card=d=>{const on=LOADED.has(d.id);
   return `<div class="dev${on?' loaded':''}"><span class="pill">${esc(d.kind||'')}</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.transport)}</div><div class="p">${esc((d.provides||[]).join(' · '))}</div>
   <button class="ldbtn${on?' on':''}" data-id="${esc(d.id)}" data-on="${on?1:0}">${on?'● Loaded — unload':'＋ Load'}</button></div>`;};
+// OSOlogic reference controllers (coming soon).
+const OSOPLC=[
+  {name:'OSOlogic® PLC v1.0', t:'Modular PLC', p:'OrangePi + OsoLogic OS · coming soon'},
+  {name:'OSOlogic® Baby Bear', t:'Compact PLC', p:'STM32 · OsoLogic MCU-OS · coming soon'},
+];
+$('#osoplc').innerHTML=OSOPLC.map(d=>`<div class="dev proto"><span class="pill">coming soon</span><h3>${esc(d.name)}</h3><div class="t">${esc(d.t)}</div><div class="p">${esc(d.p)}</div></div>`).join('');
 // Vendor cards — hardcoded catalog (details to come).
 const VENDOR=[
   {name:'Ibercomp fieldbus', t:'RS-485 · Modbus RTU · Modbus TCP', p:'coming — hardcoded'},
