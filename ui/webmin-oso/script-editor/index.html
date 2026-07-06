@@ -6,7 +6,7 @@
 <title>OSOLogic — Script editor</title>
 <style>
   :root{--bg:#0e0f12;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#ece9e3;--muted:#8b8f99;
-    --accent:#0d6efd;--accent-2:#3d8bfd;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
+    --accent:#0d6efd;--accent-2:#f48c06;--brand:#a11313;--good:#46d17f;--bad:#e5484d;--mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;--sans:"Segoe UI",system-ui,sans-serif}
   :root[data-theme="light"]{--bg:#f8f9fa;--panel:#fff;--panel-2:#f1f3f5;--line:#dee2e6;--ink:#212529;--muted:#6c757d;--brand:#800000}
   *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
   a{color:inherit;text-decoration:none}.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
@@ -145,7 +145,7 @@ function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>
 
 const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
 $('#themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
-const a=(localStorage.getItem('oso-accent')||'bootstrap');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#0d6efd','#3d8bfd'];
+const a=(localStorage.getItem('oso-accent')||'bootstrap');const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#f48c06']}[a]||['#0d6efd','#f48c06'];
 root.style.setProperty('--accent',ACC[0]);root.style.setProperty('--accent-2',ACC[1]);
 refreshSaved();setTpl();loadTC();
 </script>

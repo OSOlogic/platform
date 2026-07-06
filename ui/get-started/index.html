@@ -101,7 +101,7 @@ lvl = json.load(urllib.request.urlopen(base+<span class="kw">"/var/hass.sensor.t
   const root=document.documentElement;const th=localStorage.getItem('oso-theme');if(th)root.setAttribute('data-theme',th);
   document.getElementById('themeBtn').onclick=()=>{const c=root.getAttribute('data-theme')||'dark';const n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
   const root2=document.documentElement;const a=(localStorage.getItem('oso-accent')||'maroon');
-  const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#3d8bfd']}[a]||['#c23434','#e05a5a'];
+  const ACC={amber:['#f48c06','#ffb64d'],honey:['#ffb300','#ffcf4d'],maroon:['#c23434','#e05a5a'],bootstrap:['#0d6efd','#f48c06']}[a]||['#c23434','#e05a5a'];
   root2.style.setProperty('--accent',ACC[0]);root2.style.setProperty('--accent-2',ACC[1]);
   const toast=document.getElementById('toast');
   document.querySelectorAll('.cp').forEach(b=>b.onclick=()=>{const t=b.parentElement.querySelector('code').innerText;navigator.clipboard&&navigator.clipboard.writeText(t);toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1300);});
