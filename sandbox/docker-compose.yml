@@ -1,5 +1,6 @@
 # OSOLogic sandbox — one command, same result on Linux, Windows (Docker Desktop / WSL2) and macOS.
 #   docker compose up --build      → UI+REST http://localhost:8080 · OPC-UA opc.tcp://localhost:4840 · DB :3306
+# TODO: FIX ERRORS
 name: osologic-sandbox
 services:
   db:
