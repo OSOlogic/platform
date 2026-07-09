@@ -46,6 +46,17 @@
   .oso-stat{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:center}
   .oso-stat .val{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--accent)}
   .oso-stat .lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+  .oso-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel-2)}
+  .oso-seg-btn{border:none;background:transparent;color:var(--muted);padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;font-family:var(--sans)}
+  .oso-seg-btn.on{background:var(--accent);color:#fff}
+  .oso-seg-btn:not(.on):hover{color:var(--ink)}
+  .oso-modehelp{color:var(--muted);font-size:12.5px;margin:12px 2px 0;max-width:78ch}.oso-modehelp b{color:var(--ink)}
+  .oso-databk{margin-top:12px;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:11px}
+  .oso-databk b{color:var(--ink)}.oso-muted{color:var(--muted)}
+  .oso-bindrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .oso-inp{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 11px;font:13px var(--mono)}
+  select.oso-inp{min-width:160px}input.oso-inp{flex:1;min-width:210px}
+  .oso-x{cursor:pointer;color:var(--bad);font-weight:700;border:1px solid var(--line);background:var(--panel-2);border-radius:6px;padding:2px 9px;font-size:12px}
 </style>
 </head>
 <body>
@@ -65,6 +76,43 @@
   <div id="errorAlert" class="pf-v5-c-alert pf-m-danger pf-m-inline" style="display:none;margin-bottom:16px">
     <div class="pf-v5-c-alert__icon"><i class="fas fa-fw fa-exclamation-circle" aria-hidden="true"></i></div>
     <p class="pf-v5-c-alert__title" id="errorMsg"></p>
+  </div>
+
+  <!-- Runtime MODE card -->
+  <div class="pf-v5-c-card" style="margin-bottom:16px">
+    <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-title pf-m-md">Runtime mode</h2></div></div>
+    <div class="pf-v5-c-card__body">
+      <div class="oso-seg" id="modeSeg">
+        <button class="oso-seg-btn" data-mode="simulation" onclick="setMode('simulation')">🧪 Simulation</button>
+        <button class="oso-seg-btn" data-mode="softplc" onclick="setMode('softplc')">🔌 Soft-PLC · real I/O</button>
+      </div>
+      <p class="oso-modehelp" id="modeHelp">…</p>
+      <div class="oso-databk" id="dataBk">Data backend: <b id="dbName">…</b> <span id="dbWhere" class="oso-muted"></span>
+        · <a href="../../database/index.html" style="color:var(--accent)">manage →</a>
+        <span class="oso-muted"> — running it in Docker or on a local MariaDB (create DB, etc.) is handled there.</span></div>
+    </div>
+  </div>
+
+  <!-- Soft-PLC I/O card (softplc mode only) -->
+  <div class="pf-v5-c-card" id="ioCard" style="margin-bottom:16px;display:none">
+    <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-title pf-m-md">Soft-PLC I/O — gateways bound to physical ports</h2></div></div>
+    <div class="pf-v5-c-card__body">
+      <div class="oso-bindrow">
+        <select id="bindGw" class="oso-inp"><option value="">— loaded gateway —</option></select>
+        <select id="bindPort" class="oso-inp"><option value="">— port —</option></select>
+        <input id="bindParams" class="oso-inp" placeholder="params · e.g. baud=9600,unit=1  /  broker=host:1883">
+        <button class="pf-v5-c-button pf-m-primary" style="background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important" onclick="doBind()">Bind</button>
+      </div>
+      <p class="oso-muted" id="ioHint" style="margin:9px 2px 0;font-size:12px">No loaded gateways — load a driver in
+        <a href="../../devices/index.html" style="color:var(--accent)">Devices</a> first.</p>
+      <table class="pf-v5-c-table pf-m-compact" style="width:100%;margin-top:14px" id="bindTbl" hidden>
+        <thead class="pf-v5-c-table__thead"><tr class="pf-v5-c-table__tr">
+          <th class="pf-v5-c-table__th">Gateway</th><th class="pf-v5-c-table__th">Transport</th>
+          <th class="pf-v5-c-table__th">Port</th><th class="pf-v5-c-table__th">Tags</th>
+          <th class="pf-v5-c-table__th">State</th><th class="pf-v5-c-table__th"></th></tr></thead>
+        <tbody class="pf-v5-c-table__tbody" id="bindBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Control card -->
@@ -142,9 +190,65 @@ const POLL_MS = 2000;
 document.addEventListener('DOMContentLoaded', () => {
   fetchInfo();
   fetchRuntime();
+  loadRuntime();
+  loadDb();
   setInterval(fetchRuntime, POLL_MS);
   connectWS();
 });
+
+// ── Runtime mode + soft-PLC I/O binding ────────────────────
+async function jget(p){return (await fetch(BASE+p)).json();}
+async function jpost(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
+
+async function loadRuntime(){
+  let d; try{ d=await jget('/runtime'); }catch(e){ return; }
+  renderMode(d.mode||'simulation');
+  let gws=[]; try{ gws=await jget('/gateways'); }catch(e){}
+  const gsel=document.getElementById('bindGw');
+  if(gsel) gsel.innerHTML='<option value="">— loaded gateway —</option>'+
+    gws.map(g=>`<option value="${esc(g.id)}">${esc(g.id)} (${esc(g.protocol)})</option>`).join('');
+  const p=d.ports||{serial:[],network:[]};
+  const psel=document.getElementById('bindPort');
+  const opt=(arr,label)=>arr.length?`<optgroup label="${label}">`+arr.map(x=>`<option value="${esc(x.port)}">${esc(x.port)}${x.bound?' · bound':''}</option>`).join('')+'</optgroup>':'';
+  if(psel) psel.innerHTML='<option value="">— port —</option>'+opt(p.serial,'Serial')+opt(p.network,'Network');
+  const hint=document.getElementById('ioHint'); if(hint) hint.style.display=gws.length?'none':'';
+  renderBindings(d.bindings||[]);
+}
+function renderMode(mode){
+  document.querySelectorAll('.oso-seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));
+  const io=document.getElementById('ioCard'); if(io) io.style.display=mode==='softplc'?'':'none';
+  const h=document.getElementById('modeHelp'); if(h) h.innerHTML = mode==='softplc'
+    ? '<b>Soft-PLC — real I/O.</b> This machine acts as a real controller: tag values come from the drivers/gateways wired to the physical ports below. The scan loop stops fabricating sensor values.'
+    : '<b>Simulation.</b> A virtual plant drives the tags (sine / ramp / set-point follow) so you can try everything with no hardware. Switch to Soft-PLC to bind real I/O — same install, in Docker or bare-metal.';
+}
+function renderBindings(b){
+  const tbl=document.getElementById('bindTbl'), body=document.getElementById('bindBody');
+  if(!tbl||!body) return;
+  tbl.hidden=!b.length;
+  body.innerHTML=b.map(x=>`<tr class="pf-v5-c-table__tr">
+    <td class="pf-v5-c-table__td" style="font-family:var(--mono);font-weight:600">${esc(x.name||x.gateway)}</td>
+    <td class="pf-v5-c-table__td">${esc(x.transport||'')}</td>
+    <td class="pf-v5-c-table__td" style="font-family:var(--mono)">${esc(x.port||'—')}</td>
+    <td class="pf-v5-c-table__td">${x.tags||0}</td>
+    <td class="pf-v5-c-table__td" style="color:${x.loaded?'var(--good)':'var(--warn)'}">${x.loaded?esc(x.state||'bound'):'gateway not loaded'}</td>
+    <td class="pf-v5-c-table__td"><span class="oso-x" onclick="unbind('${esc(x.gateway)}')">unbind</span></td></tr>`).join('');
+}
+async function setMode(m){ await jpost('/runtime/mode',{mode:m}); loadRuntime(); }
+async function doBind(){
+  const gw=document.getElementById('bindGw').value;
+  if(!gw){ showError('pick a loaded gateway'); return; }
+  const r=await jpost('/runtime/bind',{gateway:gw,port:document.getElementById('bindPort').value,params:document.getElementById('bindParams').value});
+  if(!r.ok){ showError(r.error||'bind failed'); return; }
+  document.getElementById('bindParams').value=''; loadRuntime();
+}
+async function unbind(gw){ await jpost('/runtime/unbind',{gateway:gw}); loadRuntime(); }
+async function loadDb(){
+  try{ const d=await jget('/database'); const c=d.config||{};
+    const nm=(d.backends||[]).find(b=>b.id===c.backend);
+    const el=document.getElementById('dbName'); if(el) el.textContent=(nm&&nm.name)||c.backend||'—';
+    const w=document.getElementById('dbWhere'); if(w) w.textContent=c.dsn?('· '+c.dsn):'';
+  }catch(e){}
+}
 
 // ── Helpers ────────────────────────────────────────────────
 async function api(method, path) {
@@ -163,7 +267,7 @@ async function fetchInfo() {
   try {
     const d = await api('GET', '/system/info');
     document.getElementById('devMeta').textContent =
-      `${d.device} · ${d.platform} · fw ${d.firmware}`;
+      `${d.hostname||d.device||'osologic'} · ${d.arch||d.platform||''}${d.cores?' · '+d.cores+' cores':''}${d.tags!=null?' · '+d.tags+' tags':''}`;
   } catch(e) {}
 }
 

@@ -52,6 +52,15 @@ _t0 = time.time()
 RUNNING = True             # scan-cycle state (osoadmin Runtime module)
 CYCLES = 0                 # scan cycle counter
 
+# Runtime MODE — the same install either drives a SIMULATED plant (the scan loop
+# fabricates sensor values) or runs as a SOFT-PLC bound to REAL I/O (values come
+# from loaded drivers/gateways wired to physical ports; nothing is fabricated).
+OSO_RUNTIME = {
+    "mode": os.environ.get("OSO_RUNTIME_MODE", "simulation"),   # simulation | softplc
+    "sim": {"enabled": True, "profiles": ["follow", "sine", "ramp"]},
+    "io": {"bindings": []},    # [{gateway, transport, port, params, state, note}]
+}
+
 LOGS = deque(maxlen=5000)          # in-memory log ring (osoadmin Logs module)
 LOG_CFG = {"level": "info", "max_lines": 2000, "persistent": False}
 _LEVELS = {"debug": 0, "info": 1, "warn": 2, "error": 3}
@@ -224,14 +233,15 @@ def scan_loop():
     while True:
         CYCLES += 1
         t = time.time() - _t0
+        _sim_on = OSO_RUNTIME["mode"] == "simulation"   # soft-PLC mode: real I/O, no fabrication
         for tid, r in list(CACHE.items()):
             sim = r.get("sim")
             if sim == "follow" and r.get("required_value") is not None:
-                r["value"] = r["required_value"]
-            elif sim == "sine":
+                r["value"] = r["required_value"]        # control (set-point) — both modes
+            elif _sim_on and sim == "sine":
                 base = 42 if r.get("units") == "%" else 21
                 r["value"] = round(base + 8 * math.sin(t / 6 + hash(tid) % 7), 2)
-            elif sim == "ramp":
+            elif _sim_on and sim == "ramp":
                 r["value"] = round(20 + 4 * ((t / 20) % 1), 2)
             # persist current value back to the DB (source of truth)
             if _conn:
@@ -1245,6 +1255,71 @@ def scan_serial():
     return {"ports": sorted(set(ports))}
 
 
+# ---- Runtime mode + soft-PLC I/O binding (osoadmin Runtime module) -----------
+def _net_ifaces():
+    out = []
+    try:
+        for n in sorted(os.listdir("/sys/class/net")):
+            if n == "lo":
+                continue
+            try:
+                st = open(f"/sys/class/net/{n}/operstate").read().strip()
+            except Exception:
+                st = "unknown"
+            out.append({"name": n, "state": st})
+    except Exception:
+        pass
+    return out
+
+
+def runtime_ports():
+    """Physical I/O a soft-PLC can bind gateways to: serial lines + network interfaces."""
+    used = {b.get("port") for b in OSO_RUNTIME["io"]["bindings"]}
+    serial = [{"port": p, "kind": "serial", "bound": p in used} for p in scan_serial()["ports"]]
+    net = [{"port": i["name"], "kind": "network", "state": i["state"], "bound": i["name"] in used}
+           for i in _net_ifaces()]
+    return {"serial": serial, "network": net}
+
+
+def runtime_state():
+    binds = []
+    for b in OSO_RUNTIME["io"]["bindings"]:
+        g = LOADED_DRIVERS.get(b.get("gateway"))
+        binds.append({**b, "loaded": g is not None,
+                      "tags": len(g["tags"]) if g else 0,
+                      "name": g["name"] if g else b.get("gateway")})
+    return {"mode": OSO_RUNTIME["mode"], "sim": OSO_RUNTIME["sim"],
+            "engine": "running" if RUNNING else "stopped",
+            "gateways_loaded": len(LOADED_DRIVERS), "bindings": binds,
+            "ports": runtime_ports()}
+
+
+def runtime_set_mode(mode):
+    if mode not in ("simulation", "softplc"):
+        return {"ok": False, "error": "mode must be simulation|softplc"}
+    OSO_RUNTIME["mode"] = mode
+    log("warn", f"runtime mode -> {mode}")
+    return {"ok": True, "mode": mode}
+
+
+def runtime_bind(body):
+    gw = body.get("gateway")
+    if gw not in LOADED_DRIVERS:
+        return {"ok": False, "error": "load the gateway/driver first (Devices)"}
+    b = {"gateway": gw, "transport": LOADED_DRIVERS[gw]["transport"], "port": body.get("port", ""),
+         "params": body.get("params", ""), "state": "bound", "note": body.get("note", "")}
+    OSO_RUNTIME["io"]["bindings"] = [x for x in OSO_RUNTIME["io"]["bindings"]
+                                     if x.get("gateway") != gw] + [b]
+    log("info", f"soft-PLC bind: {gw} -> {b['port'] or '(no port)'}")
+    return {"ok": True, "binding": b}
+
+
+def runtime_unbind(gw):
+    before = len(OSO_RUNTIME["io"]["bindings"])
+    OSO_RUNTIME["io"]["bindings"] = [x for x in OSO_RUNTIME["io"]["bindings"] if x.get("gateway") != gw]
+    return {"ok": len(OSO_RUNTIME["io"]["bindings"]) < before}
+
+
 def _probe(ip, port, timeout=0.35):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
@@ -1301,6 +1376,10 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path in ("/tags", "/api/tags", "/api/v1/tags"):
             return self._json([tag_pub(r) for r in CACHE.values()])
+        if path == "/api/v1/runtime":
+            return self._json(runtime_state())
+        if path == "/api/v1/runtime/ports":
+            return self._json(runtime_ports())
         if path == "/api/v1/runtime/status":
             return self._json({"state": "running" if RUNNING else "stopped",
                                "cycle_count": CYCLES, "scan_ms": SCAN_MS,
@@ -1379,6 +1458,20 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         global RUNNING
+        if path in ("/api/v1/runtime/mode", "/api/v1/runtime/sim",
+                    "/api/v1/runtime/bind", "/api/v1/runtime/unbind"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            if path.endswith("/mode"):
+                return self._json(runtime_set_mode(body.get("mode", "")))
+            if path.endswith("/sim"):
+                OSO_RUNTIME["sim"].update(body)
+                return self._json({"ok": True, "sim": OSO_RUNTIME["sim"]})
+            if path.endswith("/bind"):
+                return self._json(runtime_bind(body))
+            return self._json(runtime_unbind(body.get("gateway", "")))
         if path.startswith("/api/v1/runtime/"):
             action = path.rsplit("/", 1)[-1]
             if action in ("start", "restart", "resume"):

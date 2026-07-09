@@ -382,9 +382,70 @@ fail2ban_view() {
 }
 
 # ==============================================================================
+# ==============================================================================
+# Runtime module — mode (Simulation / Soft-PLC) + soft-PLC I/O binding
+# ==============================================================================
+runtime_status_text() {
+    local j; j="$(api_get /api/v1/runtime)" || { echo "core offline"; return; }
+    printf 'mode: %s · gateways: %s · bindings: %s' \
+        "$(printf '%s' "$j" | jexpr "d['mode']")" \
+        "$(printf '%s' "$j" | jexpr "d['gateways_loaded']")" \
+        "$(printf '%s' "$j" | jexpr "len(d['bindings'])")"
+}
+runtime_set_mode() {
+    ui_menu "Runtime mode:" simulation "Simulated plant (no hardware)" softplc "Soft-PLC — real I/O" || return 0
+    local r; r="$(api_post /api/v1/runtime/mode "{\"mode\":\"$UI_VALUE\"}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "('mode: '+d['mode']) if d.get('ok') else ('error: '+d.get('error',''))")"
+}
+runtime_bindings_view() {
+    local j; j="$(api_get /api/v1/runtime)"
+    ui_msg "$(printf '%s' "$j" | jexpr "'mode: '+d['mode']+chr(10)+chr(10)+(chr(10).join('%-16s %-7s %-14s %s'%(b['gateway'],b['transport'],b['port'] or '-', ('%d tags'%b['tags']) if b['loaded'] else 'NOT LOADED') for b in d['bindings']) or 'no bindings')")"
+}
+runtime_bind() {
+    local g args; g="$(api_get /api/v1/gateways)"
+    args="$(printf '%s' "$g" | jexpr "' '.join('%s \"%s\"'%(x['id'],x['protocol']) for x in d)")"
+    [ -z "$args" ] && { ui_msg "No loaded gateways. Load a driver first (Devices / oso-driver)."; return 0; }
+    eval "ui_menu 'Bind which gateway:' $args" || return 0
+    local gw="$UI_VALUE" p pargs
+    p="$(api_get /api/v1/runtime/ports)"
+    pargs="$(printf '%s' "$p" | jexpr "' '.join('%s \"%s\"'%(x['port'],x['kind']) for x in d['serial']+d['network'])")"
+    if [ -n "$pargs" ]; then eval "ui_menu 'Bind to which port:' $pargs none 'no port / configure later'" || return 0
+    else ui_input "Port:" "" || return 0; fi
+    local port="$UI_VALUE"; [ "$port" = none ] && port=""
+    ui_input "Params (optional, e.g. baud=9600,unit=1):" "" || return 0
+    local r; r="$(api_post /api/v1/runtime/bind "{\"gateway\":\"$gw\",\"port\":\"$port\",\"params\":\"$UI_VALUE\"}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "('bound '+d['binding']['gateway']+' -> '+(d['binding']['port'] or '(no port)')) if d.get('ok') else ('error: '+d.get('error',''))")"
+}
+runtime_unbind() {
+    local j args; j="$(api_get /api/v1/runtime)"
+    args="$(printf '%s' "$j" | jexpr "' '.join('%s \"%s\"'%(b['gateway'],b['port'] or '-') for b in d['bindings'])")"
+    [ -z "$args" ] && { ui_msg "No bindings."; return 0; }
+    eval "ui_menu 'Unbind which gateway:' $args" || return 0
+    api_post /api/v1/runtime/unbind "{\"gateway\":\"$UI_VALUE\"}" >/dev/null
+    ui_msg "unbound: $UI_VALUE"
+}
+runtime_menu() {
+    while true; do
+        ui_menu "Runtime — $(runtime_status_text)" \
+            mode     "Switch mode (Simulation / Soft-PLC)" \
+            bindings "View soft-PLC I/O bindings" \
+            bind     "Bind a gateway to a port" \
+            unbind   "Remove a binding" \
+            back     "◀ Back" || return 0
+        case "$UI_VALUE" in
+            mode)     runtime_set_mode ;;
+            bindings) runtime_bindings_view ;;
+            bind)     runtime_bind ;;
+            unbind)   runtime_unbind ;;
+            back)     return 0 ;;
+        esac
+    done
+}
+
 main_menu() {
     while true; do
         ui_menu "OSOLogic administration — pick a module" \
+            runtime  "Mode (sim / soft-PLC) & I/O binding" \
             ssh      "SSH server, keys & tunnels" \
             cron     "Scheduled tasks (oso-cron)" \
             datetime "Date, time, timezone & NTP" \
@@ -395,6 +456,7 @@ main_menu() {
             fail2ban "Intrusion jails (view)" \
             quit     "Exit" || return 0
         case "$UI_VALUE" in
+            runtime)  runtime_menu ;;
             ssh)      ssh_menu ;;
             cron)     cron_menu ;;
             datetime) datetime_menu ;;
