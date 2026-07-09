@@ -5,6 +5,12 @@
 There are two ways to install OSOLogic on a board. Both configure the same
 stack — database, MQTT broker, runtime, gateways and the web Manager.
 
+> **Where do these scripts live?** A **flashed pre-built image** already has
+> `oso-setup` on your `$PATH`, so `sudo oso-setup` just works. From a **fresh
+> `git clone`** they live in this `packaging/` directory — run them as
+> `sudo packaging/oso-setup` (they locate their own helpers, so any working
+> directory is fine) or `cd packaging` first.
+
 ## A. Guided install — `oso-setup`  *(recommended)*
 
 A fast, intuitive setup wizard. It renders a full-screen **ncurses UI**

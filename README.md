@@ -22,22 +22,46 @@ An open-source hardware and software initiative to modernize industrial and home
 
 ### 🐳 Try it on your PC first — Docker, no board needed
 
-Kick the tyres on any machine. **One command** brings up the real-time core, MariaDB, the web
-Manager, Node-RED and a **simulated plant** you can drive — then read and control live tags over
-REST, SQL, OPC-UA and MQTT:
+Kick the tyres on any machine. It brings up the real-time core, MariaDB, the web Manager,
+Node-RED and a **simulated plant** you can drive — then read and control live tags over REST,
+SQL, OPC-UA and MQTT.
+
+**Fastest — one command** grabs everything and starts it (installs Docker for you if it's missing):
+
+```bash
+curl -fsSL https://osologic.com/get.sh | bash     # Linux / macOS
+irm https://osologic.com/get.ps1 | iex            # Windows (PowerShell)
+```
+
+**By hand** — if you'd rather clone the repo and drive Docker yourself:
 
 ```bash
 git clone https://github.com/OSOlogic/platform && cd platform/sandbox
 docker compose up --build        # → open http://localhost:8080
 ```
 
-See [`sandbox/`](sandbox/) for the endpoints (REST `:8080`, OPC-UA `:4840`, MariaDB `:3306`).
+Either way, open **http://localhost:8080**. See [`sandbox/`](sandbox/) for the endpoints
+(REST `:8080`, OPC-UA `:4840`, MariaDB `:3306`).
 
-### 🚀 Deploy on a board — from bare board to running PLC
+> The sandbox runs a **simulated plant** out of the box. Turning the same install into a
+> **soft-PLC bound to real I/O** — serial/network ports, gateways and stubs instead of the
+> simulation — is on the near-term roadmap.
 
-1. **Get OSOlogic onto the board** — flash a pre-built image or clone the platform.
-2. **Run the installer** — the guided wizard `sudo oso-setup` (fast, ncurses UI with a
-   plain-text fallback), or the advanced `install_OsoLogic.sh` for full control.
+### 🚀 Deploy on hardware — from a bare board (or a spare PC) to a running PLC
+
+1. **Get OSOlogic onto the machine** — flash a pre-built image, or `git clone` the platform.
+2. **Run the installer** — a guided ncurses wizard, or the advanced installer for full control:
+
+   ```bash
+   sudo oso-setup                # if you flashed a pre-built image (already on PATH)
+   sudo packaging/oso-setup      # from a fresh git clone
+   # advanced / scriptable:   sudo packaging/install_OsoLogic.sh
+   ```
+
+   The wizard finds its own helpers, so any working directory is fine.
+
+Orange Pi is the reference target today; Raspberry Pi, generic ARM/x86_64 and **bare-metal PC as a
+soft-PLC** are on the roadmap.
 
 → **[Deployment guide](docs/deployment/)** · **[Installer reference](packaging/INSTALL.md)**
 

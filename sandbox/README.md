@@ -44,6 +44,14 @@ Then open **http://localhost:8080**.
 Any headless VM works too (the whole thing is just Linux + containers). A one-click **Windows
 package (WSL2)** is on the roadmap; Linux first.
 
+> **On the roadmap**
+> - **Pre-built images** — `docker compose up --build` compiles locally today. Published, versioned
+>   multi-arch images on **GHCR** (`ghcr.io/osologic/…`) will let the stack `pull` and start in
+>   seconds, no build step.
+> - **Soft-PLC mode** — out of the box this drives a **simulated plant**. The same install will
+>   switch to a **soft-PLC bound to real I/O** — real serial/network ports, gateways and stubs
+>   instead of the simulation — whether you run it in Docker or bare-metal on a PC.
+
 ## What you get
 
 | Endpoint | URL |

@@ -34,11 +34,12 @@ and [`.../armv7`](../../os-dist/osologic-linux/targets/armv7).
    sudo useradd -m -s /bin/bash oso 2>/dev/null || true
    sudo -u oso git clone https://github.com/OSOlogic/platform.git /home/oso/PLC_OsoLogic
    ```
-3. Run the installer:
+3. Run the installer (it lives in the checkout you just cloned):
    ```bash
-   sudo oso-setup            # guided wizard (ncurses + plain-text fallback)
+   cd /home/oso/PLC_OsoLogic/packaging
+   sudo ./oso-setup            # guided wizard (ncurses + plain-text fallback)
    # or, for full control:
-   cd /home/oso/PLC_OsoLogic/packaging && sudo ./install_OsoLogic.sh
+   sudo ./install_OsoLogic.sh
    ```
    In the wizard, choose **Advanced → source: already on this board** (or point it at the clone).
 
