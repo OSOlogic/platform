@@ -2,9 +2,39 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.1).
+releases keep the current bear (this is Teddy 1.2).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.2.0] — "Teddy" — 2026-07-09
+
+Still Teddy (the whole 1.x line). Everything in 1.1, plus:
+
+### Runtime — Simulation ↔ Soft-PLC
+- **Runtime mode.** The same install now either drives a **simulated plant** (the scan loop
+  fabricates sensor values, for a hardware-free try-out) or runs as a **soft-PLC bound to real
+  I/O** — tag values come from drivers/gateways wired to physical ports; the loop stops
+  fabricating. `GET /runtime`, `/runtime/ports` (serial lines + network interfaces), and
+  `POST /runtime/{mode,sim,bind,unbind}`, with the mode switch and a gateway↔port binding table
+  in the web Runtime module and the `oso-config` TUI.
+
+### Devices — a loadable driver catalog
+- **File-defined drivers**, loaded at runtime rather than compiled into the core: generic,
+  customizable transports (Modbus RTU/TCP, CANopen, OPC-UA, RS-232/422/485, REST) plus a catalog
+  stripped from real-world integrations (~1,469 indexed). Load/unload wires a driver's tags
+  straight into osodb; a loaded driver **is** a gateway instance.
+- **Supported-devices page** (admin UI and osologic.com): Native · Generic/customizable · OSOlogic
+  hardware (coming soon) · Vendor · Community · Protocol builder.
+
+### Install & docs
+- **Reconciled the install story** — a clearly separated *Try in Docker* (sandbox, simulated plant)
+  vs *Install on hardware* (`oso-setup` / `install_OsoLogic.sh`) path, the one-command `get.sh`
+  offered up front, and the `oso-setup`-not-on-PATH-after-a-clone gotcha fixed across README,
+  `packaging/INSTALL.md` and the deployment guides.
+- The **Database** module now reflects the real active backend instead of a hardcoded default.
+
+### Look & feel
+- Default accent is now **orange** across the admin UI and the website.
 
 ## [v1.1.0] — "Teddy" — 2026-07-05
 
