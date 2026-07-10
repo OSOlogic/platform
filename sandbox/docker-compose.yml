@@ -39,9 +39,11 @@ services:
     restart: unless-stopped
 
   # Node-RED — flow editor & dashboards (Diego's PLCBorrell interface).
-  # His flows are wired to the DB via node-red-contrib-mysql-config (targeting the
-  # PLC/rtmirror schema). In the sandbox: Manage Palette → install that node, import
-  # /reference/flows.json, and point the MySQL config node at host "db", db "osodb".
+  # First boot auto-provisions Diego's flows (its custom TON/TOF blocks are
+  # subflows inside flows.json) and installs the palette nodes they need
+  # (node-red-contrib-mysql-config + Dashboard 2.0) via node-red/seed.sh — no
+  # manual Manage-Palette/import steps. The MySQL config node targets host "db",
+  # database "osodb".
   nodered:
     image: nodered/node-red:4
     ports:
@@ -50,7 +52,9 @@ services:
       TZ: Europe/Madrid
     volumes:
       - nodered-data:/data
-      - ../ui/node-red:/reference:ro     # Diego's flows.json + package.json to import
+      - ../ui/node-red:/reference:ro     # Diego's flows.json + package.json (seeded on first boot)
+      - ./node-red/seed.sh:/seed.sh:ro   # first-boot provisioner (imports flows + installs palette)
+    entrypoint: ["/bin/sh", "/seed.sh"]
     depends_on:
       - db
     restart: unless-stopped
