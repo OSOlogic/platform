@@ -48,13 +48,21 @@ ui_backend() { printf '%s\n' "$UI_BACKEND"; }
 # swap fds 1<->2 to capture it on stdout.
 _ui_ncurses() { [ "$UI_BACKEND" = "dialog" ] || [ "$UI_BACKEND" = "whiptail" ]; }
 
+# Clamp a requested box size to the current terminal. whiptail/dialog error out
+# (non-zero) if a box is taller/wider than the screen — which, under the wizard's
+# `set -e`, would abort the whole run silently. Never let a box exceed the TTY.
+_ui_h() { local want="${1:-0}" max; max=$(( $(tput lines 2>/dev/null || echo 24) - 2 ));
+          [ "$want" -le 0 ] || [ "$want" -gt "$max" ] && want="$max"; [ "$want" -lt 7 ] && want=7; printf '%s' "$want"; }
+_ui_w() { local want="${1:-0}" max; max=$(( $(tput cols  2>/dev/null || echo 80) - 4 ));
+          [ "$want" -le 0 ] || [ "$want" -gt "$max" ] && want="$max"; [ "$want" -lt 40 ] && want=40; printf '%s' "$want"; }
+
 # --- informational ------------------------------------------------------------
 # ui_msg TEXT [HEIGHT] [WIDTH]
 ui_msg() {
     local text="$1" h="${2:-12}" w="${3:-70}"
     if _ui_ncurses; then
         "$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" \
-            --msgbox "$text" "$h" "$w"
+            --msgbox "$text" "$(_ui_h "$h")" "$(_ui_w "$w")"
     else
         printf '\n%s\n\n[ press Enter to continue ] ' "$text"; read -r _
     fi
@@ -81,7 +89,7 @@ ui_yesno() {
         [ "$def" = "no" ] && extra="--defaultno"
         # shellcheck disable=SC2086
         "$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" $extra \
-            --yesno "$text" 10 70
+            --yesno "$text" "$(_ui_h 10)" "$(_ui_w 70)"
     else
         local ans hint="[Y/n]"; [ "$def" = "no" ] && hint="[y/N]"
         printf '\n%s %s ' "$text" "$hint"; read -r ans
@@ -96,7 +104,7 @@ ui_input() {
     local text="$1" def="${2:-}"
     if _ui_ncurses; then
         UI_VALUE=$("$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" \
-            --inputbox "$text" 10 70 "$def" 3>&1 1>&2 2>&3) || return 1
+            --inputbox "$text" "$(_ui_h 10)" "$(_ui_w 70)" "$def" 3>&1 1>&2 2>&3) || return 1
     else
         local ans; printf '\n%s [%s]: ' "$text" "$def"; read -r ans
         UI_VALUE="${ans:-$def}"
@@ -111,9 +119,9 @@ ui_password() {
     while true; do
         if _ui_ncurses; then
             p1=$("$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" \
-                --insecure --passwordbox "$text" 10 70 3>&1 1>&2 2>&3) || return 1
+                --insecure --passwordbox "$text" "$(_ui_h 10)" "$(_ui_w 70)" 3>&1 1>&2 2>&3) || return 1
             p2=$("$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" \
-                --insecure --passwordbox "Confirm: $text" 10 70 3>&1 1>&2 2>&3) || return 1
+                --insecure --passwordbox "Confirm: $text" "$(_ui_h 10)" "$(_ui_w 70)" 3>&1 1>&2 2>&3) || return 1
         else
             printf '\n%s: ' "$text"; read -rs p1; echo
             printf 'Confirm: '; read -rs p2; echo
@@ -136,9 +144,11 @@ ui_password() {
 ui_menu() {
     local text="$1"; shift
     if _ui_ncurses; then
-        local n=$(( $# / 2 ))
+        local n=$(( $# / 2 )) h w rows
+        h=$(_ui_h 16); w=$(_ui_w 74); rows=$n
+        [ "$rows" -gt $(( h - 7 )) ] && rows=$(( h - 7 )); [ "$rows" -lt 1 ] && rows=1
         UI_VALUE=$("$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" \
-            --menu "$text" 16 74 "$n" "$@" 3>&1 1>&2 2>&3) || return 1
+            --menu "$text" "$h" "$w" "$rows" "$@" 3>&1 1>&2 2>&3) || return 1
     else
         printf '\n%s\n' "$text"
         local i=1 tag label; local -a tags=()
@@ -158,10 +168,12 @@ ui_menu() {
 ui_checklist() {
     local text="$1"; shift
     if _ui_ncurses; then
-        local n=$(( $# / 3 ))
+        local n=$(( $# / 3 )) h w rows
+        h=$(_ui_h 18); w=$(_ui_w 74); rows=$n
+        [ "$rows" -gt $(( h - 7 )) ] && rows=$(( h - 7 )); [ "$rows" -lt 1 ] && rows=1
         # dialog quotes items with spaces; strip surrounding quotes for uniformity
         UI_VALUE=$("$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "$UI_TITLE" \
-            --separate-output --checklist "$text" 18 74 "$n" "$@" 3>&1 1>&2 2>&3) || return 1
+            --separate-output --checklist "$text" "$h" "$w" "$rows" "$@" 3>&1 1>&2 2>&3) || return 1
         UI_VALUE=$(printf '%s' "$UI_VALUE" | tr '\n' ' ' | sed 's/  */ /g; s/ *$//')
     else
         printf '\n%s\n' "$text"
@@ -210,7 +222,7 @@ ui_confirm() {
     local text="$1"
     if _ui_ncurses; then
         "$UI_BACKEND" --backtitle "$UI_BACKTITLE" --title "Review — apply this setup?" \
-            --yes-button "Install" --no-button "Cancel" --yesno "$text" 22 78
+            --yes-button "Install" --no-button "Cancel" --yesno "$text" "$(_ui_h 22)" "$(_ui_w 78)"
     else
         printf '\n%s\n\nProceed with installation? [y/N] ' "$text"
         local ans; read -r ans; [[ "$ans" =~ ^[Yy]$ ]]

@@ -61,6 +61,20 @@ need_root() {
     fi
 }
 
+# The wizard runs under `set -e`; if any step fails (e.g. a UI box the terminal
+# can't render), the ncurses screen is torn down and — without this — it would
+# vanish with no explanation. Report where it stopped and how to recover.
+_oso_fail() {
+    local rc="$1" line="$2"
+    clear 2>/dev/null || true
+    printf '\n\033[1;31moso-setup stopped\033[0m (line %s, exit %s) — nothing was installed.\n' "$line" "$rc" >&2
+    printf 'Retry with plain-text prompts:  \033[1msudo OSO_UI=plain %s\033[0m\n' "$0" >&2
+    printf 'Or run the installer directly:  \033[1msudo %s\033[0m\n' "$BACKEND" >&2
+    exit "$rc"
+}
+# User picked Cancel / pressed Esc — a clean, expected exit (not an error).
+_oso_cancel() { clear 2>/dev/null || true; echo "Setup cancelled — no changes were made."; exit 0; }
+
 WELCOME=$(cat <<'EOF'
         Welcome to OSOLogic — the modern, open automation platform.
 
@@ -79,9 +93,10 @@ EOF
 # Wizard
 # ==============================================================================
 ui_init
+trap '_oso_fail $? $LINENO' ERR
 [ "$DRY_RUN" -eq 1 ] || need_root
 
-ui_msg "$WELCOME" 18 76
+ui_msg "$WELCOME" 18 76 || _oso_cancel
 
 # --- 1. autodetect ------------------------------------------------------------
 DET_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; DET_IP="${DET_IP:-127.0.0.1}"
@@ -93,12 +108,12 @@ ui_msg "Detected environment:
   IP address : $DET_IP
   Disk (/)   : ${DET_DISK:-unknown}
 
-These are used as defaults; you can change them in the next steps." 14 74
+These are used as defaults; you can change them in the next steps." 14 74 || _oso_cancel
 
 # --- 2. mode: express vs advanced --------------------------------------------
 ui_menu "How would you like to configure OSOLogic?" \
     express  "Express — smart defaults, fewest questions (recommended)" \
-    advanced "Advanced — review ports, source and every option"
+    advanced "Advanced — review ports, source and every option" || _oso_cancel
 MODE="$UI_VALUE"
 
 # --- 3. source code -----------------------------------------------------------
@@ -111,13 +126,13 @@ PULL_UPDATES="n"
 if [ "$MODE" = "advanced" ]; then
     ui_menu "Where is the OSOLogic source code?" \
         onboard "Already on this board (flashed image)" \
-        clone   "Download it now from a Git repository"
+        clone   "Download it now from a Git repository" || _oso_cancel
     if [ "$UI_VALUE" = "clone" ]; then
         SETUP_MODE=2
-        ui_input "Git repository URL" "$REPO_URL"; REPO_URL="$UI_VALUE"
-        ui_input "Branch" "$GIT_BRANCH";           GIT_BRANCH="$UI_VALUE"
+        ui_input "Git repository URL" "$REPO_URL" || _oso_cancel; REPO_URL="$UI_VALUE"
+        ui_input "Branch" "$GIT_BRANCH" || _oso_cancel;           GIT_BRANCH="$UI_VALUE"
     else
-        ui_input "Path to the project directory (under /home/oso)" "$TARGET_DIR"
+        ui_input "Path to the project directory (under /home/oso)" "$TARGET_DIR" || _oso_cancel
         TARGET_DIR="$UI_VALUE"
         if ui_yesno "Pull the latest updates from Git before installing?" no; then
             PULL_UPDATES="y"
@@ -128,7 +143,7 @@ fi
 # --- 4. optional components ---------------------------------------------------
 ui_checklist "Select optional components to install:" \
     phpmyadmin "phpMyAdmin — web database admin (osomyadmin coming soon)" off \
-    openui     "Open the web Manager in a browser when finished"          on
+    openui     "Open the web Manager in a browser when finished"          on || _oso_cancel
 COMPONENTS=" $UI_VALUE "
 INSTALL_PMA="n";  [[ "$COMPONENTS" == *" phpmyadmin "* ]] && INSTALL_PMA="y"
 OPEN_UI="n";      [[ "$COMPONENTS" == *" openui "* ]]     && OPEN_UI="y"
@@ -142,20 +157,20 @@ if ui_yesno "Generate strong passwords automatically?
     MQTT_PASS="$(gen_pass)"
     GENERATED=1
 else
-    ui_password "MariaDB 'root' password";      DB_ROOT_PASS="$UI_VALUE"
-    ui_password "Application DB user 'oso' password"; DB_OSO_PASS="$UI_VALUE"
-    ui_password "MQTT user 'oso' password";     MQTT_PASS="$UI_VALUE"
+    ui_password "MariaDB 'root' password" || _oso_cancel;      DB_ROOT_PASS="$UI_VALUE"
+    ui_password "Application DB user 'oso' password" || _oso_cancel; DB_OSO_PASS="$UI_VALUE"
+    ui_password "MQTT user 'oso' password" || _oso_cancel;     MQTT_PASS="$UI_VALUE"
 fi
 
 # --- 6. ports & access --------------------------------------------------------
 MQTT_PORT=1883; MGR_PORT=8080; GUI_PORT=8082; NR_PORT=1880
 EXT_URL="$DET_IP"
 if [ "$MODE" = "advanced" ]; then
-    ui_input "MQTT port" "$MQTT_PORT";                 MQTT_PORT="$UI_VALUE"
-    ui_input "Service Manager port" "$MGR_PORT";       MGR_PORT="$UI_VALUE"
-    ui_input "GUI port" "$GUI_PORT";                   GUI_PORT="$UI_VALUE"
-    ui_input "Node-RED port" "$NR_PORT";               NR_PORT="$UI_VALUE"
-    ui_input "External IP / hostname for web access" "$EXT_URL"; EXT_URL="$UI_VALUE"
+    ui_input "MQTT port" "$MQTT_PORT" || _oso_cancel;                 MQTT_PORT="$UI_VALUE"
+    ui_input "Service Manager port" "$MGR_PORT" || _oso_cancel;       MGR_PORT="$UI_VALUE"
+    ui_input "GUI port" "$GUI_PORT" || _oso_cancel;                   GUI_PORT="$UI_VALUE"
+    ui_input "Node-RED port" "$NR_PORT" || _oso_cancel;               NR_PORT="$UI_VALUE"
+    ui_input "External IP / hostname for web access" "$EXT_URL" || _oso_cancel; EXT_URL="$UI_VALUE"
 fi
 
 # --- 7. review ----------------------------------------------------------------
