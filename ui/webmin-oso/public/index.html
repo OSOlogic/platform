@@ -45,19 +45,14 @@
     flavour and the standalone OSOlogic modules below.</p>
 
   <div class="stub">
-    <div class="tag">⚠ Not installed</div>
-    <p>The Webmin integration module isn't installed on this device yet. Install it to expose the
-      OSOlogic modules as native Webmin panels, or just use the standalone modules — they work without Webmin.</p>
+    <div class="tag">Optional · on the roadmap</div>
+    <p>The native-Webmin integration — exposing the OSOlogic modules as panels inside an existing
+      <b>Webmin</b> install — is planned, not shipped yet. You don't need it: the OSOlogic modules
+      below run <b>standalone</b> (no Webmin required), and the Cockpit-style flavour is available now.</p>
     <div class="row">
-      <button class="btn" id="installBtn">Show install steps</button>
+      <a class="btn" href="../index.html">Open the OSOlogic admin →</a>
       <a class="btn ghost" href="../cockpit/oso-runtime/index.html">Use Cockpit flavour instead →</a>
     </div>
-    <pre id="steps"># Install the OSOLogic Webmin module (on a device with Webmin)
-sudo oso-setup webmin        # from packaging/oso-setup
-# or manually:
-sudo cp -r packaging/webmin/oso /usr/share/webmin/oso
-sudo /usr/share/webmin/restart.pl
-# then reload Webmin — an “OSOLogic” category appears in the sidebar.</pre>
   </div>
 
   <p class="eyebrow">Meanwhile — the standalone OSOlogic modules</p>
@@ -77,7 +72,6 @@ sudo /usr/share/webmin/restart.pl
 <script>
   const root=document.documentElement,t=localStorage.getItem('oso-theme');if(t)root.setAttribute('data-theme',t);
   document.getElementById('themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='light'?'dark':'light';root.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);};
-  document.getElementById('installBtn').onclick=()=>document.getElementById('steps').classList.toggle('show');
 </script>
 </body>
 </html>
