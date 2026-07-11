@@ -2,9 +2,25 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.2).
+releases keep the current bear (this is Teddy 1.2.1).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.2.1] — "Teddy" — 2026-07-10
+
+Bug-fix release — the first-run experience reported against 1.2:
+
+- **oso-setup no longer exits silently** (#8). Under `set -e`, whiptail/dialog boxes taller than the
+  terminal returned non-zero and aborted the wizard just before install, tearing down the UI. Boxes
+  are now clamped to the terminal, an error trap reports where it stopped, and Cancel/Esc exits
+  cleanly.
+- **Node-RED is provisioned out of the box** (#7). First boot now imports the reference flows (whose
+  TON/TOF blocks are subflows) and installs the palette (mysql-config + Dashboard 2.0) — no manual
+  Manage-Palette/import.
+- **UI host resolved dynamically** (#6). Node-RED launch tiles no longer hardcode `localhost`, so the
+  sandbox works when opened from another machine.
+- **Webmin flavour button no longer dead-ends** (#9). Reframed as an optional/roadmap integration with
+  working links; the fake `oso-setup webmin` install steps are gone.
 
 ## [v1.2.0] — "Teddy" — 2026-07-09
 

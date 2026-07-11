@@ -4,7 +4,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 [![SDK: Apache-2.0](https://img.shields.io/badge/SDK-Apache--2.0-green.svg)](./LICENSE-APACHE)
-[![Release: 1.2 Teddy](https://img.shields.io/badge/release-1.2%20Teddy-f48c06.svg)](#current-status)
+[![Release: 1.2.1 Teddy](https://img.shields.io/badge/release-1.2.1%20Teddy-f48c06.svg)](#current-status)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 [![Website](https://img.shields.io/badge/web-osologic.com-f48c06.svg)](https://osologic.com)
 
