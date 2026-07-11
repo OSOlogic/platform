@@ -217,7 +217,7 @@ function del(id){ const p=programs.find(x=>x.id===id); if(!confirm(`Delete “${
 
 function openNodeRed(flowId){
   let url=localStorage.getItem(NR_URL_LS);
-  if(!url){ url=prompt('Node-RED editor URL:','http://localhost:1880'); if(!url)return; localStorage.setItem(NR_URL_LS,url); }
+  if(!url){ url=prompt('Node-RED editor URL:','http://'+(location.hostname||'localhost')+':1880'); if(!url)return; localStorage.setItem(NR_URL_LS,url); }
   window.open(url.replace(/\/$/,'')+(flowId?'/#flow/'+flowId:''),'_blank');
 }
 

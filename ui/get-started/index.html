@@ -90,8 +90,9 @@ lvl = json.load(urllib.request.urlopen(base+<span class="kw">"/var/hass.sensor.t
   <p>Point Node-RED or any BI/dashboard tool at the same tags — REST for live values, SQL for history.</p>
   <div class="cards">
     <a class="card" href="/ui/webmin-oso/programs/index.html"><h3>🗂️ Programs &amp; Scripts</h3><p>Manage Ladder/ST/scripts and Node-RED flows.</p></a>
-    <a class="card" href="http://localhost:1880" target="_blank"><h3>🔴 Node-RED</h3><p>Flow-based dashboards (if installed).</p></a>
+    <a class="card" id="nrLink" href="http://localhost:1880" target="_blank"><h3>🔴 Node-RED</h3><p>Flow-based dashboards (if installed).</p></a>
   </div>
+  <script>document.getElementById('nrLink').href='http://'+(location.hostname||'localhost')+':1880';</script>
 
   <footer>© 2026 Roig Borrell S.L. · Ibercomp S.L. — <b style="color:var(--brand)">OSOLogic</b>® ·
     <a href="/">← Home</a> · <a href="https://github.com/OSOlogic/platform">GitHub docs</a></footer>
