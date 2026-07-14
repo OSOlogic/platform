@@ -2,9 +2,22 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.2.1).
+releases keep the current bear (this is Teddy 1.2.2).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.2.2] — "Teddy" — 2026-07-14
+
+Docs & positioning (no code changes):
+
+- **Real-time is now positioned by tier, honestly** — hard real-time on microcontrollers (Baby Bear),
+  firm real-time on Linux via PREEMPT_RT (the CE default), and a validated deterministic tier
+  (isolated cores + lock-free shared memory, TSN) as an Enterprise add-on — rather than implying
+  hard real-time on Linux.
+- **CE/Enterprise line clarified** — the C++ real-time core is Community Edition (AGPL-3.0); the RT
+  mechanism is open, only validated/specialized deterministic add-ons are Enterprise.
+- **Connectivity matrix** gains an *Industrial fieldbus & deterministic networking* section
+  (IO-Link, EtherCAT/PROFINET/EtherNet-IP, TSN).
 
 ## [v1.2.1] — "Teddy" — 2026-07-10
 
