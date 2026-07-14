@@ -11,3 +11,7 @@ This feature is currently in development and will be available in an upcoming re
 ## Overview
 
 The Real-Time API is a C/C++ interface that provides direct, lock-free access to the PLC Core's internal I/O buffers. By utilizing POSIX shared memory (`/dev/shm`), it bypasses the MariaDB database completely, enabling sub-millisecond and nanosecond-level latency for critical control loops and external applications.
+
+<Note>
+**Editions.** The shared-memory mechanism itself — the lock-free cache and this API — is part of the open **Community Edition** (AGPL-3.0), and combined with PREEMPT_RT + isolating a CPU core (`isolcpus`/`nohz_full` + a pinned scan thread) it delivers real firm-real-time on Linux. The **validated deterministic tier** — guaranteed worst-case jitter (cyclictest-validated / certified), multi-core orchestration, TSN networking, and multi-axis CNC — is an **Enterprise** add-on. True hard real-time is available in the open CE via the **microcontroller tier** (Baby Bear, osodb-embedded).
+</Note>

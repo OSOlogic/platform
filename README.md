@@ -80,7 +80,7 @@ We want to help industry leap forward by adopting modern, flexible technologies,
 ## Core Principles
 
 - **Open and hackable** — Built from the ground up with open-source hardware and software.
-- **Real-time and Linux-based** — Optimized Linux distributions with real-time capabilities via PREEMPT_RT.
+- **Real-time, tiered** — honest about determinism: **hard real-time** on microcontrollers (bare-metal, µs jitter — Baby Bear), **firm real-time** on Linux via PREEMPT_RT for logic, sequencing and scale (the CE default), and a **validated deterministic tier** (isolated cores + lock-free shared memory, TSN networking) for the tightest low-level/CNC loops.
 - **Data-centric** — In-memory, real-time database (`osodb`) at the core for flexible and immediate system interaction.
 - **Modular and compatible** — Interfaces with legacy industrial standards (IEC 61131-3, Ladder, ST) and supports modern technologies.
 - **Secure by design** — Encryption, certificates, authentication, firewalls, and more.

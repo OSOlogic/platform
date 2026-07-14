@@ -68,6 +68,23 @@ with existing platforms through optional gateways, rather than duplicating their
 > Gateways use each project's **public APIs** and honour its licence — they complement
 > those projects, they don't replace or repackage them.
 
+## Industrial fieldbus & deterministic networking *(roadmap)*
+
+Field-level connectivity and time-sensitive transport. The generic, customizable transports
+(Modbus RTU/TCP, CANopen, OPC-UA, RS-232/422/485) ship as loadable drivers today; the rest are
+planned.
+
+| Interface | Status | Notes |
+|---|---|---|
+| **Modbus RTU/TCP · CANopen · OPC-UA · RS-232/422/485** | ✅ Loadable drivers | generic + customizable, from the [driver catalog](../io/drivers/) |
+| **IO-Link** (SDCI, IEC 61131-9) | 🔜 Roadmap | via an IO-Link **master** (Modbus-TCP / EtherNet-IP / PROFINET / EtherCAT); process data → tags, IODD-driven parameter mapping, ISDU read/write |
+| **EtherCAT · PROFINET · EtherNet/IP** | 🔜 Roadmap | deterministic fieldbus masters |
+| **TSN** (IEEE 802.1AS gPTP · Qbv · Qbu) | 🔜 Roadmap *(Enterprise, HW-dependent)* | deterministic Ethernet for distributed I/O / remote axes; gPTP time-sync first |
+
+> **Determinism is tiered** (see [real-time API](mintlify/developers/coming-soon/realtime-api.mdx)):
+> hard real-time on MCUs, firm real-time on Linux/PREEMPT_RT (CE), and a validated deterministic
+> tier — isolated cores + lock-free shared memory, TSN — as an Enterprise add-on.
+
 ## Time-series & historians *(roadmap)*
 
 A **Historian** module streams tags into a time-series database for trends and long-term storage —
