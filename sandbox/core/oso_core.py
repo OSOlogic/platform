@@ -1751,6 +1751,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(osquery_run(body.get("sql", "")))
             if act == "atc":
                 return self._json(osquery_write_atc())
+            if act == "metrics":
+                return self._json(osquery_import_metrics())
             return self._json({"error": "unknown osquery action"}, 404)
         if path.startswith("/api/v1/ssh/"):
             try:
@@ -2083,6 +2085,8 @@ def osquery_status():
         "interval_ms": OSQ_MS,
         "atc_path": OSQ_ATC,
         "atc_installed": os.path.exists(OSQ_ATC),
+        "metrics_enabled": OSQ_METRICS_ENABLE,
+        "metric_tags": [d[0] for d in OSQ_METRIC_DEFS],
         "error": _OSQ["err"],
         "edition": "Community Edition — read-only snapshot (Option C). "
                    "Enterprise ships a live Thrift extension with per-tag ACL.",
@@ -2124,6 +2128,126 @@ def osquery_write_atc():
         return {"ok": True, "path": OSQ_ATC}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ---- osquery metrics -> tags (closing the loop) -------------
+# The reverse bridge: pull host metrics (via osquery when present, else /proc) INTO osodb as
+# `osq.*` tags, so CPU/memory/disk/ports become first-class tags — usable by alarms, the HMI,
+# the historian and any gateway, exactly like a sensor. Enabled with OSO_OSQUERY_METRICS=1.
+OSQ_METRICS_ENABLE = os.environ.get("OSO_OSQUERY_METRICS", "0") == "1"
+OSQ_METRIC_DEFS = [
+    ("osq.cpu_load1",       "CPU load (1 min)",   ""),
+    ("osq.mem_used_pct",    "Memory used",        "%"),
+    ("osq.mem_used_mb",     "Memory used",        "MB"),
+    ("osq.disk_used_pct",   "Disk used (/)",      "%"),
+    ("osq.proc_count",      "Processes",          ""),
+    ("osq.listening_ports", "Listening ports",    ""),
+    ("osq.uptime_s",        "Uptime",             "s"),
+]
+
+
+def _host_metrics_proc():
+    """Dependency-free host metrics from /proc + statvfs (Linux)."""
+    m = {}
+    try:
+        m["osq.cpu_load1"] = round(float(open("/proc/loadavg").read().split()[0]), 2)
+    except Exception:
+        pass
+    try:
+        mi = {}
+        for ln in open("/proc/meminfo"):
+            k, _, v = ln.partition(":")
+            mi[k.strip()] = float(v.split()[0])  # kB
+        total, avail = mi.get("MemTotal", 0), mi.get("MemAvailable", 0)
+        if total:
+            used = total - avail
+            m["osq.mem_used_mb"] = round(used / 1024, 1)
+            m["osq.mem_used_pct"] = round(100 * used / total, 1)
+    except Exception:
+        pass
+    try:
+        s = os.statvfs("/")
+        used = (s.f_blocks - s.f_bfree) * s.f_frsize
+        total = s.f_blocks * s.f_frsize
+        if total:
+            m["osq.disk_used_pct"] = round(100 * used / total, 1)
+    except Exception:
+        pass
+    try:
+        m["osq.proc_count"] = sum(1 for p in os.listdir("/proc") if p.isdigit())
+    except Exception:
+        pass
+    try:
+        lp = 0
+        for f in ("/proc/net/tcp", "/proc/net/tcp6"):
+            try:
+                for ln in open(f).read().splitlines()[1:]:
+                    if ln.split()[3] == "0A":   # 0A = TCP LISTEN
+                        lp += 1
+            except Exception:
+                pass
+        m["osq.listening_ports"] = lp
+    except Exception:
+        pass
+    try:
+        m["osq.uptime_s"] = round(float(open("/proc/uptime").read().split()[0]), 0)
+    except Exception:
+        pass
+    return m
+
+
+def _host_metrics_osquery():
+    """Richer metrics via osqueryi when it is installed (falls back to /proc keys it lacks)."""
+    have = _osq_bin()
+    if not have:
+        return {}
+    q = ("SELECT (SELECT average FROM load_average WHERE period='1m') AS load1, "
+         "(SELECT count(*) FROM processes) AS procs, "
+         "(SELECT count(*) FROM listening_ports) AS lports")
+    try:
+        out = subprocess.run([have, "--json", "--disable_events", q],
+                             capture_output=True, text=True, timeout=15)
+        row = (json.loads(out.stdout or "[]") or [{}])[0]
+        m = {}
+        if row.get("load1") not in (None, ""):
+            m["osq.cpu_load1"] = round(float(row["load1"]), 2)
+        if row.get("procs") not in (None, ""):
+            m["osq.proc_count"] = int(row["procs"])
+        if row.get("lports") not in (None, ""):
+            m["osq.listening_ports"] = int(row["lports"])
+        return m
+    except Exception:
+        return {}
+
+
+def osquery_import_metrics():
+    """Upsert host metrics into CACHE as osq.* tags (osquery when present, else /proc)."""
+    vals = _host_metrics_proc()
+    vals.update(_host_metrics_osquery())   # osquery values win where available
+    names = {d[0]: (d[1], d[2]) for d in OSQ_METRIC_DEFS}
+    written = 0
+    for tid, v in vals.items():
+        nm, units = names.get(tid, (tid, ""))
+        r = CACHE.get(tid)
+        if r is None:
+            CACHE[tid] = {"id": tid, "name": nm, "data_type": "Float", "value": v,
+                          "value_s": None, "required_value": None, "units": units,
+                          "access": "ReadOnly", "sim": None, "source": "osquery"}
+        else:
+            r["value"] = v
+        written += 1
+    log("info", f"osquery metrics -> {written} osq.* tags")
+    return {"ok": True, "written": written, "tags": {k: vals[k] for k in vals}}
+
+
+def osquery_metrics_loop():
+    while True:
+        if OSQ_METRICS_ENABLE:
+            try:
+                osquery_import_metrics()
+            except Exception as e:
+                log("warn", f"osquery metrics import failed: {e}")
+        time.sleep(max(2.0, OSQ_MS / 1000.0 * 2))
 
 
 # ---- OPC-UA -------------------------------------------------
@@ -2170,6 +2294,7 @@ def main():
     load_cache()
     threading.Thread(target=scan_loop, daemon=True).start()
     threading.Thread(target=osquery_export_loop, daemon=True).start()
+    threading.Thread(target=osquery_metrics_loop, daemon=True).start()
     threading.Thread(target=run_http, daemon=True).start()
     log("info", f"OSOLogic sandbox core up — {len(CACHE)} tags, db {'up' if _conn else 'seed'}, scan {SCAN_MS}ms")
     if OPC_ENABLE:

@@ -55,8 +55,16 @@ The snippet the core generates looks like:
 | `OSO_OSQUERY_EXPORT_MS`   | `2000`                                           | Snapshot interval (staleness bound)  |
 | `OSO_OSQUERY_ATC`         | `/etc/osquery/osquery.conf.d/osologic.conf`      | Where **Install ATC config** writes  |
 
+## Host metrics → tags (the reverse bridge)
+
+The loop also closes the other way: host metrics can be pulled **into** osodb as `osq.*` tags
+(CPU load, memory, disk, process/listening-port counts, uptime), so they become first-class
+tags — usable by alarms, the HMI, the historian and any gateway, exactly like a sensor. It uses
+osquery when installed and falls back to `/proc` otherwise.
+
+- **On demand** — the *osquery* admin module → **Import now**, the TUI, or `POST /osquery/metrics`.
+- **Continuous** — set `OSO_OSQUERY_METRICS=1` to import on a timer.
+
 ## Roadmap
 
-- **osquery metrics → tags** — import selected host metrics (load, memory, disk) back into
-  osodb as `osq.*` tags, closing the loop.
 - **Enterprise Thrift extension** — live, backend-agnostic, ACL-enforced (Option B).

@@ -71,6 +71,15 @@
   </div>
 
   <div class="card">
+    <h2>Host metrics → tags</h2>
+    <div class="body">
+      <p class="muted" style="margin-top:0">The reverse bridge: pull host metrics (CPU, memory, disk, ports, uptime) <b>into</b> osodb as <code>osq.*</code> tags — usable by alarms, the HMI, the historian and any gateway, exactly like a sensor. Uses osquery when installed, else <code>/proc</code>. Continuous import: set <code>OSO_OSQUERY_METRICS=1</code> <span id="metState"></span></p>
+      <div class="row"><button onclick="importMetrics()">Import now</button><span class="muted" id="metMsg"></span></div>
+      <div id="metResult"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>ATC configuration</h2>
     <div class="body">
       <p class="muted" style="margin-top:0">Drop this into <code id="atcPath">osquery.conf.d/</code> (or click <b>Install ATC config</b> above) so a host osquery daemon exposes <code>oso_tags</code>. It reads a standalone read-only snapshot, so queries never touch the real-time path.</p>
@@ -98,6 +107,7 @@ async function loadStatus(){
     <div><div class="k">ATC installed</div><div class="v">${d.atc_installed?'<span class="pill ok">yes</span>':'<span class="pill no">no</span>'}</div></div>
     <div><div class="k">Snapshot path</div><div class="v" style="font-size:11px">${esc(d.export_path)}</div></div>`;
   $('editionNote').textContent=d.edition||'';
+  const ms=$('metState'); if(ms) ms.innerHTML=d.metrics_enabled?'<span class="pill ok">continuous ON</span>':'<span class="pill no">manual</span>';
   $('atcPath').textContent=d.atc_path||'osquery.conf.d/';
   $('atc').textContent=JSON.stringify(d.atc_config||{},null,2);
   if(!d.installed) $('runMsg').innerHTML='<span class="muted">osquery not installed — <code>apt install osquery</code> to run queries. The snapshot &amp; ATC config are ready regardless.</span>';
@@ -105,6 +115,15 @@ async function loadStatus(){
 function ex(el){ $('sql').value=el.textContent; }
 async function exportNow(){ await jpost('/osquery/export',{}); loadStatus(); }
 async function installAtc(){ const r=await jpost('/osquery/atc',{}); $('atcMsg').textContent=r.ok?('written → '+r.path):('error: '+(r.error||'')); loadStatus(); }
+async function importMetrics(){
+  $('metMsg').textContent='importing…';
+  const r=await jpost('/osquery/metrics',{});
+  if(!r.ok){ $('metMsg').innerHTML='<span class="err">'+esc(r.error||'error')+'</span>'; return; }
+  $('metMsg').textContent=r.written+' osq.* tags written';
+  const t=r.tags||{};
+  $('metResult').innerHTML='<table><thead><tr><th>tag</th><th>value</th></tr></thead><tbody>'+
+    Object.keys(t).map(k=>'<tr><td>'+esc(k)+'</td><td>'+esc(t[k])+'</td></tr>').join('')+'</tbody></table>';
+}
 async function run(){
   $('runMsg').textContent='running…'; $('result').innerHTML='';
   const r=await jpost('/osquery/query',{sql:$('sql').value});

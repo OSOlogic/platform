@@ -2,9 +2,22 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.3.0).
+releases keep the current bear (this is Teddy 1.3.1).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.3.1] — "Teddy" — 2026-07-31
+
+- **osquery — host metrics → tags (the reverse bridge).** Host metrics (CPU load, memory, disk,
+  process and listening-port counts, uptime) can now be pulled **into** osodb as `osq.*` tags —
+  first-class tags usable by alarms, the HMI, the historian and any gateway, exactly like a
+  sensor. Uses osquery when installed, else `/proc`. On demand via the osquery module / TUI /
+  `POST /osquery/metrics`, or continuously with `OSO_OSQUERY_METRICS=1`. The `osq.*` tags also
+  flow into the `oso_tags` snapshot, closing the loop.
+- **Admin UI consolidated on the webmin-oso style.** The Runtime module was the last page still
+  carrying PatternFly class names (and a Font Awesome icon that rendered blank without the
+  library); it is now pure semantic markup in the shared design system, matching the other admin
+  modules. No cockpit page depends on external PatternFly/Font Awesome any more.
 
 ## [v1.3.0] — "Teddy" — 2026-07-31
 

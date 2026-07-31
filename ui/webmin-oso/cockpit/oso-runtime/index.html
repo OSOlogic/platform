@@ -20,24 +20,24 @@
   .toggle{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;color:var(--ink);cursor:pointer;margin-left:auto}
   .titlebar{padding:18px 24px 0}.titlebar h1{font-size:23px;margin:0;letter-spacing:-.02em}.titlebar h1 em{font-style:normal;color:var(--accent)}
   .titlebar .sub{color:var(--muted);font-size:13px;margin-top:3px}
-  .pf-v5-l-page__main-section{padding:18px 24px 40px !important;max-width:900px}
-  /* PatternFly component classes, restyled to the OSOlogic system */
-  .pf-v5-c-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .pf-v5-c-card__header{padding:13px 16px;border-bottom:1px solid var(--line)}
-  .pf-v5-c-card__title,.pf-v5-c-title{margin:0;font-size:15px;font-weight:700}
-  .pf-v5-c-card__body{padding:16px}
-  .pf-v5-c-button{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:7px 15px;cursor:pointer;font-size:13px;font-weight:600}
-  .pf-v5-c-button:hover{filter:brightness(1.08)}
-  .pf-v5-c-button.pf-m-primary,.oso-btn-start{background:var(--good) !important;border-color:var(--good) !important;color:#08120b !important}
-  .pf-v5-c-button.pf-m-secondary{background:var(--panel-2);color:var(--ink)}
-  .pf-v5-c-button.pf-m-warning{background:var(--warn);border-color:var(--warn);color:#111}
-  .pf-v5-c-alert{background:color-mix(in srgb,var(--bad) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));border-radius:10px;padding:10px 14px;display:flex;gap:9px;align-items:center}
-  .pf-v5-c-alert__title{margin:0;color:var(--bad);font-size:13px}
-  .pf-v5-c-table{width:100%;border-collapse:collapse;font-size:13px}
-  .pf-v5-c-table__th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line)}
-  .pf-v5-c-table__td{padding:9px 14px;border-bottom:1px solid var(--line)}
-  .pf-v5-c-table__tbody .pf-v5-c-table__tr:last-child .pf-v5-c-table__td{border-bottom:none}
-  .pf-v5-c-table__tbody .pf-v5-c-table__tr:hover{background:var(--panel-2)}
+  .oso-page{padding:18px 24px 40px !important;max-width:900px}
+  /* OSOLogic webmin-oso design system (cards, tables, buttons) */
+  .oso-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .oso-card-h{padding:13px 16px;border-bottom:1px solid var(--line)}
+  .oso-card-t,.oso-title{margin:0;font-size:15px;font-weight:700}
+  .oso-card-b{padding:16px}
+  .oso-btn{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:7px 15px;cursor:pointer;font-size:13px;font-weight:600}
+  .oso-btn:hover{filter:brightness(1.08)}
+  .oso-btn.oso-m-primary,.oso-btn-start{background:var(--good) !important;border-color:var(--good) !important;color:#08120b !important}
+  .oso-btn.oso-m-secondary{background:var(--panel-2);color:var(--ink)}
+  .oso-btn.oso-m-warning{background:var(--warn);border-color:var(--warn);color:#111}
+  .oso-alert{background:color-mix(in srgb,var(--bad) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));border-radius:10px;padding:10px 14px;display:flex;gap:9px;align-items:center}
+  .oso-alert-t{margin:0;color:var(--bad);font-size:13px}
+  .oso-table{width:100%;border-collapse:collapse;font-size:13px}
+  .oso-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line)}
+  .oso-td{padding:9px 14px;border-bottom:1px solid var(--line)}
+  .oso-tbody .oso-tr:last-child .oso-td{border-bottom:none}
+  .oso-tbody .oso-tr:hover{background:var(--panel-2)}
   /* custom */
   .oso-badge{font-family:var(--mono);font-size:12px;font-weight:700;border-radius:999px;padding:4px 12px;letter-spacing:.04em}
   .oso-badge-stopped{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
@@ -72,19 +72,19 @@
 <script>(function(){var r=document.documentElement,t=localStorage.getItem('oso-theme');if(t)r.setAttribute('data-theme',t);document.addEventListener('click',function(e){if(e.target&&e.target.id==='themeBtn'){var n=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',n);localStorage.setItem('oso-theme',n);}});})();</script>
 </div>
 
-<!-- PF Page content -->
-<div class="pf-v5-l-page__main-section pf-m-light" style="padding: 0 24px 24px;">
+<!-- Page content -->
+<div class="oso-page" style="padding: 0 24px 24px;">
 
   <!-- Alert for errors -->
-  <div id="errorAlert" class="pf-v5-c-alert pf-m-danger pf-m-inline" style="display:none;margin-bottom:16px">
-    <div class="pf-v5-c-alert__icon"><i class="fas fa-fw fa-exclamation-circle" aria-hidden="true"></i></div>
-    <p class="pf-v5-c-alert__title" id="errorMsg"></p>
+  <div id="errorAlert" class="oso-alert" style="display:none;margin-bottom:16px">
+    <div class="oso-alert-i" aria-hidden="true">⚠</div>
+    <p class="oso-alert-t" id="errorMsg"></p>
   </div>
 
   <!-- Runtime MODE card -->
-  <div class="pf-v5-c-card" style="margin-bottom:16px">
-    <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-title pf-m-md">Runtime mode</h2></div></div>
-    <div class="pf-v5-c-card__body">
+  <div class="oso-card" style="margin-bottom:16px">
+    <div class="oso-card-h"><div class="oso-card-t"><h2 class="oso-title">Runtime mode</h2></div></div>
+    <div class="oso-card-b">
       <div class="oso-seg" id="modeSeg">
         <button class="oso-seg-btn" data-mode="simulation" onclick="setMode('simulation')">🧪 Simulation</button>
         <button class="oso-seg-btn" data-mode="softplc" onclick="setMode('softplc')">🔌 Soft-PLC · real I/O</button>
@@ -97,9 +97,9 @@
   </div>
 
   <!-- Simulation parameters card (simulation mode only) -->
-  <div class="pf-v5-c-card" id="simCard" style="margin-bottom:16px;display:none">
-    <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-title pf-m-md">Simulation parameters — how the virtual plant drives the tags</h2></div></div>
-    <div class="pf-v5-c-card__body">
+  <div class="oso-card" id="simCard" style="margin-bottom:16px;display:none">
+    <div class="oso-card-h"><div class="oso-card-t"><h2 class="oso-title">Simulation parameters — how the virtual plant drives the tags</h2></div></div>
+    <div class="oso-card-b">
       <div class="oso-simgrid">
         <label>Time speed<span class="oso-muted"> ×</span><input id="sp_speed" class="oso-inp" type="number" step="0.1" min="0"></label>
         <label>Noise<span class="oso-muted"> ±</span><input id="sp_noise" class="oso-inp" type="number" step="0.1" min="0"></label>
@@ -110,51 +110,51 @@
         <label>Ramp period<span class="oso-muted"> s</span><input id="sp_ramp_per" class="oso-inp" type="number" step="0.5" min="0.1"></label>
       </div>
       <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
-        <button class="pf-v5-c-button pf-m-primary" style="background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important" onclick="applySim()">Apply</button>
+        <button class="oso-btn oso-m-primary" style="background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important" onclick="applySim()">Apply</button>
         <span class="oso-muted" style="font-size:12px">Applied live to the scan loop. <code>follow</code> tags track their set-point in both modes — these knobs only shape the <code>sine</code>/<code>ramp</code> profiles.</span>
       </div>
     </div>
   </div>
 
   <!-- Soft-PLC I/O card (softplc mode only) -->
-  <div class="pf-v5-c-card" id="ioCard" style="margin-bottom:16px;display:none">
-    <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-title pf-m-md">Soft-PLC I/O — gateways bound to physical ports</h2></div></div>
-    <div class="pf-v5-c-card__body">
+  <div class="oso-card" id="ioCard" style="margin-bottom:16px;display:none">
+    <div class="oso-card-h"><div class="oso-card-t"><h2 class="oso-title">Soft-PLC I/O — gateways bound to physical ports</h2></div></div>
+    <div class="oso-card-b">
       <div class="oso-bindrow">
         <select id="bindGw" class="oso-inp"><option value="">— loaded gateway —</option></select>
         <select id="bindPort" class="oso-inp"><option value="">— port —</option></select>
         <input id="bindParams" class="oso-inp" placeholder="params · e.g. baud=9600,unit=1  /  broker=host:1883">
-        <button class="pf-v5-c-button pf-m-primary" style="background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important" onclick="doBind()">Bind</button>
+        <button class="oso-btn oso-m-primary" style="background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important" onclick="doBind()">Bind</button>
       </div>
       <p class="oso-muted" id="ioHint" style="margin:9px 2px 0;font-size:12px">No loaded gateways — load a driver in
         <a href="../../devices/index.html" style="color:var(--accent)">Devices</a> first.</p>
-      <table class="pf-v5-c-table pf-m-compact" style="width:100%;margin-top:14px" id="bindTbl" hidden>
-        <thead class="pf-v5-c-table__thead"><tr class="pf-v5-c-table__tr">
-          <th class="pf-v5-c-table__th">Gateway</th><th class="pf-v5-c-table__th">Transport</th>
-          <th class="pf-v5-c-table__th">Port</th><th class="pf-v5-c-table__th">Tags</th>
-          <th class="pf-v5-c-table__th">State</th><th class="pf-v5-c-table__th"></th></tr></thead>
-        <tbody class="pf-v5-c-table__tbody" id="bindBody"></tbody>
+      <table class="oso-table" style="width:100%;margin-top:14px" id="bindTbl" hidden>
+        <thead class="oso-thead"><tr class="oso-tr">
+          <th class="oso-th">Gateway</th><th class="oso-th">Transport</th>
+          <th class="oso-th">Port</th><th class="oso-th">Tags</th>
+          <th class="oso-th">State</th><th class="oso-th"></th></tr></thead>
+        <tbody class="oso-tbody" id="bindBody"></tbody>
       </table>
     </div>
   </div>
 
   <!-- Control card -->
-  <div class="pf-v5-c-card" style="margin-bottom:16px">
-    <div class="pf-v5-c-card__header">
-      <div class="pf-v5-c-card__title">
-        <h2 class="pf-v5-c-title pf-m-md">Scan Cycle Control</h2>
+  <div class="oso-card" style="margin-bottom:16px">
+    <div class="oso-card-h">
+      <div class="oso-card-t">
+        <h2 class="oso-title">Scan Cycle Control</h2>
       </div>
     </div>
-    <div class="pf-v5-c-card__body">
+    <div class="oso-card-b">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span class="oso-badge oso-badge-stopped" id="rtBadge">STOPPED</span>
-        <button class="pf-v5-c-button pf-m-primary oso-btn-start" onclick="rtCmd('start')">
+        <button class="oso-btn oso-m-primary oso-btn-start" onclick="rtCmd('start')">
           Start
         </button>
-        <button class="pf-v5-c-button pf-m-secondary" onclick="rtCmd('stop')">
+        <button class="oso-btn oso-m-secondary" onclick="rtCmd('stop')">
           Stop
         </button>
-        <button class="pf-v5-c-button pf-m-warning" onclick="rtCmd('reset')">
+        <button class="oso-btn oso-m-warning" onclick="rtCmd('reset')">
           Reset
         </button>
       </div>
@@ -177,25 +177,25 @@
   </div>
 
   <!-- Tasks card -->
-  <div class="pf-v5-c-card">
-    <div class="pf-v5-c-card__header">
-      <div class="pf-v5-c-card__title">
-        <h2 class="pf-v5-c-title pf-m-md">Tasks</h2>
+  <div class="oso-card">
+    <div class="oso-card-h">
+      <div class="oso-card-t">
+        <h2 class="oso-title">Tasks</h2>
       </div>
     </div>
-    <div class="pf-v5-c-card__body" style="padding:0">
-      <table class="pf-v5-c-table pf-m-compact pf-m-grid-md" style="width:100%">
-        <thead class="pf-v5-c-table__thead">
-          <tr class="pf-v5-c-table__tr">
-            <th class="pf-v5-c-table__th">Name</th>
-            <th class="pf-v5-c-table__th">State</th>
-            <th class="pf-v5-c-table__th">Priority</th>
-            <th class="pf-v5-c-table__th">Period (ms)</th>
-            <th class="pf-v5-c-table__th">Last exec (µs)</th>
+    <div class="oso-card-b" style="padding:0">
+      <table class="oso-table" style="width:100%">
+        <thead class="oso-thead">
+          <tr class="oso-tr">
+            <th class="oso-th">Name</th>
+            <th class="oso-th">State</th>
+            <th class="oso-th">Priority</th>
+            <th class="oso-th">Period (ms)</th>
+            <th class="oso-th">Last exec (µs)</th>
           </tr>
         </thead>
-        <tbody class="pf-v5-c-table__tbody" id="tasksBody">
-          <tr class="pf-v5-c-table__tr">
+        <tbody class="oso-tbody" id="tasksBody">
+          <tr class="oso-tr">
             <td colspan="5" style="padding:16px;color:#888;text-align:center">Loading…</td>
           </tr>
         </tbody>
@@ -270,13 +270,13 @@ function renderBindings(b){
   body.innerHTML=b.map(x=>{
     const st=x.loaded?(x.state||'bound'):'gateway not loaded';
     const c=x.loaded?(col[x.state]||'var(--warn)'):'var(--warn)';
-    return `<tr class="pf-v5-c-table__tr">
-    <td class="pf-v5-c-table__td" style="font-family:var(--mono);font-weight:600">${esc(x.name||x.gateway)}</td>
-    <td class="pf-v5-c-table__td">${esc(x.transport||'')}</td>
-    <td class="pf-v5-c-table__td" style="font-family:var(--mono)">${esc(x.port||'—')}</td>
-    <td class="pf-v5-c-table__td">${x.tags||0}</td>
-    <td class="pf-v5-c-table__td" style="color:${c}"><b>${esc(st)}</b>${x.detail?`<div class="oso-muted" style="font-size:11px;font-weight:400">${esc(x.detail)}</div>`:''}</td>
-    <td class="pf-v5-c-table__td"><span class="oso-x" onclick="unbind('${esc(x.gateway)}')">unbind</span></td></tr>`;}).join('');
+    return `<tr class="oso-tr">
+    <td class="oso-td" style="font-family:var(--mono);font-weight:600">${esc(x.name||x.gateway)}</td>
+    <td class="oso-td">${esc(x.transport||'')}</td>
+    <td class="oso-td" style="font-family:var(--mono)">${esc(x.port||'—')}</td>
+    <td class="oso-td">${x.tags||0}</td>
+    <td class="oso-td" style="color:${c}"><b>${esc(st)}</b>${x.detail?`<div class="oso-muted" style="font-size:11px;font-weight:400">${esc(x.detail)}</div>`:''}</td>
+    <td class="oso-td"><span class="oso-x" onclick="unbind('${esc(x.gateway)}')">unbind</span></td></tr>`;}).join('');
 }
 async function setMode(m){ await jpost('/runtime/mode',{mode:m}); loadRuntime(); }
 async function doBind(){
@@ -353,17 +353,17 @@ function applyStatus(d) {
 function renderTasks(tasks) {
   const body = document.getElementById('tasksBody');
   if (!tasks.length) {
-    body.innerHTML = '<tr class="pf-v5-c-table__tr"><td colspan="5" style="padding:16px;color:#888;text-align:center">No tasks</td></tr>';
+    body.innerHTML = '<tr class="oso-tr"><td colspan="5" style="padding:16px;color:#888;text-align:center">No tasks</td></tr>';
     return;
   }
   const stateColor = { active: '#22c55e', idle: '#888', error: '#fca5a5' };
   body.innerHTML = tasks.map(t => `
-    <tr class="pf-v5-c-table__tr">
-      <td class="pf-v5-c-table__td" style="font-family:monospace;font-weight:600">${esc(t.name)}</td>
-      <td class="pf-v5-c-table__td" style="color:${stateColor[t.state]||'#888'}">${t.state}</td>
-      <td class="pf-v5-c-table__td">${t.priority ?? '—'}</td>
-      <td class="pf-v5-c-table__td">${t.period_ms ?? '—'}</td>
-      <td class="pf-v5-c-table__td" style="font-variant-numeric:tabular-nums">${t.last_exec_us != null ? t.last_exec_us.toLocaleString() : '—'}</td>
+    <tr class="oso-tr">
+      <td class="oso-td" style="font-family:monospace;font-weight:600">${esc(t.name)}</td>
+      <td class="oso-td" style="color:${stateColor[t.state]||'#888'}">${t.state}</td>
+      <td class="oso-td">${t.priority ?? '—'}</td>
+      <td class="oso-td">${t.period_ms ?? '—'}</td>
+      <td class="oso-td" style="font-variant-numeric:tabular-nums">${t.last_exec_us != null ? t.last_exec_us.toLocaleString() : '—'}</td>
     </tr>
   `).join('');
 }

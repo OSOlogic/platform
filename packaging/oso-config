@@ -462,12 +462,14 @@ osquery_menu() {
         local st; st="$(api_get /api/v1/osquery)" || { ui_msg "core offline"; return 0; }
         local line; line="$(printf '%s' "$st" | jexpr "'osqueryi: '+('yes' if d['installed'] else 'NO')+' · rows: '+str(d['rows'])+' · ATC: '+('installed' if d['atc_installed'] else 'not installed')")"
         ui_menu "osquery — $line" \
-            status "Show status + ATC config" \
-            export "Refresh the read-only snapshot now" \
-            atc    "Write ATC config to disk" \
-            query  "Run a SQL query" \
-            back   "◀ Back" || return 0
+            status  "Show status + ATC config" \
+            export  "Refresh the read-only snapshot now" \
+            metrics "Import host metrics -> osq.* tags" \
+            atc     "Write ATC config to disk" \
+            query   "Run a SQL query" \
+            back    "◀ Back" || return 0
         case "$UI_VALUE" in
+            metrics) local r; r="$(api_post /api/v1/osquery/metrics '{}')"; ui_msg "$(printf '%s' "$r" | jexpr "str(d['written'])+' osq.* tags:'+chr(10)+chr(10)+chr(10).join('  %-22s %s'%(k,v) for k,v in d['tags'].items())")" ;;
             status) ui_msg "$(printf '%s' "$st" | jexpr "d['edition']+chr(10)+chr(10)+'snapshot: '+d['export_path']+chr(10)+'atc path: '+d['atc_path']+chr(10)+chr(10)+__import__('json').dumps(d['atc_config'],indent=2)")" ;;
             export) local r; r="$(api_post /api/v1/osquery/export '{}')"; ui_msg "$(printf '%s' "$r" | jexpr "'exported '+str(d['rows'])+' rows'")" ;;
             atc)    local r; r="$(api_post /api/v1/osquery/atc '{}')"; ui_msg "$(printf '%s' "$r" | jexpr "('written -> '+d['path']) if d.get('ok') else ('error: '+d.get('error',''))")" ;;
