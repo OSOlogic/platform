@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+# ============================================================================
+# oso-deploy — deploy helper for the OSOLogic data backend and the core itself.
+#
+#   oso-deploy db docker            Bring up MariaDB in a container + create the DB
+#   oso-deploy db local             Create the DB/user on a local (bare-metal) MariaDB
+#   oso-deploy dockerize            Generate a compose file to run the core in Docker
+#   oso-deploy baremetal            Generate a systemd unit to run the core bare-metal
+#   oso-deploy status              What is installed / reachable / running where
+#
+# The two DB paths converge on the same result: an `osodb` database with the
+# schema loaded and an app user, plus the OSO_DB_* environment to point the core
+# at it. Docker or a local MariaDB — your choice, same outcome.
+#
+# (C) 2026 Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0-or-later
+# ============================================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCHEMA="${OSO_SCHEMA:-$REPO_DIR/sandbox/db/init.sql}"
+
+# Overridable connection parameters (env or flags).
+DB_NAME="${OSO_DB_NAME:-osodb}"
+DB_USER="${OSO_DB_USER:-osoapp}"
+DB_PASS="${OSO_DB_PASS:-osoapp}"
+DB_HOST="${OSO_DB_HOST:-127.0.0.1}"
+DB_PORT="${OSO_DB_PORT:-3306}"
+DB_ROOT_PASS="${OSO_DB_ROOT_PASS:-osoroot}"
+CONTAINER="${OSO_DB_CONTAINER:-osologic-mariadb}"
+CORE_PORT="${OSO_HTTP_PORT:-8080}"
+
+c_red=$'\033[31m'; c_grn=$'\033[32m'; c_yel=$'\033[33m'; c_dim=$'\033[2m'; c_off=$'\033[0m'
+say()  { printf '%s\n' "$*"; }
+ok()   { printf '%s✓%s %s\n' "$c_grn" "$c_off" "$*"; }
+warn() { printf '%s!%s %s\n' "$c_yel" "$c_off" "$*"; }
+die()  { printf '%s✗ %s%s\n' "$c_red" "$*" "$c_off" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+docker_cli() {
+  if have docker; then echo "docker"
+  elif have podman; then echo "podman"
+  else return 1; fi
+}
+mysql_cli() {
+  if have mariadb; then echo "mariadb"
+  elif have mysql; then echo "mysql"
+  else return 1; fi
+}
+
+print_env() {
+  cat <<EOF
+
+${c_dim}# Point the core at this database — export these (or put them in the unit/compose):${c_off}
+export OSO_DB_HOST=$DB_HOST
+export OSO_DB_PORT=$DB_PORT
+export OSO_DB_NAME=$DB_NAME
+export OSO_DB_USER=$DB_USER
+export OSO_DB_PASS=$DB_PASS
+EOF
+}
+
+# ---- DB: create database, user and load the schema ------------------------
+# $1 = a "mysql client + connection args" command prefix that reaches the server as root.
+provision_db() {
+  local run="$1"
+  say "Creating database '$DB_NAME' and user '$DB_USER'…"
+  $run <<SQL
+CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4;
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+FLUSH PRIVILEGES;
+SQL
+  ok "database + user ready"
+  if [ -f "$SCHEMA" ]; then
+    say "Loading schema from $SCHEMA…"
+    $run "$DB_NAME" < "$SCHEMA"
+    ok "schema loaded"
+  else
+    warn "schema file not found ($SCHEMA) — database is empty (core will seed on first run)"
+  fi
+}
+
+db_docker() {
+  local D; D="$(docker_cli)" || die "Docker/Podman not found. Install Docker or use: oso-deploy db local"
+  say "Deploying MariaDB in a container ($CONTAINER) via $D…"
+  if $D ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; then
+    warn "container '$CONTAINER' already exists — starting it"
+    $D start "$CONTAINER" >/dev/null
+  else
+    $D run -d --name "$CONTAINER" \
+      -e MARIADB_ROOT_PASSWORD="$DB_ROOT_PASS" \
+      -e MARIADB_DATABASE="$DB_NAME" \
+      -p "$DB_PORT:3306" \
+      -v osologic-osodb:/var/lib/mysql \
+      mariadb:11 >/dev/null
+    ok "container started"
+  fi
+  say "Waiting for MariaDB to accept connections…"
+  local i
+  for i in $(seq 1 40); do
+    if $D exec "$CONTAINER" mariadb -uroot -p"$DB_ROOT_PASS" -e 'SELECT 1' >/dev/null 2>&1; then break; fi
+    sleep 2
+    [ "$i" = 40 ] && die "MariaDB did not come up in time"
+  done
+  ok "MariaDB is up"
+  DB_HOST=127.0.0.1
+  provision_db "$D exec -i $CONTAINER mariadb -uroot -p$DB_ROOT_PASS"
+  print_env
+}
+
+db_local() {
+  local M; M="$(mysql_cli)" || die "No mariadb/mysql client found. Install MariaDB or use: oso-deploy db docker"
+  say "Targeting a local MariaDB at $DB_HOST:$DB_PORT via $M…"
+  local args=(-h "$DB_HOST" -P "$DB_PORT")
+  # Try socket/root first, then a root password if provided.
+  local run
+  if $M "${args[@]}" -uroot -e 'SELECT 1' >/dev/null 2>&1; then
+    run="$M ${args[*]} -uroot"
+  elif [ -n "${OSO_DB_ROOT_PASS:-}" ] && $M "${args[@]}" -uroot -p"$DB_ROOT_PASS" -e 'SELECT 1' >/dev/null 2>&1; then
+    run="$M ${args[*]} -uroot -p$DB_ROOT_PASS"
+  else
+    die "cannot reach a local MariaDB as root at $DB_HOST:$DB_PORT (set OSO_DB_ROOT_PASS, or start the server)"
+  fi
+  ok "connected to local MariaDB as root"
+  provision_db "$run"
+  print_env
+}
+
+# ---- Convert between Docker and bare-metal for the CORE -------------------
+dockerize() {
+  local out="${1:-docker-compose.osologic.yml}"
+  cat > "$out" <<EOF
+# Run the OSOLogic core in Docker against the '$CONTAINER' MariaDB.
+# Generated by oso-deploy. Bring up with: docker compose -f $out up -d
+name: osologic
+services:
+  core:
+    build: $REPO_DIR/sandbox/core
+    environment:
+      OSO_DB_HOST: $DB_HOST
+      OSO_DB_PORT: "$DB_PORT"
+      OSO_DB_USER: $DB_USER
+      OSO_DB_PASS: $DB_PASS
+      OSO_DB_NAME: $DB_NAME
+      OSO_UI_DIR: /repo
+    ports:
+      - "$CORE_PORT:8080"
+      - "4840:4840"
+    volumes:
+      - $REPO_DIR:/repo:ro
+    restart: unless-stopped
+EOF
+  ok "wrote $out"
+  say "  docker compose -f $out up -d"
+}
+
+baremetal() {
+  local unit="${1:-osologic-core.service}"
+  local py; py="$(command -v python3 || echo /usr/bin/python3)"
+  cat > "$unit" <<EOF
+# Run the OSOLogic core bare-metal (systemd). Generated by oso-deploy.
+# Install with: sudo cp $unit /etc/systemd/system/ && sudo systemctl enable --now osologic-core
+[Unit]
+Description=OSOLogic core
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Environment=OSO_DB_HOST=$DB_HOST
+Environment=OSO_DB_PORT=$DB_PORT
+Environment=OSO_DB_USER=$DB_USER
+Environment=OSO_DB_PASS=$DB_PASS
+Environment=OSO_DB_NAME=$DB_NAME
+Environment=OSO_UI_DIR=$REPO_DIR
+Environment=OSO_HTTP_PORT=$CORE_PORT
+ExecStart=$py $REPO_DIR/sandbox/core/oso_core.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  ok "wrote $unit"
+  say "  sudo cp $unit /etc/systemd/system/ && sudo systemctl enable --now osologic-core"
+}
+
+status() {
+  say "OSOLogic deployment status"
+  say "─────────────────────────"
+  if D=$(docker_cli); then
+    ok "container engine: $D"
+    if $D ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; then
+      ok "MariaDB container '$CONTAINER' is running"
+    elif $D ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; then
+      warn "MariaDB container '$CONTAINER' exists but is stopped"
+    else
+      say "  no '$CONTAINER' container"
+    fi
+  else
+    warn "no container engine (docker/podman)"
+  fi
+  if M=$(mysql_cli); then
+    ok "mariadb/mysql client: $M"
+    if $M -h "$DB_HOST" -P "$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -e "USE $DB_NAME; SELECT COUNT(*) AS tags FROM tags" 2>/dev/null; then
+      ok "database '$DB_NAME' reachable at $DB_HOST:$DB_PORT as '$DB_USER'"
+    else
+      say "  cannot reach '$DB_NAME' at $DB_HOST:$DB_PORT as '$DB_USER' (not provisioned yet?)"
+    fi
+  else
+    warn "no mariadb/mysql client installed"
+  fi
+  if curl -fsS "http://127.0.0.1:$CORE_PORT/api/v1/health" >/dev/null 2>&1; then
+    ok "core is answering on http://127.0.0.1:$CORE_PORT"
+  else
+    say "  core not answering on :$CORE_PORT"
+  fi
+}
+
+usage() {
+  # Print the header comment block (lines after the shebang, up to the first non-# line).
+  awk 'NR==1{next} /^#/{sub(/^# ?/,"");print;next} {exit}' "$0"
+  exit "${1:-0}"
+}
+
+# ---- arg parse ------------------------------------------------------------
+[ $# -ge 1 ] || usage 1
+CMD="$1"; shift || true
+# allow --name/--user/--pass/--host/--port overrides before the subverb arg
+POS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --name) DB_NAME="$2"; shift 2;;
+    --user) DB_USER="$2"; shift 2;;
+    --pass) DB_PASS="$2"; shift 2;;
+    --host) DB_HOST="$2"; shift 2;;
+    --port) DB_PORT="$2"; shift 2;;
+    --root-pass) DB_ROOT_PASS="$2"; shift 2;;
+    -h|--help) usage 0;;
+    *) POS+=("$1"); shift;;
+  esac
+done
+set -- "${POS[@]:-}"
+
+case "$CMD" in
+  db)
+    case "${1:-}" in
+      docker) db_docker;;
+      local)  db_local;;
+      *) die "usage: oso-deploy db {docker|local}";;
+    esac;;
+  dockerize) dockerize "${1:-}";;
+  baremetal) baremetal "${1:-}";;
+  status)    status;;
+  -h|--help|help) usage 0;;
+  *) die "unknown command '$CMD' — try: oso-deploy --help";;
+esac

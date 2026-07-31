@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>osquery — OSOLogic</title>
+<style>
+  :root{--bg:#0f1115;--panel:#16181d;--panel-2:#1c1f26;--line:#2a2e37;--ink:#e6e8ec;
+        --muted:#8b8f99;--accent:#f48c06;--good:#22c55e;--bad:#f87171;--warn:#f59e0b;
+        --mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif}
+  .nav{font:13px/1 system-ui;padding:9px 18px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+  .nav a{color:var(--muted);text-decoration:none}.nav a.b{color:var(--accent);font-weight:700}
+  .wrap{max-width:1000px;margin:0 auto;padding:22px 18px 60px}
+  h1{font-size:22px;margin:6px 0 2px}.sub{color:var(--muted);margin:0 0 18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .body{padding:16px}
+  .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .kv .k{color:var(--muted);font-size:12px}.kv .v{font-family:var(--mono);font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+  .pill.ok{background:rgba(34,197,94,.15);color:var(--good)}
+  .pill.no{background:rgba(245,158,11,.15);color:var(--warn)}
+  textarea{width:100%;min-height:92px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:11px;font:13px var(--mono);resize:vertical}
+  button{background:var(--accent);border:none;color:#fff;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer}
+  button.sec{background:var(--panel-2);border:1px solid var(--line);color:var(--ink)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:11px}
+  .ex{display:inline-block;margin:3px 6px 0 0;padding:3px 9px;border:1px solid var(--line);border-radius:7px;font:12px var(--mono);color:var(--muted);cursor:pointer;background:var(--panel-2)}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);font-family:var(--mono)}
+  th{color:var(--muted);font-weight:600}
+  pre{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font:12px var(--mono);color:var(--muted)}
+  .muted{color:var(--muted)}.err{color:var(--bad)}
+  code{font-family:var(--mono);color:var(--accent)}
+  .note{border-left:3px solid var(--accent);padding:9px 13px;background:var(--panel-2);border-radius:0 8px 8px 0;font-size:13px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="nav"><a class="b" href="/">OSOlogic</a><span class="muted">·</span><a href="../index.html">Admin</a><span class="muted">·</span><span class="muted">osquery</span></div>
+<div class="wrap">
+  <h1>osquery</h1>
+  <p class="sub">Query your OSOLogic tags and the host with SQL — <code>oso_tags</code> joins live next to <code>processes</code>, <code>listening_ports</code>, <code>interface_addresses</code>…</p>
+
+  <div class="card">
+    <h2>Status</h2>
+    <div class="body">
+      <div class="kv" id="status"><div class="muted">Loading…</div></div>
+      <div class="note" id="editionNote"></div>
+      <div class="row">
+        <button class="sec" onclick="exportNow()">Refresh snapshot</button>
+        <button class="sec" onclick="installAtc()">Install ATC config</button>
+        <span class="muted" id="atcMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Run a query</h2>
+    <div class="body">
+      <textarea id="sql" spellcheck="false">SELECT id, name, value, units FROM oso_tags ORDER BY id;</textarea>
+      <div>
+        <span class="ex" onclick="ex(this)">SELECT id,name,value,units FROM oso_tags ORDER BY id;</span>
+        <span class="ex" onclick="ex(this)">SELECT count(*) AS tags FROM oso_tags;</span>
+        <span class="ex" onclick="ex(this)">SELECT id,value FROM oso_tags WHERE units='%';</span>
+        <span class="ex" onclick="ex(this)">SELECT t.id, p.name FROM oso_tags t, processes p LIMIT 5;</span>
+      </div>
+      <div class="row"><button onclick="run()">Run</button><span class="muted" id="runMsg"></span></div>
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ATC configuration</h2>
+    <div class="body">
+      <p class="muted" style="margin-top:0">Drop this into <code id="atcPath">osquery.conf.d/</code> (or click <b>Install ATC config</b> above) so a host osquery daemon exposes <code>oso_tags</code>. It reads a standalone read-only snapshot, so queries never touch the real-time path.</p>
+      <pre id="atc">…</pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE='/api/v1';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function jget(p){return (await fetch(BASE+p)).json();}
+async function jpost(p,b){return (await fetch(BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json();}
+
+async function loadStatus(){
+  let d; try{ d=await jget('/osquery'); }catch(e){ $('status').innerHTML='<span class="err">core offline</span>'; return; }
+  const ago=d.last_export?Math.max(0,Math.round(Date.now()/1000-d.last_export))+'s ago':'never';
+  $('status').innerHTML=`
+    <div><div class="k">osquery binary</div><div class="v">${d.installed?'<span class="pill ok">installed</span>':'<span class="pill no">not installed</span>'}</div></div>
+    <div><div class="k">Snapshot rows</div><div class="v">${d.rows}</div></div>
+    <div><div class="k">Last export</div><div class="v">${ago}</div></div>
+    <div><div class="k">Interval</div><div class="v">${d.interval_ms} ms</div></div>
+    <div><div class="k">ATC installed</div><div class="v">${d.atc_installed?'<span class="pill ok">yes</span>':'<span class="pill no">no</span>'}</div></div>
+    <div><div class="k">Snapshot path</div><div class="v" style="font-size:11px">${esc(d.export_path)}</div></div>`;
+  $('editionNote').textContent=d.edition||'';
+  $('atcPath').textContent=d.atc_path||'osquery.conf.d/';
+  $('atc').textContent=JSON.stringify(d.atc_config||{},null,2);
+  if(!d.installed) $('runMsg').innerHTML='<span class="muted">osquery not installed — <code>apt install osquery</code> to run queries. The snapshot &amp; ATC config are ready regardless.</span>';
+}
+function ex(el){ $('sql').value=el.textContent; }
+async function exportNow(){ await jpost('/osquery/export',{}); loadStatus(); }
+async function installAtc(){ const r=await jpost('/osquery/atc',{}); $('atcMsg').textContent=r.ok?('written → '+r.path):('error: '+(r.error||'')); loadStatus(); }
+async function run(){
+  $('runMsg').textContent='running…'; $('result').innerHTML='';
+  const r=await jpost('/osquery/query',{sql:$('sql').value});
+  if(!r.ok){ $('runMsg').innerHTML='<span class="err">'+esc(r.error||'error')+'</span>'; return; }
+  $('runMsg').textContent=r.count+' row(s)';
+  if(!r.rows.length){ $('result').innerHTML='<p class="muted">no rows</p>'; return; }
+  const cols=Object.keys(r.rows[0]);
+  $('result').innerHTML='<table><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
+    r.rows.map(row=>'<tr>'+cols.map(c=>'<td>'+esc(row[c])+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+loadStatus();
+setInterval(loadStatus,5000);
+</script>
+</body>
+</html>

@@ -399,7 +399,20 @@ runtime_set_mode() {
 }
 runtime_bindings_view() {
     local j; j="$(api_get /api/v1/runtime)"
-    ui_msg "$(printf '%s' "$j" | jexpr "'mode: '+d['mode']+chr(10)+chr(10)+(chr(10).join('%-16s %-7s %-14s %s'%(b['gateway'],b['transport'],b['port'] or '-', ('%d tags'%b['tags']) if b['loaded'] else 'NOT LOADED') for b in d['bindings']) or 'no bindings')")"
+    ui_msg "$(printf '%s' "$j" | jexpr "'mode: '+d['mode']+chr(10)+chr(10)+(chr(10).join('%-16s %-7s %-14s %-6s %s'%(b['gateway'],b['transport'],b['port'] or '-', b.get('state','?') if b['loaded'] else 'NOLOAD', b.get('detail','')) for b in d['bindings']) or 'no bindings')")"
+}
+runtime_sim_params() {
+    local j; j="$(api_get /api/v1/runtime)"
+    local p; p="$(printf '%s' "$j" | jexpr "d['sim']['params']")"
+    ui_input "Time speed (x):" "$(printf '%s' "$j" | jexpr "d['sim']['params']['speed']")" || return 0; local speed="$UI_VALUE"
+    ui_input "Noise (+/-):"    "$(printf '%s' "$j" | jexpr "d['sim']['params']['noise']")" || return 0; local noise="$UI_VALUE"
+    ui_input "Sine amplitude:" "$(printf '%s' "$j" | jexpr "d['sim']['params']['sine']['amp']")" || return 0; local samp="$UI_VALUE"
+    ui_input "Sine period (s):" "$(printf '%s' "$j" | jexpr "d['sim']['params']['sine']['period_s']")" || return 0; local sper="$UI_VALUE"
+    ui_input "Ramp base:"      "$(printf '%s' "$j" | jexpr "d['sim']['params']['ramp']['base']")" || return 0; local rbase="$UI_VALUE"
+    ui_input "Ramp span:"      "$(printf '%s' "$j" | jexpr "d['sim']['params']['ramp']['span']")" || return 0; local rspan="$UI_VALUE"
+    ui_input "Ramp period (s):" "$(printf '%s' "$j" | jexpr "d['sim']['params']['ramp']['period_s']")" || return 0; local rper="$UI_VALUE"
+    local r; r="$(api_post /api/v1/runtime/sim "{\"params\":{\"speed\":$speed,\"noise\":$noise,\"sine\":{\"amp\":$samp,\"period_s\":$sper},\"ramp\":{\"base\":$rbase,\"span\":$rspan,\"period_s\":$rper}}}")"
+    ui_msg "$(printf '%s' "$r" | jexpr "'sim updated' if d.get('ok') else ('error: '+str(d))")"
 }
 runtime_bind() {
     local g args; g="$(api_get /api/v1/gateways)"
@@ -414,7 +427,7 @@ runtime_bind() {
     local port="$UI_VALUE"; [ "$port" = none ] && port=""
     ui_input "Params (optional, e.g. baud=9600,unit=1):" "" || return 0
     local r; r="$(api_post /api/v1/runtime/bind "{\"gateway\":\"$gw\",\"port\":\"$port\",\"params\":\"$UI_VALUE\"}")"
-    ui_msg "$(printf '%s' "$r" | jexpr "('bound '+d['binding']['gateway']+' -> '+(d['binding']['port'] or '(no port)')) if d.get('ok') else ('error: '+d.get('error',''))")"
+    ui_msg "$(printf '%s' "$r" | jexpr "(d['binding']['gateway']+' -> '+(d['binding']['port'] or '(no port)')+chr(10)+'['+d['binding']['state']+'] '+d['binding'].get('detail','')) if 'binding' in d else ('error: '+d.get('error',''))")"
 }
 runtime_unbind() {
     local j args; j="$(api_get /api/v1/runtime)"
@@ -427,17 +440,41 @@ runtime_unbind() {
 runtime_menu() {
     while true; do
         ui_menu "Runtime — $(runtime_status_text)" \
-            mode     "Switch mode (Simulation / Soft-PLC)" \
-            bindings "View soft-PLC I/O bindings" \
-            bind     "Bind a gateway to a port" \
-            unbind   "Remove a binding" \
-            back     "◀ Back" || return 0
+            mode      "Switch mode (Simulation / Soft-PLC)" \
+            simparams "Simulation parameters (speed/noise/sine/ramp)" \
+            bindings  "View soft-PLC I/O bindings" \
+            bind      "Bind a gateway to a port" \
+            unbind    "Remove a binding" \
+            back      "◀ Back" || return 0
         case "$UI_VALUE" in
-            mode)     runtime_set_mode ;;
-            bindings) runtime_bindings_view ;;
-            bind)     runtime_bind ;;
-            unbind)   runtime_unbind ;;
-            back)     return 0 ;;
+            mode)      runtime_set_mode ;;
+            simparams) runtime_sim_params ;;
+            bindings)  runtime_bindings_view ;;
+            bind)      runtime_bind ;;
+            unbind)    runtime_unbind ;;
+            back)      return 0 ;;
+        esac
+    done
+}
+
+osquery_menu() {
+    while true; do
+        local st; st="$(api_get /api/v1/osquery)" || { ui_msg "core offline"; return 0; }
+        local line; line="$(printf '%s' "$st" | jexpr "'osqueryi: '+('yes' if d['installed'] else 'NO')+' · rows: '+str(d['rows'])+' · ATC: '+('installed' if d['atc_installed'] else 'not installed')")"
+        ui_menu "osquery — $line" \
+            status "Show status + ATC config" \
+            export "Refresh the read-only snapshot now" \
+            atc    "Write ATC config to disk" \
+            query  "Run a SQL query" \
+            back   "◀ Back" || return 0
+        case "$UI_VALUE" in
+            status) ui_msg "$(printf '%s' "$st" | jexpr "d['edition']+chr(10)+chr(10)+'snapshot: '+d['export_path']+chr(10)+'atc path: '+d['atc_path']+chr(10)+chr(10)+__import__('json').dumps(d['atc_config'],indent=2)")" ;;
+            export) local r; r="$(api_post /api/v1/osquery/export '{}')"; ui_msg "$(printf '%s' "$r" | jexpr "'exported '+str(d['rows'])+' rows'")" ;;
+            atc)    local r; r="$(api_post /api/v1/osquery/atc '{}')"; ui_msg "$(printf '%s' "$r" | jexpr "('written -> '+d['path']) if d.get('ok') else ('error: '+d.get('error',''))")" ;;
+            query)  ui_input "SQL:" "SELECT id,name,value,units FROM oso_tags ORDER BY id" || continue
+                    local r; r="$(api_post /api/v1/osquery/query "{\"sql\":\"$(printf '%s' "$UI_VALUE" | sed 's/"/\\"/g')\"}")"
+                    ui_msg "$(printf '%s' "$r" | jexpr "('error: '+d['error']) if not d.get('ok') else (str(d['count'])+' rows'+chr(10)+chr(10)+chr(10).join('  '.join('%s=%s'%(k,v) for k,v in row.items()) for row in d['rows'][:40]) or '(no rows)')")" ;;
+            back)   return 0 ;;
         esac
     done
 }
@@ -446,6 +483,7 @@ main_menu() {
     while true; do
         ui_menu "OSOLogic administration — pick a module" \
             runtime  "Mode (sim / soft-PLC) & I/O binding" \
+            osquery  "Query tags & host with SQL (osquery)" \
             ssh      "SSH server, keys & tunnels" \
             cron     "Scheduled tasks (oso-cron)" \
             datetime "Date, time, timezone & NTP" \
@@ -457,6 +495,7 @@ main_menu() {
             quit     "Exit" || return 0
         case "$UI_VALUE" in
             runtime)  runtime_menu ;;
+            osquery)  osquery_menu ;;
             ssh)      ssh_menu ;;
             cron)     cron_menu ;;
             datetime) datetime_menu ;;

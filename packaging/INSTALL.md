@@ -68,6 +68,29 @@ EXT_URL='192.168.1.50'       # IP/host for web access
 INSTALL_PMA=n                # phpMyAdmin (osomyadmin coming soon)
 ```
 
+## Deploying the database and the core — `oso-deploy`
+
+Once the code is on the board, `oso-deploy` wires up the **osodb** database and
+chooses where the core runs. The two database paths converge on the same result
+— an `osodb` database with the schema loaded and an app user:
+
+```bash
+packaging/oso-deploy db docker     # MariaDB in a container + create the DB
+packaging/oso-deploy db local      # create the DB/user on a local (bare-metal) MariaDB
+packaging/oso-deploy status        # what is installed / reachable / running where
+```
+
+And it converts the core itself between the two runtimes:
+
+```bash
+packaging/oso-deploy dockerize     # write a compose file to run the core in Docker
+packaging/oso-deploy baremetal     # write a systemd unit to run the core bare-metal
+```
+
+Connection parameters are overridable with `--name/--user/--pass/--host/--port`
+(or the matching `OSO_DB_*` environment variables). It prints the `OSO_DB_*`
+environment to point the core at whichever database you provisioned.
+
 ## Files
 
 | File | Role |
@@ -75,6 +98,8 @@ INSTALL_PMA=n                # phpMyAdmin (osomyadmin coming soon)
 | `oso-setup` | Guided wizard (Path A) |
 | `lib/oso-ui.sh` | Terminal UI layer — `dialog` / `whiptail` / plain |
 | `install_OsoLogic.sh` | Advanced installer (Path B); also the unattended engine |
+| `oso-deploy` | Database provisioning (Docker / local MariaDB) + core dockerize↔bare-metal |
+| `osquery/` | osquery integration — expose tags as the `oso_tags` SQL table |
 
 ## Supported targets
 

@@ -56,6 +56,9 @@
   .oso-bindrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .oso-inp{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 11px;font:13px var(--mono)}
   select.oso-inp{min-width:160px}input.oso-inp{flex:1;min-width:210px}
+  .oso-simgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .oso-simgrid label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
+  .oso-simgrid input{flex:none;min-width:0;width:100%}
   .oso-x{cursor:pointer;color:var(--bad);font-weight:700;border:1px solid var(--line);background:var(--panel-2);border-radius:6px;padding:2px 9px;font-size:12px}
 </style>
 </head>
@@ -90,6 +93,26 @@
       <div class="oso-databk" id="dataBk">Data backend: <b id="dbName">…</b> <span id="dbWhere" class="oso-muted"></span>
         · <a href="../../database/index.html" style="color:var(--accent)">manage →</a>
         <span class="oso-muted"> — running it in Docker or on a local MariaDB (create DB, etc.) is handled there.</span></div>
+    </div>
+  </div>
+
+  <!-- Simulation parameters card (simulation mode only) -->
+  <div class="pf-v5-c-card" id="simCard" style="margin-bottom:16px;display:none">
+    <div class="pf-v5-c-card__header"><div class="pf-v5-c-card__title"><h2 class="pf-v5-c-title pf-m-md">Simulation parameters — how the virtual plant drives the tags</h2></div></div>
+    <div class="pf-v5-c-card__body">
+      <div class="oso-simgrid">
+        <label>Time speed<span class="oso-muted"> ×</span><input id="sp_speed" class="oso-inp" type="number" step="0.1" min="0"></label>
+        <label>Noise<span class="oso-muted"> ±</span><input id="sp_noise" class="oso-inp" type="number" step="0.1" min="0"></label>
+        <label>Sine amplitude<input id="sp_sine_amp" class="oso-inp" type="number" step="0.5"></label>
+        <label>Sine period<span class="oso-muted"> s</span><input id="sp_sine_per" class="oso-inp" type="number" step="0.5" min="0.1"></label>
+        <label>Ramp base<input id="sp_ramp_base" class="oso-inp" type="number" step="0.5"></label>
+        <label>Ramp span<input id="sp_ramp_span" class="oso-inp" type="number" step="0.5"></label>
+        <label>Ramp period<span class="oso-muted"> s</span><input id="sp_ramp_per" class="oso-inp" type="number" step="0.5" min="0.1"></label>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+        <button class="pf-v5-c-button pf-m-primary" style="background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important" onclick="applySim()">Apply</button>
+        <span class="oso-muted" style="font-size:12px">Applied live to the scan loop. <code>follow</code> tags track their set-point in both modes — these knobs only shape the <code>sine</code>/<code>ramp</code> profiles.</span>
+      </div>
     </div>
   </div>
 
@@ -213,10 +236,28 @@ async function loadRuntime(){
   if(psel) psel.innerHTML='<option value="">— port —</option>'+opt(p.serial,'Serial')+opt(p.network,'Network');
   const hint=document.getElementById('ioHint'); if(hint) hint.style.display=gws.length?'none':'';
   renderBindings(d.bindings||[]);
+  renderSim(d.sim||{});
+}
+function renderSim(sim){
+  const p=sim.params||{}, s=p.sine||{}, r=p.ramp||{};
+  const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
+  set('sp_speed',p.speed); set('sp_noise',p.noise);
+  set('sp_sine_amp',s.amp); set('sp_sine_per',s.period_s);
+  set('sp_ramp_base',r.base); set('sp_ramp_span',r.span); set('sp_ramp_per',r.period_s);
+}
+async function applySim(){
+  const num=id=>{const v=parseFloat(document.getElementById(id).value); return isNaN(v)?undefined:v;};
+  await jpost('/runtime/sim',{params:{
+    speed:num('sp_speed'), noise:num('sp_noise'),
+    sine:{amp:num('sp_sine_amp'), period_s:num('sp_sine_per')},
+    ramp:{base:num('sp_ramp_base'), span:num('sp_ramp_span'), period_s:num('sp_ramp_per')}
+  }});
+  loadRuntime();
 }
 function renderMode(mode){
   document.querySelectorAll('.oso-seg-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));
   const io=document.getElementById('ioCard'); if(io) io.style.display=mode==='softplc'?'':'none';
+  const sc=document.getElementById('simCard'); if(sc) sc.style.display=mode==='softplc'?'none':'';
   const h=document.getElementById('modeHelp'); if(h) h.innerHTML = mode==='softplc'
     ? '<b>Soft-PLC — real I/O.</b> This machine acts as a real controller: tag values come from the drivers/gateways wired to the physical ports below. The scan loop stops fabricating sensor values.'
     : '<b>Simulation.</b> A virtual plant drives the tags (sine / ramp / set-point follow) so you can try everything with no hardware. Switch to Soft-PLC to bind real I/O — same install, in Docker or bare-metal.';
@@ -225,20 +266,24 @@ function renderBindings(b){
   const tbl=document.getElementById('bindTbl'), body=document.getElementById('bindBody');
   if(!tbl||!body) return;
   tbl.hidden=!b.length;
-  body.innerHTML=b.map(x=>`<tr class="pf-v5-c-table__tr">
+  const col={open:'var(--good)',error:'var(--bad,#f87171)',bound:'var(--warn)'};
+  body.innerHTML=b.map(x=>{
+    const st=x.loaded?(x.state||'bound'):'gateway not loaded';
+    const c=x.loaded?(col[x.state]||'var(--warn)'):'var(--warn)';
+    return `<tr class="pf-v5-c-table__tr">
     <td class="pf-v5-c-table__td" style="font-family:var(--mono);font-weight:600">${esc(x.name||x.gateway)}</td>
     <td class="pf-v5-c-table__td">${esc(x.transport||'')}</td>
     <td class="pf-v5-c-table__td" style="font-family:var(--mono)">${esc(x.port||'—')}</td>
     <td class="pf-v5-c-table__td">${x.tags||0}</td>
-    <td class="pf-v5-c-table__td" style="color:${x.loaded?'var(--good)':'var(--warn)'}">${x.loaded?esc(x.state||'bound'):'gateway not loaded'}</td>
-    <td class="pf-v5-c-table__td"><span class="oso-x" onclick="unbind('${esc(x.gateway)}')">unbind</span></td></tr>`).join('');
+    <td class="pf-v5-c-table__td" style="color:${c}"><b>${esc(st)}</b>${x.detail?`<div class="oso-muted" style="font-size:11px;font-weight:400">${esc(x.detail)}</div>`:''}</td>
+    <td class="pf-v5-c-table__td"><span class="oso-x" onclick="unbind('${esc(x.gateway)}')">unbind</span></td></tr>`;}).join('');
 }
 async function setMode(m){ await jpost('/runtime/mode',{mode:m}); loadRuntime(); }
 async function doBind(){
   const gw=document.getElementById('bindGw').value;
   if(!gw){ showError('pick a loaded gateway'); return; }
   const r=await jpost('/runtime/bind',{gateway:gw,port:document.getElementById('bindPort').value,params:document.getElementById('bindParams').value});
-  if(!r.ok){ showError(r.error||'bind failed'); return; }
+  if(!r.ok){ showError(r.error || (r.binding&&r.binding.detail) || 'bind failed'); loadRuntime(); return; }
   document.getElementById('bindParams').value=''; loadRuntime();
 }
 async function unbind(gw){ await jpost('/runtime/unbind',{gateway:gw}); loadRuntime(); }

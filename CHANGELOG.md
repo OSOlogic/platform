@@ -2,9 +2,42 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.2.2).
+releases keep the current bear (this is Teddy 1.3.0).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.3.0] — "Teddy" — 2026-07-31
+
+Still Teddy. Three modules land — observability, a real soft-PLC bind, and a deploy helper:
+
+### osquery — query your tags with SQL
+- **`oso_tags` as an osquery table.** A background exporter snapshots every tag into a
+  standalone **read-only SQLite** file that osquery reads via Auto Table Construction (ATC),
+  so you can `SELECT … FROM oso_tags` and **join** it against host tables (`processes`,
+  `listening_ports`, `interface_addresses`). Because it is a separate snapshot, queries never
+  contend with the real-time scan loop. New **osquery** admin module (status, live query
+  runner, one-click ATC install), `GET /osquery` + `POST /osquery/{export,query,atc}`, and an
+  `oso-config` TUI menu. This is the Community-Edition path (Option C); Enterprise ships a
+  live, ACL-enforced Thrift extension.
+
+### Runtime — the soft-PLC bind actually opens the port
+- **Binding a gateway now connects real I/O.** Serial bindings open the device (with baud from
+  `params`); network bindings connect to the endpoint — reporting `open` / `error` / `bound`
+  with detail, holding the handle open, and releasing it on unbind or re-bind. Previously the
+  binding was only recorded.
+- **Simulation parameters panel.** Tunable `speed`, `noise`, and per-profile `sine`/`ramp`
+  shape (base/amplitude/period), applied live to the scan loop — in the web Runtime module and
+  the TUI.
+
+### Deployment — `oso-deploy`
+- **One helper for the database and the core.** `oso-deploy db docker` brings up MariaDB in a
+  container and creates/loads `osodb`; `oso-deploy db local` does the same against a bare-metal
+  MariaDB — both converge on an identical result and print the `OSO_DB_*` env. `oso-deploy
+  dockerize` / `baremetal` convert the core itself between a compose file and a systemd unit;
+  `oso-deploy status` reports what is installed, reachable and running where.
+
+### Docs
+- **CE/Enterprise line reconciled** further — the MariaDB backend is the default (not "PRO").
 
 ## [v1.2.2] — "Teddy" — 2026-07-14
 

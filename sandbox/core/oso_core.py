@@ -16,6 +16,7 @@ import glob
 import json
 import math
 import os
+import random
 import shutil
 import hashlib
 import re
@@ -45,6 +46,14 @@ OPC_ENABLE = os.environ.get("OSO_OPC_ENABLE", "1") == "1"
 UI_DIR = os.environ.get("OSO_UI_DIR", "/ui")
 SCAN_MS = int(os.environ.get("OSO_SCAN_MS", "500"))
 
+# osquery integration (Option C, Community Edition): a read-only SQLite SNAPSHOT of the
+# tags is exported here and exposed to osquery via ATC — it never touches the live osodb
+# real-time path, so there is zero RT contention. Enterprise gets the live Thrift extension.
+OSQ_DB   = os.environ.get("OSO_OSQUERY_DB", "/var/lib/osologic/oso_tags.db")
+OSQ_MS   = int(os.environ.get("OSO_OSQUERY_EXPORT_MS", "2000"))
+OSQ_ATC  = os.environ.get("OSO_OSQUERY_ATC", "/etc/osquery/osquery.conf.d/osologic.conf")
+OSQ_ENABLE = os.environ.get("OSO_OSQUERY_ENABLE", "1") == "1"
+
 CACHE = {}                 # id -> tag dict  (the in-memory hub)
 LOCK = threading.Lock()
 _conn = None
@@ -57,7 +66,17 @@ CYCLES = 0                 # scan cycle counter
 # from loaded drivers/gateways wired to physical ports; nothing is fabricated).
 OSO_RUNTIME = {
     "mode": os.environ.get("OSO_RUNTIME_MODE", "simulation"),   # simulation | softplc
-    "sim": {"enabled": True, "profiles": ["follow", "sine", "ramp"]},
+    "sim": {
+        "enabled": True,
+        "profiles": ["follow", "sine", "ramp"],
+        # Tunable simulation parameters (Runtime module · sim params panel).
+        "params": {
+            "speed": 1.0,                                  # time multiplier for all profiles
+            "noise": 0.0,                                  # ± random jitter added to sim values
+            "sine": {"base": None, "amp": 8.0, "period_s": 6.0},   # base None -> auto by units
+            "ramp": {"base": 20.0, "span": 4.0, "period_s": 20.0},
+        },
+    },
     "io": {"bindings": []},    # [{gateway, transport, port, params, state, note}]
 }
 
@@ -232,17 +251,26 @@ def scan_loop():
     global CYCLES, _hist_last
     while True:
         CYCLES += 1
-        t = time.time() - _t0
+        _sp = OSO_RUNTIME["sim"]["params"]
+        t = (time.time() - _t0) * (_sp.get("speed") or 1.0)
+        _noise = _sp.get("noise") or 0.0
+        _sine, _ramp = _sp["sine"], _sp["ramp"]
         _sim_on = OSO_RUNTIME["mode"] == "simulation"   # soft-PLC mode: real I/O, no fabrication
         for tid, r in list(CACHE.items()):
             sim = r.get("sim")
             if sim == "follow" and r.get("required_value") is not None:
                 r["value"] = r["required_value"]        # control (set-point) — both modes
             elif _sim_on and sim == "sine":
-                base = 42 if r.get("units") == "%" else 21
-                r["value"] = round(base + 8 * math.sin(t / 6 + hash(tid) % 7), 2)
+                base = _sine["base"]
+                if base is None:
+                    base = 42 if r.get("units") == "%" else 21
+                per = _sine["period_s"] or 6.0
+                r["value"] = round(base + _sine["amp"] * math.sin(t / per + hash(tid) % 7)
+                                   + (random.uniform(-_noise, _noise) if _noise else 0), 2)
             elif _sim_on and sim == "ramp":
-                r["value"] = round(20 + 4 * ((t / 20) % 1), 2)
+                per = _ramp["period_s"] or 20.0
+                r["value"] = round(_ramp["base"] + _ramp["span"] * ((t / per) % 1)
+                                   + (random.uniform(-_noise, _noise) if _noise else 0), 2)
             # persist current value back to the DB (source of truth)
             if _conn:
                 try:
@@ -855,7 +883,7 @@ OSO_DATABASE = ({"backend": "mariadb", "dsn": f"host={DB_HOST} user={DB_USER} db
                 if pymysql is not None
                 else {"backend": "sqlite", "dsn": "/var/lib/osologic/osodb.sqlite"})
 DB_BACKENDS = [
-    {"id": "mariadb", "name": "MariaDB", "desc": "Source of truth (PRO) — MEMORY-table mirror",
+    {"id": "mariadb", "name": "MariaDB", "desc": "Source of truth (default) — MEMORY-table mirror",
      "dsn_hint": "host=127.0.0.1 user=osologic db=osodb", "default_dsn": "host=127.0.0.1 db=osodb"},
     {"id": "postgres", "name": "PostgreSQL", "desc": "Native libpq — plain / UNLOGGED mirror",
      "dsn_hint": "postgresql://user@host/osodb", "default_dsn": "postgresql://osologic@127.0.0.1/osodb"},
@@ -1302,19 +1330,143 @@ def runtime_set_mode(mode):
     return {"ok": True, "mode": mode}
 
 
+def runtime_set_sim(body):
+    """Deep-merge tunable sim params (speed/noise/sine/ramp); never drop profiles."""
+    sim = OSO_RUNTIME["sim"]
+    if "enabled" in body:
+        sim["enabled"] = bool(body["enabled"])
+    prm = body.get("params", body)                      # accept flat or nested payloads
+    p = sim["params"]
+    for k in ("speed", "noise"):
+        if k in prm:
+            try:
+                p[k] = max(0.0, float(prm[k]))
+            except (TypeError, ValueError):
+                pass
+    for prof in ("sine", "ramp"):
+        for k, v in (prm.get(prof) or {}).items():
+            if k in p[prof]:
+                try:
+                    p[prof][k] = None if v is None else float(v)
+                except (TypeError, ValueError):
+                    pass
+    return {"ok": True, "sim": sim}
+
+
+# Live handles kept open by a soft-PLC binding: gateway -> {"kind", "fd"/"sock", "detail"}.
+# Unbinding (or re-binding) closes the previous handle so the physical port is released.
+OPEN_PORTS = {}
+
+_BAUD = {110: 0o0000003, 300: 0o0000007, 1200: 0o0000011, 2400: 0o0000013, 4800: 0o0000014,
+         9600: 0o0000015, 19200: 0o0000016, 38400: 0o0000017, 57600: 0o0010001,
+         115200: 0o0010002, 230400: 0o0010003}
+
+
+def _parse_params(params):
+    """'baud=9600 host=192.168.1.5:502' or 'tcp://h:p' -> dict."""
+    out = {}
+    for tok in (params or "").replace(",", " ").split():
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            out[k.strip().lower()] = v.strip()
+        elif "://" in tok or ":" in tok:
+            out["host"] = tok
+    return out
+
+
+def _open_serial(port, params):
+    """Open a real serial line and (best-effort) apply baud. Returns (state, detail, fd)."""
+    try:
+        import termios
+    except Exception:
+        termios = None
+    try:
+        fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    except Exception as e:
+        return "error", f"open {port}: {e}", None
+    baud = 0
+    p = _parse_params(params)
+    if termios is not None and p.get("baud", "").isdigit():
+        baud = int(p["baud"])
+        try:
+            a = termios.tcgetattr(fd)
+            spd = _BAUD.get(baud)
+            if spd is not None:
+                a[4] = a[5] = spd                      # ispeed / ospeed
+                a[2] = (a[2] & ~termios.CSIZE) | termios.CS8 | termios.CLOCAL | termios.CREAD
+                termios.tcsetattr(fd, termios.TCSANOW, a)
+        except Exception as e:
+            log("warn", f"soft-PLC {port}: baud set failed ({e})")
+    return "open", (f"serial {port}" + (f" @{baud}" if baud else "")), fd
+
+
+def _resolve_endpoint(transport, params):
+    """Where a network gateway actually connects (host, port) from params/defaults."""
+    p = _parse_params(params)
+    host = p.get("host", "")
+    dport = {"modbus": 502, "opc-ua": 4840, "mqtt": 1883, "rest": 80, "coap": 5683}.get(transport, 0)
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    if host.count(":") == 1:
+        h, s = host.split(":", 1)
+        return h, (int(s) if s.isdigit() else dport)
+    return (host or None), (int(p["port"]) if p.get("port", "").isdigit() else dport)
+
+
+def _close_handle(gw):
+    h = OPEN_PORTS.pop(gw, None)
+    if not h:
+        return
+    try:
+        if h.get("kind") == "serial" and h.get("fd") is not None:
+            os.close(h["fd"])
+        elif h.get("sock") is not None:
+            h["sock"].close()
+    except Exception:
+        pass
+
+
 def runtime_bind(body):
     gw = body.get("gateway")
     if gw not in LOADED_DRIVERS:
         return {"ok": False, "error": "load the gateway/driver first (Devices)"}
-    b = {"gateway": gw, "transport": LOADED_DRIVERS[gw]["transport"], "port": body.get("port", ""),
-         "params": body.get("params", ""), "state": "bound", "note": body.get("note", "")}
+    transport = LOADED_DRIVERS[gw]["transport"]
+    port = body.get("port", "")
+    params = body.get("params", "")
+    _close_handle(gw)                                   # release any previous handle for this gw
+
+    # Actually open the physical port / connect the endpoint, and record the live state.
+    if port.startswith("/dev/") or transport in ("serial", "canopen"):
+        state, detail, fd = _open_serial(port or _parse_params(params).get("dev", ""), params)
+        if fd is not None:
+            OPEN_PORTS[gw] = {"kind": "serial", "fd": fd, "detail": detail}
+    else:
+        host, hp = _resolve_endpoint(transport, params)
+        if not host:
+            state, detail = "bound", f"iface {port or '(none)'} — set host=<ip:port> in params to connect"
+        else:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.6)
+            try:
+                sock.connect((host, hp))
+                sock.settimeout(None)
+                OPEN_PORTS[gw] = {"kind": "net", "sock": sock, "detail": f"{host}:{hp}"}
+                state, detail = "open", f"connected {host}:{hp}"
+            except Exception as e:
+                sock.close()
+                state, detail = "error", f"connect {host}:{hp}: {e}"
+
+    b = {"gateway": gw, "transport": transport, "port": port, "params": params,
+         "state": state, "detail": detail, "note": body.get("note", "")}
     OSO_RUNTIME["io"]["bindings"] = [x for x in OSO_RUNTIME["io"]["bindings"]
                                      if x.get("gateway") != gw] + [b]
-    log("info", f"soft-PLC bind: {gw} -> {b['port'] or '(no port)'}")
-    return {"ok": True, "binding": b}
+    log("info" if state in ("open", "bound") else "error",
+        f"soft-PLC bind: {gw} -> {port or '(no port)'} [{state}] {detail}")
+    return {"ok": state != "error", "binding": b}
 
 
 def runtime_unbind(gw):
+    _close_handle(gw)
     before = len(OSO_RUNTIME["io"]["bindings"])
     OSO_RUNTIME["io"]["bindings"] = [x for x in OSO_RUNTIME["io"]["bindings"] if x.get("gateway") != gw]
     return {"ok": len(OSO_RUNTIME["io"]["bindings"]) < before}
@@ -1441,6 +1593,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(backup_status())
         if path == "/api/v1/drivers":
             return self._json(drivers_list())
+        if path == "/api/v1/osquery":
+            return self._json({**osquery_status(), "atc_config": osquery_atc_config()})
         if path == "/api/v1/fail2ban":
             return self._json(fail2ban_status())
         if path == "/api/v1/firewall":
@@ -1467,8 +1621,7 @@ class Handler(BaseHTTPRequestHandler):
             if path.endswith("/mode"):
                 return self._json(runtime_set_mode(body.get("mode", "")))
             if path.endswith("/sim"):
-                OSO_RUNTIME["sim"].update(body)
-                return self._json({"ok": True, "sim": OSO_RUNTIME["sim"]})
+                return self._json(runtime_set_sim(body))
             if path.endswith("/bind"):
                 return self._json(runtime_bind(body))
             return self._json(runtime_unbind(body.get("gateway", "")))
@@ -1586,6 +1739,19 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             return self._json(toolchain_install(body.get("lang", ""), body.get("method", "apt")))
+        if path.startswith("/api/v1/osquery/"):
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+            except Exception:
+                body = {}
+            act = path.rsplit("/", 1)[-1]
+            if act == "export":
+                return self._json({"ok": True, "rows": osquery_export(), **osquery_status()})
+            if act == "query":
+                return self._json(osquery_run(body.get("sql", "")))
+            if act == "atc":
+                return self._json(osquery_write_atc())
+            return self._json({"error": "unknown osquery action"}, 404)
         if path.startswith("/api/v1/ssh/"):
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
@@ -1836,6 +2002,130 @@ def run_http():
     srv.serve_forever()
 
 
+# ---- osquery integration (Option C · Community Edition) -----
+# A background exporter snapshots every tag into a standalone read-only SQLite DB. osquery
+# reaches it through Auto Table Construction (ATC) as the virtual table `oso_tags`, joinable
+# with the host tables (processes, listening_ports, interface_addresses…). Because it is a
+# separate snapshot, osquery queries never contend with the real-time scan loop.
+import sqlite3
+
+_OSQ = {"last": 0, "rows": 0, "err": None, "path": OSQ_DB}
+_OSQ_COLS = ["id", "name", "data_type", "value", "value_s", "units", "access", "updated"]
+
+
+def _osq_writable_path():
+    """Prefer the configured path; fall back to a UI-dir/temp path if it isn't writable."""
+    for p in (OSQ_DB, os.path.join(UI_DIR, "oso_tags.db"), os.path.join(tempfile.gettempdir(), "oso_tags.db")):
+        try:
+            os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+            open(p, "a").close()
+            return p
+        except Exception:
+            continue
+    return OSQ_DB
+
+
+def osquery_export():
+    """Snapshot CACHE -> read-only SQLite table oso_tags. Returns rows written."""
+    path = _osq_writable_path()
+    _OSQ["path"] = path
+    try:
+        con = sqlite3.connect(path, timeout=2.0)
+        con.execute("CREATE TABLE IF NOT EXISTS oso_tags ("
+                    "id TEXT PRIMARY KEY, name TEXT, data_type TEXT, value REAL, "
+                    "value_s TEXT, units TEXT, access TEXT, updated INTEGER)")
+        now = int(time.time())
+        rows = [(tid, r.get("name"), r.get("data_type"),
+                 float(r["value"]) if isinstance(r.get("value"), (int, float)) else None,
+                 r.get("value_s"), r.get("units"), r.get("access"), now)
+                for tid, r in list(CACHE.items())]
+        con.execute("DELETE FROM oso_tags")
+        con.executemany("INSERT OR REPLACE INTO oso_tags VALUES (?,?,?,?,?,?,?,?)", rows)
+        con.commit()
+        con.close()
+        _OSQ.update(last=now, rows=len(rows), err=None)
+        return len(rows)
+    except Exception as e:
+        _OSQ["err"] = str(e)
+        return 0
+
+
+def osquery_export_loop():
+    while True:
+        if OSQ_ENABLE:
+            osquery_export()
+        time.sleep(max(0.5, OSQ_MS / 1000.0))
+
+
+def osquery_atc_config():
+    """The osquery ATC snippet that exposes oso_tags. Drop into osquery.conf.d/."""
+    return {"auto_table_construction": {"oso_tags": {
+        "query": "SELECT " + ", ".join(_OSQ_COLS) + " FROM oso_tags",
+        "path": _OSQ["path"],
+        "columns": _OSQ_COLS,
+    }}}
+
+
+def _osq_bin():
+    return shutil.which("osqueryi")
+
+
+def osquery_status():
+    have = _osq_bin()
+    return {
+        "enabled": OSQ_ENABLE,
+        "osqueryi": have or None,
+        "installed": bool(have),
+        "export_path": _OSQ["path"],
+        "export_exists": os.path.exists(_OSQ["path"]),
+        "rows": _OSQ["rows"],
+        "last_export": _OSQ["last"],
+        "interval_ms": OSQ_MS,
+        "atc_path": OSQ_ATC,
+        "atc_installed": os.path.exists(OSQ_ATC),
+        "error": _OSQ["err"],
+        "edition": "Community Edition — read-only snapshot (Option C). "
+                   "Enterprise ships a live Thrift extension with per-tag ACL.",
+    }
+
+
+def osquery_run(sql):
+    """Run a query through osqueryi (host tables + the oso_tags ATC table)."""
+    have = _osq_bin()
+    if not have:
+        return {"ok": False, "error": "osquery not installed (apt install osquery)"}
+    if not (sql or "").strip():
+        return {"ok": False, "error": "empty query"}
+    osquery_export()  # freshen the snapshot before querying
+    cfg = tempfile.NamedTemporaryFile("w", suffix=".conf", delete=False)
+    json.dump(osquery_atc_config(), cfg)
+    cfg.close()
+    try:
+        out = subprocess.run([have, "--json", "--config_path", cfg.name, "--disable_events", sql],
+                             capture_output=True, text=True, timeout=20)
+        if out.returncode != 0:
+            return {"ok": False, "error": (out.stderr or out.stdout).strip()[:2000]}
+        rows = json.loads(out.stdout or "[]")
+        return {"ok": True, "rows": rows[:500], "count": len(rows)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        try:
+            os.unlink(cfg.name)
+        except Exception:
+            pass
+
+
+def osquery_write_atc():
+    """Persist the ATC snippet to OSQ_ATC so a host osquery daemon picks up oso_tags."""
+    try:
+        os.makedirs(os.path.dirname(OSQ_ATC) or ".", exist_ok=True)
+        json.dump(osquery_atc_config(), open(OSQ_ATC, "w"), indent=2)
+        return {"ok": True, "path": OSQ_ATC}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ---- OPC-UA -------------------------------------------------
 def run_opc():
     try:
@@ -1879,6 +2169,7 @@ def main():
     db_connect()
     load_cache()
     threading.Thread(target=scan_loop, daemon=True).start()
+    threading.Thread(target=osquery_export_loop, daemon=True).start()
     threading.Thread(target=run_http, daemon=True).start()
     log("info", f"OSOLogic sandbox core up — {len(CACHE)} tags, db {'up' if _conn else 'seed'}, scan {SCAN_MS}ms")
     if OPC_ENABLE:
