@@ -62,6 +62,7 @@
   .bool-toggle:disabled{opacity:.5;cursor:default}
   .btn-edit,.btn-ok,.btn-x{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:12px}
   .btn-edit:hover{border-color:var(--accent);color:var(--accent)}
+  .ro-lock{font-size:11px;opacity:.45;cursor:default}
   .btn-ok:hover{border-color:var(--good);color:var(--good)}
   .btn-x:hover{border-color:var(--bad);color:var(--bad)}
   .empty{text-align:center;color:var(--muted);padding:26px}
@@ -99,16 +100,6 @@
       <input type="text" id="searchInput" placeholder="Search tags…" oninput="applyFilters()">
       <select class="type-filter" id="typeFilter" onchange="applyFilters()">
         <option value="">All types</option>
-        <option>BOOL</option>
-        <option>INT</option>
-        <option>DINT</option>
-        <option>LINT</option>
-        <option>REAL</option>
-        <option>LREAL</option>
-        <option>WORD</option>
-        <option>DWORD</option>
-        <option>STRING</option>
-        <option>TIME</option>
       </select>
       <button class="toggle-btn" id="changedBtn" onclick="toggleChangedOnly()">Changed only</button>
       <div class="toolbar-right">
@@ -142,15 +133,23 @@
 const BASE = '/api/v1';
 const WS_URL = `ws://${location.host}/ws`;
 
+// osodb's data_type is coarse (Boolean/Int/Float/String); map it to the IEC 61131
+// type names used across the rest of OSOlogic (iec61131/st editors etc.) for display/filtering.
+const IEC_TYPE = { Boolean: 'BOOL', Int: 'INT', Float: 'REAL', String: 'STRING' };
+function iecType(t) { return IEC_TYPE[t.type] || t.type; }
+
 // ── State ──────────────────────────────────────────────────
 let allTags     = {};       // id → tag
 let groups      = new Set();
+let types       = new Set();
 let activeGroup = null;     // null = all
 let sortKey     = 'name';
 let sortDir     = 1;        // 1 asc, -1 desc
 let changedOnly = false;
 let recentIds   = new Set(); // tags updated in last 5s
+let recentTimers = {};       // id → expiry timer, so repeat updates extend the window
 let editingId   = null;
+let editPending = null;      // Boolean tags: toggled state not yet saved (mirrors the numeric input)
 let ws          = null;
 
 // ── Boot ───────────────────────────────────────────────────
@@ -173,11 +172,14 @@ async function fetchTags() {
     const list = await api('GET', '/tags');
     allTags = {};
     groups = new Set(['(all)']);
+    types = new Set();
     list.forEach(t => {
       allTags[t.id] = t;
       if (t.group) groups.add(t.group);
+      if (t.type) types.add(iecType(t));
     });
     renderGroups();
+    renderTypeFilter();
     applyFilters();
     document.getElementById('tagSummary').textContent =
       `${list.length} tags · ${groups.size - 1} groups`;
@@ -195,11 +197,18 @@ function renderGroups() {
         ? Object.keys(allTags).length
         : Object.values(allTags).filter(t => t.group === g).length;
       return `<div class="group-item${activeGroup === g || (g==='(all)' && !activeGroup) ? ' active' : ''}"
-                   onclick="selectGroup(${JSON.stringify(g)})">
-        <span>${g}</span>
+                   onclick="selectGroup(${jsArg(g)})">
+        <span>${esc(g)}</span>
         <span class="group-count">${count}</span>
       </div>`;
     }).join('');
+}
+
+function renderTypeFilter() {
+  const el = document.getElementById('typeFilter');
+  const cur = el.value;
+  el.innerHTML = '<option value="">All types</option>' +
+    [...types].sort().map(t => `<option${t === cur ? ' selected' : ''}>${esc(t)}</option>`).join('');
 }
 
 function selectGroup(g) {
@@ -215,10 +224,11 @@ function applyFilters() {
 
   let list = Object.values(allTags).filter(t => {
     if (activeGroup && t.group !== activeGroup) return false;
-    if (type && t.type !== type) return false;
+    if (type && iecType(t) !== type) return false;
     if (changedOnly && !recentIds.has(t.id)) return false;
     if (search && !t.name.toLowerCase().includes(search) &&
-                  !(t.group||'').toLowerCase().includes(search)) return false;
+                  !(t.group||'').toLowerCase().includes(search) &&
+                  !String(t.id).toLowerCase().includes(search)) return false;
     return true;
   });
 
@@ -271,13 +281,16 @@ function renderTable(list) {
 function renderViewRow(t, now) {
   const valHtml = renderValue(t);
   const age = t.ts_us != null ? fmtAge(now - Math.floor(t.ts_us / 1000)) : '—';
-  const editBtn = t.read_only ? '' :
-    `<button class="btn-edit" onclick="startEdit(${t.id})">✎</button>`;
+  // Read-only tags (sensors) are rejected by the API with 403, so they get a lock
+  // instead of a pencil — the gap in the column is intentional, not a missing button.
+  const editBtn = t.access === 'ReadOnly'
+    ? `<span class="ro-lock" title="Read-only tag">🔒</span>`
+    : `<button class="btn-edit" onclick="startEdit(${jsArg(t.id)})">✎</button>`;
   const flash = recentIds.has(t.id) ? ' class="flash"' : '';
-  return `<tr id="row-${t.id}"${flash}>
+  return `<tr id="row-${esc(t.id)}"${flash}>
     <td class="td-name">${esc(t.name)}</td>
     <td class="td-group">${esc(t.group||'')}</td>
-    <td><span class="td-type">${t.type}</span></td>
+    <td><span class="td-type">${iecType(t)}</span></td>
     <td>${valHtml}</td>
     <td class="td-age">${age}</td>
     <td>${editBtn}</td>
@@ -285,49 +298,79 @@ function renderViewRow(t, now) {
 }
 
 function renderEditRow(t) {
-  const cur = t.type === 'BOOL'
-    ? `<button class="bool-toggle${t.value ? ' on' : ''}" onclick="writeTag(${t.id}, ${!t.value})"></button>`
-    : `<input class="val-input" id="editInput" value="${esc(String(t.value??''))}"
-         onkeydown="if(event.key==='Enter')commitEdit(${t.id});if(event.key==='Escape')cancelEdit()">
-       <button class="btn-ok" onclick="commitEdit(${t.id})">✓</button>
+  const idArg = jsArg(t.id);
+  // Boolean: the toggle only flips a local pending state (toggleEditPending) — nothing is
+  // written until ✓, same as the numeric input below.
+  const cur = t.type === 'Boolean'
+    ? `<button class="bool-toggle${editPending ? ' on' : ''}" onclick="toggleEditPending()"></button>
+       <button class="btn-ok" onclick="commitEdit(${idArg})">✓</button>
+       <button class="btn-x"  onclick="cancelEdit()">✕</button>`
+    : `<input class="val-input" id="editInput" value="${esc(fmtTagValue(t))}"
+         onkeydown="if(event.key==='Enter')commitEdit(${idArg});if(event.key==='Escape')cancelEdit()">
+       <button class="btn-ok" onclick="commitEdit(${idArg})">✓</button>
        <button class="btn-x"  onclick="cancelEdit()">✕</button>`;
-  return `<tr id="row-${t.id}">
+  return `<tr id="row-${esc(t.id)}">
     <td class="td-name">${esc(t.name)}</td>
     <td class="td-group">${esc(t.group||'')}</td>
-    <td><span class="td-type">${t.type}</span></td>
+    <td><span class="td-type">${iecType(t)}</span></td>
     <td><div class="val-wrap">${cur}</div></td>
     <td></td><td></td>
   </tr>`;
 }
 
 function renderValue(t) {
-  if (t.type === 'BOOL') {
+  if (t.type === 'Boolean') {
+    // View mode is read-only for booleans too — the toggle only becomes interactive
+    // inside renderEditRow(), reached via the pencil. Always disabled here (greyed by
+    // the existing .bool-toggle:disabled CSS), regardless of the tag's access.
     return `<div class="val-wrap">
-      <button class="bool-toggle${t.value ? ' on' : ''}" ${t.read_only ? 'disabled' : `onclick="writeTag(${t.id}, ${!t.value})"`}></button>
+      <button class="bool-toggle${t.value ? ' on' : ''}" disabled></button>
       <span class="val-text ${t.value ? 'val-true' : 'val-false'}">${t.value ? 'TRUE' : 'FALSE'}</span>
     </div>`;
   }
-  const isNum = ['INT','DINT','LINT','SINT','BYTE','WORD','DWORD','LWORD','REAL','LREAL'].includes(t.type);
-  const cls = isNum ? 'val-num' : t.type === 'STRING' ? 'val-str' : 'val-text';
-  const unit = t.unit ? `<span style="color:#555;font-size:11px;margin-left:4px">${esc(t.unit)}</span>` : '';
-  return `<span class="val-text ${cls}">${esc(String(t.value ?? '—'))}</span>${unit}`;
+  const isNum = ['Int','Float'].includes(t.type);
+  const cls = isNum ? 'val-num' : t.type === 'String' ? 'val-str' : 'val-text';
+  const unit = t.units ? `<span style="color:#555;font-size:11px;margin-left:4px">${esc(t.units)}</span>` : '';
+  return `<span class="val-text ${cls}">${esc(fmtTagValue(t))}</span>${unit}`;
+}
+
+// REAL/Float always reads as a decimal (3 -> "3.0") — JS drops the trailing ".0" on
+// integer-valued numbers by default, which makes a REAL look like an INT in the table.
+function fmtTagValue(t) {
+  if (t.value == null) return '—';
+  if (t.type === 'Float') {
+    const n = Number(t.value);
+    return Number.isInteger(n) ? n.toFixed(1) : String(n);
+  }
+  return String(t.value);
 }
 
 // ── Inline edit ────────────────────────────────────────────
 function startEdit(id) {
   editingId = id;
+  editPending = allTags[id].type === 'Boolean' ? !!allTags[id].value : null;
   applyFilters();
   // Focus input on next tick
-  if (allTags[id].type !== 'BOOL')
+  if (allTags[id].type !== 'Boolean')
     setTimeout(() => document.getElementById('editInput')?.focus(), 20);
 }
 
 function cancelEdit() {
   editingId = null;
+  editPending = null;
+  applyFilters();
+}
+
+function toggleEditPending() {
+  editPending = !editPending;
   applyFilters();
 }
 
 async function commitEdit(id) {
+  if (allTags[id]?.type === 'Boolean') {
+    await writeTag(id, editPending);
+    return;
+  }
   const input = document.getElementById('editInput');
   if (!input) return;
   const raw = input.value.trim();
@@ -338,9 +381,9 @@ async function writeTag(id, rawValue) {
   const t = allTags[id];
   if (!t) return;
   let value;
-  if (t.type === 'BOOL') value = Boolean(rawValue);
-  else if (['INT','DINT','LINT','SINT','BYTE','WORD','DWORD','LWORD'].includes(t.type)) value = parseInt(rawValue, 10);
-  else if (['REAL','LREAL'].includes(t.type)) value = parseFloat(rawValue);
+  if (t.type === 'Boolean') value = Boolean(rawValue);
+  else if (t.type === 'Int') value = parseInt(rawValue, 10);
+  else if (t.type === 'Float') value = parseFloat(rawValue);
   else value = rawValue;
 
   try {
@@ -350,6 +393,7 @@ async function writeTag(id, rawValue) {
     console.error('Write failed', e);
   }
   editingId = null;
+  editPending = null;
   applyFilters();
 }
 
@@ -372,19 +416,30 @@ function connectWS() {
 }
 
 function handleMsg(msg) {
-  const apply = (name, value, ts_us) => {
-    const t = Object.values(allTags).find(x => x.name === name);
+  let entered = false;   // a tag became "recent" that the current filter wasn't showing
+  const apply = (id, value, ts_us) => {
+    const t = allTags[id];
     if (!t) return;
     t.value = value;
     t.ts_us = ts_us;
+    if (!recentIds.has(t.id)) entered = true;
     recentIds.add(t.id);
-    setTimeout(() => { recentIds.delete(t.id); }, 5000);
+    clearTimeout(recentTimers[t.id]);
+    recentTimers[t.id] = setTimeout(() => {
+      recentIds.delete(t.id);
+      delete recentTimers[t.id];
+      if (changedOnly) applyFilters();   // it dropped out of "Changed only" — re-render
+    }, 5000);
     // Update row in-place without full re-render
     updateRow(t);
   };
 
-  if (msg.type === 'tag_update') apply(msg.tag, msg.value, msg.ts_us);
-  else if (msg.type === 'tag_batch') (msg.updates||[]).forEach(u => apply(u.tag, u.value, u.ts_us));
+  if (msg.type === 'tag_update') apply(msg.id, msg.value, msg.ts_us);
+  else if (msg.type === 'tag_batch') (msg.updates||[]).forEach(u => apply(u.id, u.value, u.ts_us));
+
+  // "Changed only" shows a set that grows as updates arrive, so a tag entering it needs a
+  // real re-render — updateRow() alone can only patch rows the last render already drew.
+  if (entered && changedOnly) applyFilters();
 }
 
 function updateRow(t) {
@@ -408,6 +463,10 @@ function fmtAge(ms) {
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+// A JS string literal safe to inline inside a double-quoted HTML attribute: tag ids and
+// groups are text ("hass.switch.pump"), so the quotes must survive as &quot; entities —
+// a raw JSON.stringify would terminate the attribute at its first ".
+function jsArg(s) { return esc(JSON.stringify(String(s))); }
 </script>
 </body>
 </html>

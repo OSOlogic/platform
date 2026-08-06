@@ -12,6 +12,7 @@
 #
 # (C) 2026 Roig Borrell S.L. · Ibercomp S.L. — AGPL-3.0-or-later
 # ============================================================
+import base64
 import glob
 import json
 import math
@@ -21,6 +22,7 @@ import shutil
 import hashlib
 import re
 import socket
+import struct
 import urllib.request
 import subprocess
 import tempfile
@@ -29,7 +31,7 @@ import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, urlparse
 
 try:
     import pymysql
@@ -177,11 +179,19 @@ def eval_alarms():
             ALARM_ACTIVE[rid]["value"] = r.get("value")
 
 
+def tag_group(tid):
+    """Derive a sidebar group from the tag id: 'hass.switch.pump' -> 'hass.switch', '2.1' -> '2'."""
+    parts = tid.split(".")
+    return ".".join(parts[:-1]) if len(parts) > 1 else parts[0]
+
+
 def tag_pub(r):
     """Public tag shape for REST (works for /tags and /api/v1/tags — includes `type` alias)."""
+    ts = r.get("_ts")
     return {"id": r["id"], "name": r.get("name"), "data_type": r.get("data_type"),
             "type": r.get("data_type"), "value": tag_value(r), "units": r.get("units"),
-            "access": r.get("access")}
+            "access": r.get("access"), "group": tag_group(r["id"]),
+            "ts_us": int(ts * 1_000_000) if ts else None}
 
 
 # ---- DB -----------------------------------------------------
@@ -256,8 +266,10 @@ def scan_loop():
         _noise = _sp.get("noise") or 0.0
         _sine, _ramp = _sp["sine"], _sp["ramp"]
         _sim_on = OSO_RUNTIME["mode"] == "simulation"   # soft-PLC mode: real I/O, no fabrication
+        changed = []
         for tid, r in list(CACHE.items()):
             sim = r.get("sim")
+            before = r.get("value")
             if sim == "follow" and r.get("required_value") is not None:
                 r["value"] = r["required_value"]        # control (set-point) — both modes
             elif _sim_on and sim == "sine":
@@ -271,12 +283,17 @@ def scan_loop():
                 per = _ramp["period_s"] or 20.0
                 r["value"] = round(_ramp["base"] + _ramp["span"] * ((t / per) % 1)
                                    + (random.uniform(-_noise, _noise) if _noise else 0), 2)
+            if r.get("value") != before:
+                r["_ts"] = time.time()
+                changed.append({"id": tid, "value": tag_value(r), "ts_us": int(r["_ts"] * 1_000_000)})
             # persist current value back to the DB (source of truth)
             if _conn:
                 try:
                     db_exec("UPDATE tags SET value=%s WHERE id=%s", (float(r["value"] or 0), tid))
                 except Exception:
                     pass
+        if changed:
+            ws_broadcast({"type": "tag_batch", "updates": changed})
         try:
             eval_alarms()
         except Exception:
@@ -915,12 +932,13 @@ def _db_test(bid, dsn):
             con.close()
             return {"ok": True, "note": f"{bid}: opened and queried OK"}
         if bid in ("postgres", "mariadb"):
-            host, port = "127.0.0.1", (5432 if bid == "postgres" else 3306)
-            for tok in dsn.replace("//", " ").replace("/", " ").replace("@", " ").replace("=", " ").split():
-                if tok.count(".") == 3:
-                    host = tok
-                if tok.isdigit():
-                    port = int(tok)
+            default_port = 5432 if bid == "postgres" else 3306
+            if "://" in dsn:
+                u = urlparse(dsn)
+                host, port = u.hostname or "127.0.0.1", u.port or default_port
+            else:
+                kv = dict(tok.split("=", 1) for tok in dsn.split() if "=" in tok)
+                host, port = kv.get("host", "127.0.0.1"), int(kv.get("port", default_port))
             s = socket.create_connection((host, port), timeout=3)
             s.close()
             return {"ok": True, "note": f"{bid}: reachable at {host}:{port}"}
@@ -1502,6 +1520,66 @@ def scan_tcp(subnet, ports_str):
     return {"subnet": base + ".0/24", "scanned_ports": plist, "hosts": hosts}
 
 
+# ---- WebSocket (live tag push for the I/O Tags UI) ----------
+# Minimal RFC 6455 server: no external deps, so it lives right on top of the
+# stdlib HTTP handler's raw socket. One client = one dedicated thread blocked
+# in _ws_upgrade() (ThreadingHTTPServer already gives every connection its own
+# thread, so this doesn't cost anything extra).
+WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+WS_CLIENTS = set()
+WS_LOCK = threading.Lock()
+
+
+def _ws_accept_key(key):
+    return base64.b64encode(hashlib.sha1((key + WS_MAGIC).encode()).digest()).decode()
+
+
+def _ws_send(conn, payload, opcode=0x1):
+    length = len(payload)
+    if length < 126:
+        header = bytes([0x80 | opcode, length])
+    elif length < 65536:
+        header = bytes([0x80 | opcode, 126]) + struct.pack(">H", length)
+    else:
+        header = bytes([0x80 | opcode, 127]) + struct.pack(">Q", length)
+    try:
+        conn.sendall(header + payload)
+        return True
+    except Exception:
+        return False
+
+
+def _ws_recv_frame(rfile):
+    """Read one client→server frame (client frames are always masked). None on close/error."""
+    hdr = rfile.read(2)
+    if len(hdr) < 2:
+        return None
+    opcode = hdr[0] & 0x0F
+    masked = hdr[1] & 0x80
+    length = hdr[1] & 0x7F
+    if length == 126:
+        length = struct.unpack(">H", rfile.read(2))[0]
+    elif length == 127:
+        length = struct.unpack(">Q", rfile.read(8))[0]
+    mask = rfile.read(4) if masked else None
+    data = rfile.read(length) if length else b""
+    if mask:
+        data = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+    return opcode, data
+
+
+def ws_broadcast(msg):
+    if not WS_CLIENTS:
+        return
+    payload = json.dumps(msg).encode()
+    with WS_LOCK:
+        clients = list(WS_CLIENTS)
+    dead = [c for c in clients if not _ws_send(c, payload)]
+    if dead:
+        with WS_LOCK:
+            WS_CLIENTS.difference_update(dead)
+
+
 # ---- REST + static -----------------------------------------
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -1524,8 +1602,40 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204); self._cors(); self.end_headers()
 
+    def _ws_upgrade(self):
+        key = self.headers.get("Sec-WebSocket-Key")
+        if not key or self.headers.get("Upgrade", "").lower() != "websocket":
+            return self._json({"error": "expected websocket upgrade"}, 400)
+        resp = ("HTTP/1.1 101 Switching Protocols\r\n"
+                "Upgrade: websocket\r\nConnection: Upgrade\r\n"
+                f"Sec-WebSocket-Accept: {_ws_accept_key(key)}\r\n\r\n")
+        conn = self.connection
+        conn.sendall(resp.encode())
+        with WS_LOCK:
+            WS_CLIENTS.add(conn)
+        try:
+            while True:
+                frame = _ws_recv_frame(self.rfile)
+                if frame is None:
+                    break
+                opcode, data = frame
+                if opcode == 0x8:                      # close
+                    break
+                if opcode == 0x9:                       # ping -> pong
+                    _ws_send(conn, data, opcode=0xA)
+                # 0x1 text (e.g. the client's initial {"type":"subscribe",...}) — no action needed;
+                # every change is broadcast to every connected client already.
+        except Exception:
+            pass
+        finally:
+            with WS_LOCK:
+                WS_CLIENTS.discard(conn)
+            self.close_connection = True
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path == "/ws":
+            return self._ws_upgrade()
         if path in ("/tags", "/api/tags", "/api/v1/tags"):
             return self._json([tag_pub(r) for r in CACHE.values()])
         if path == "/api/v1/runtime":
@@ -1962,9 +2072,13 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             num = 1.0 if str(val).lower() in ("1", "true", "on") else 0.0
         r["required_value"] = num
+        if r.get("sim") == "follow":
+            r["value"] = num          # sandbox actuator "follows" the set-point immediately
+        r["_ts"] = time.time()
         db_exec("UPDATE tags SET required_value=%s WHERE id=%s", (num, key))
         log("info", f"set-point {key} = {num}")
-        return self._json({"id": key, "required_value": num, "ok": True})
+        ws_broadcast({"type": "tag_update", "id": key, "value": tag_value(r), "ts_us": int(r["_ts"] * 1_000_000)})
+        return self._json({**tag_pub(r), "ok": True})
 
     def _static(self, path):
         if path in ("/", ""):
