@@ -2,9 +2,27 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.3.1).
+releases keep the current bear (this is Teddy 1.3.2).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.3.2] — "Teddy" — 2026-08-06
+
+Sandbox first-run and live-UI fixes (thanks **@diegojborrell**, #10):
+
+- **`docker compose up --build` works out of the box again.** The `nodered/node-red:4` tag no
+  longer resolves upstream (pinned to `4.1`), a nested `:ro` bind mount that runc couldn't create
+  is gone, and the sandbox DB is mapped to host **`:3307`** to avoid clashing with a MySQL/MariaDB
+  already on `:3306`.
+- **Node-RED first boot installs the whole palette.** The reference flows use node types
+  (`mysql`, `mysql2`, `e-mail`, `telegram`) that weren't declared in `ui/node-red/package.json`,
+  so Node-RED opened with a "Flows stopped due to missing node type" banner — now declared.
+- **I/O Tags is live.** A minimal, dependency-free **WebSocket** server on the core
+  (`ws://…/ws`) pushes tag changes; the page gains grouping, an *Updated* column, a working edit
+  pencil for dotted tag ids, a type filter that matches the real `data_type`, and a boolean toggle
+  that stages until confirmed. `PUT /tags/{id}` now returns the actually-applied value.
+- **Database panel status fixed.** `_db_test()`'s DSN parser only recognized dotted-IPv4 hosts, so
+  it reported a false "connection refused" against its own default (`host=db …`).
 
 ## [v1.3.1] — "Teddy" — 2026-07-31
 

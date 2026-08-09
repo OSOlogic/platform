@@ -58,8 +58,9 @@ package (WSL2)** is on the roadmap; Linux first.
 |----------|-----|
 | Web UI + landing | `http://localhost:8080` |
 | REST — tags | `GET /tags` · `GET /var/{id}` · `PUT /var/{id}` `{"value":1}` |
+| WebSocket — live tags | `ws://localhost:8080/ws` (pushes tag changes as they happen) |
 | OPC-UA server | `opc.tcp://localhost:4840/osologic/` (ns `urn:osologic:sandbox`) |
-| MariaDB | `localhost:3306` (db `osodb`, user `osoapp`/`osoapp`) |
+| MariaDB | `localhost:3307` (db `osodb`, user `osoapp`/`osoapp`) |
 
 The web tools on the landing page are auto-pointed at this sandbox's REST, so they connect out of the
 box — open **Plant Manager** and watch the tank level and temperature move.
