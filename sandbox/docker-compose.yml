@@ -1,6 +1,5 @@
 # OSOLogic sandbox — one command, same result on Linux, Windows (Docker Desktop / WSL2) and macOS.
-#   docker compose up --build      → UI+REST http://localhost:8080 · OPC-UA opc.tcp://localhost:4840 · DB :3306
-# TODO: FIX ERRORS
+#   docker compose up --build      → UI+REST http://localhost:8080 · OPC-UA opc.tcp://localhost:4840 · DB :3307
 name: osologic-sandbox
 services:
   db:
@@ -12,7 +11,7 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - osodb-data:/var/lib/mysql
     ports:
-      - "3306:3306"          # control the plant with plain SQL from anywhere
+      - "3307:3306"          # control the plant with plain SQL from anywhere (host :3307 — :3306 inside the container to avoid conflicts with a host MySQL/MariaDB)
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
@@ -31,8 +30,10 @@ services:
       - "8080:8080"          # web UI + REST API
       - "4840:4840"          # OPC-UA server
     volumes:
-      - ../:/repo:ro                         # serve the whole frontend (ui/ + iec61131/ editors)
-      - ./web/index.html:/repo/index.html:ro # sandbox landing page
+      # Serve the whole frontend (ui/ + iec61131/ editors). The sandbox landing page
+      # rides along inside this mount (sandbox/web/index.html) and oso_core picks it
+      # up at "/" — no nested bind mount, which runc cannot create inside a :ro mount.
+      - ../:/repo:ro
     depends_on:
       db:
         condition: service_healthy
@@ -45,7 +46,7 @@ services:
   # manual Manage-Palette/import steps. The MySQL config node targets host "db",
   # database "osodb".
   nodered:
-    image: nodered/node-red:4
+    image: nodered/node-red:4.1   # the bare "4" tag no longer exists upstream — pin the 4.x line
     ports:
       - "1880:1880"
     environment:
