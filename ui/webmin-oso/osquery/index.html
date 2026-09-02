@@ -40,7 +40,7 @@
 <div class="nav"><a class="b" href="/">OSOlogic</a><span class="muted">·</span><a href="../index.html">Admin</a><span class="muted">·</span><span class="muted">osquery</span></div>
 <div class="wrap">
   <h1>osquery</h1>
-  <p class="sub">Query your OSOLogic tags and the host with SQL — <code>oso_tags</code> joins live next to <code>processes</code>, <code>listening_ports</code>, <code>interface_addresses</code>…</p>
+  <p class="sub">Query your OSOLogic plant and the host with SQL — <code>oso_tags</code>, <code>oso_alarms</code> and <code>oso_history</code> join live next to <code>processes</code>, <code>listening_ports</code>, <code>interface_addresses</code>…</p>
 
   <div class="card">
     <h2>Status</h2>
@@ -62,7 +62,8 @@
       <div>
         <span class="ex" onclick="ex(this)">SELECT id,name,value,units FROM oso_tags ORDER BY id;</span>
         <span class="ex" onclick="ex(this)">SELECT count(*) AS tags FROM oso_tags;</span>
-        <span class="ex" onclick="ex(this)">SELECT id,value FROM oso_tags WHERE units='%';</span>
+        <span class="ex" onclick="ex(this)">SELECT rule_id,tag,severity,value,since FROM oso_alarms;</span>
+        <span class="ex" onclick="ex(this)">SELECT tag,t,value FROM oso_history ORDER BY t DESC LIMIT 20;</span>
         <span class="ex" onclick="ex(this)">SELECT t.id, p.name FROM oso_tags t, processes p LIMIT 5;</span>
       </div>
       <div class="row"><button onclick="run()">Run</button><span class="muted" id="runMsg"></span></div>
@@ -101,7 +102,8 @@ async function loadStatus(){
   const ago=d.last_export?Math.max(0,Math.round(Date.now()/1000-d.last_export))+'s ago':'never';
   $('status').innerHTML=`
     <div><div class="k">osquery binary</div><div class="v">${d.installed?'<span class="pill ok">installed</span>':'<span class="pill no">not installed</span>'}</div></div>
-    <div><div class="k">Snapshot rows</div><div class="v">${d.rows}</div></div>
+    <div><div class="k">Snapshot (tags · alarms · history)</div><div class="v">${d.rows} · ${d.alarms==null?'—':d.alarms} · ${d.history==null?'—':d.history}</div></div>
+    <div><div class="k">Tables</div><div class="v" style="font-size:11px">${(d.tables||['oso_tags']).join(', ')}</div></div>
     <div><div class="k">Last export</div><div class="v">${ago}</div></div>
     <div><div class="k">Interval</div><div class="v">${d.interval_ms} ms</div></div>
     <div><div class="k">ATC installed</div><div class="v">${d.atc_installed?'<span class="pill ok">yes</span>':'<span class="pill no">no</span>'}</div></div>

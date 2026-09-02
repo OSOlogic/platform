@@ -1,8 +1,9 @@
 # osquery integration — OSOLogic tags as a SQL table
 
-OSOLogic exposes its live tags to [osquery](https://osquery.io) as the virtual table
-**`oso_tags`**, so you can query the plant with the same SQL you use for the host and
-**join** the two:
+OSOLogic exposes its live state to [osquery](https://osquery.io) as three virtual tables —
+**`oso_tags`** (every tag), **`oso_alarms`** (currently active alarms) and **`oso_history`**
+(the historian trend buffer) — so you can query the plant with the same SQL you use for the
+host and **join** the two:
 
 ```sql
 -- which listening service belongs to a machine that is running hot?
@@ -13,12 +14,21 @@ WHERE t.units = '°C' AND t.value > 30;
 
 ## How it works (Community Edition — Option C)
 
-The core runs a small **exporter** that snapshots every tag into a standalone,
-**read-only SQLite** file (`oso_tags.db`) every couple of seconds. osquery reads it through
-**Auto Table Construction (ATC)**. Because the snapshot is a *separate* file, osquery queries
-never contend with the real-time scan loop — there is zero impact on control timing. The
-trade-off is snapshot staleness bounded by the export interval (`OSO_OSQUERY_EXPORT_MS`,
-default 2000 ms).
+The core runs a small **exporter** that snapshots the tags, the active alarms and the
+historian buffer into a standalone, **read-only SQLite** file (`oso_tags.db`) every couple of
+seconds. osquery reads all three tables through **Auto Table Construction (ATC)**. Because the
+snapshot is a *separate* file, osquery queries never contend with the real-time scan loop —
+there is zero impact on control timing. The trade-off is snapshot staleness bounded by the
+export interval (`OSO_OSQUERY_EXPORT_MS`, default 2000 ms). `oso_history` is capped per tag by
+`OSO_OSQUERY_HIST_CAP` (default 300 samples).
+
+### Tables
+
+| Table | Columns |
+|-------|---------|
+| `oso_tags` | `id, name, data_type, value, value_s, units, access, updated` |
+| `oso_alarms` | `rule_id, tag, label, severity, op, threshold, value, since, acked` |
+| `oso_history` | `tag, t, value` |
 
 > **Enterprise** replaces the snapshot with a live **Thrift extension** that reads osodb
 > directly, backend-agnostic and with per-tag ACL enforcement — no staleness, any backend.

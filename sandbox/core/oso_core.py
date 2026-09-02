@@ -2125,8 +2125,11 @@ def run_http():
 # separate snapshot, osquery queries never contend with the real-time scan loop.
 import sqlite3
 
-_OSQ = {"last": 0, "rows": 0, "err": None, "path": OSQ_DB}
+_OSQ = {"last": 0, "rows": 0, "alarms": 0, "history": 0, "err": None, "path": OSQ_DB}
 _OSQ_COLS = ["id", "name", "data_type", "value", "value_s", "units", "access", "updated"]
+_OSQ_ALARM_COLS = ["rule_id", "tag", "label", "severity", "op", "threshold", "value", "since", "acked"]
+_OSQ_HIST_COLS = ["tag", "t", "value"]
+OSQ_HIST_CAP = int(os.environ.get("OSO_OSQUERY_HIST_CAP", "300"))   # max samples/tag in the snapshot
 
 
 def _osq_writable_path():
@@ -2142,24 +2145,47 @@ def _osq_writable_path():
 
 
 def osquery_export():
-    """Snapshot CACHE -> read-only SQLite table oso_tags. Returns rows written."""
+    """Snapshot the hub -> read-only SQLite (oso_tags + oso_alarms + oso_history). Returns tag rows."""
     path = _osq_writable_path()
     _OSQ["path"] = path
     try:
         con = sqlite3.connect(path, timeout=2.0)
+        now = int(time.time())
+        # --- oso_tags ---
         con.execute("CREATE TABLE IF NOT EXISTS oso_tags ("
                     "id TEXT PRIMARY KEY, name TEXT, data_type TEXT, value REAL, "
                     "value_s TEXT, units TEXT, access TEXT, updated INTEGER)")
-        now = int(time.time())
         rows = [(tid, r.get("name"), r.get("data_type"),
                  float(r["value"]) if isinstance(r.get("value"), (int, float)) else None,
                  r.get("value_s"), r.get("units"), r.get("access"), now)
                 for tid, r in list(CACHE.items())]
         con.execute("DELETE FROM oso_tags")
         con.executemany("INSERT OR REPLACE INTO oso_tags VALUES (?,?,?,?,?,?,?,?)", rows)
+        # --- oso_alarms (currently active) ---
+        con.execute("CREATE TABLE IF NOT EXISTS oso_alarms ("
+                    "rule_id TEXT PRIMARY KEY, tag TEXT, label TEXT, severity TEXT, "
+                    "op TEXT, threshold REAL, value REAL, since TEXT, acked INTEGER)")
+        arows = []
+        for rid, a in list(ALARM_ACTIVE.items()):
+            rule = a.get("rule", {})
+            arows.append((rid, rule.get("tag"), rule.get("label"), rule.get("severity"),
+                          rule.get("op"),
+                          float(rule["value"]) if rule.get("value") is not None else None,
+                          float(a["value"]) if isinstance(a.get("value"), (int, float)) else None,
+                          a.get("since"), 1 if a.get("acked") else 0))
+        con.execute("DELETE FROM oso_alarms")
+        con.executemany("INSERT OR REPLACE INTO oso_alarms VALUES (?,?,?,?,?,?,?,?,?)", arows)
+        # --- oso_history (historian trend buffer, capped per tag) ---
+        con.execute("CREATE TABLE IF NOT EXISTS oso_history (tag TEXT, t REAL, value REAL)")
+        hrows = []
+        for tid, buf in list(HISTORY.items()):
+            for t, v in list(buf)[-OSQ_HIST_CAP:]:
+                hrows.append((tid, t, float(v) if isinstance(v, (int, float)) else None))
+        con.execute("DELETE FROM oso_history")
+        con.executemany("INSERT INTO oso_history VALUES (?,?,?)", hrows)
         con.commit()
         con.close()
-        _OSQ.update(last=now, rows=len(rows), err=None)
+        _OSQ.update(last=now, rows=len(rows), alarms=len(arows), history=len(hrows), err=None)
         return len(rows)
     except Exception as e:
         _OSQ["err"] = str(e)
@@ -2174,12 +2200,15 @@ def osquery_export_loop():
 
 
 def osquery_atc_config():
-    """The osquery ATC snippet that exposes oso_tags. Drop into osquery.conf.d/."""
-    return {"auto_table_construction": {"oso_tags": {
-        "query": "SELECT " + ", ".join(_OSQ_COLS) + " FROM oso_tags",
-        "path": _OSQ["path"],
-        "columns": _OSQ_COLS,
-    }}}
+    """The osquery ATC snippet exposing oso_tags / oso_alarms / oso_history. Drop into osquery.conf.d/."""
+    p = _OSQ["path"]
+    def atc(table, cols):
+        return {"query": "SELECT " + ", ".join(cols) + f" FROM {table}", "path": p, "columns": cols}
+    return {"auto_table_construction": {
+        "oso_tags":    atc("oso_tags", _OSQ_COLS),
+        "oso_alarms":  atc("oso_alarms", _OSQ_ALARM_COLS),
+        "oso_history": atc("oso_history", _OSQ_HIST_COLS),
+    }}
 
 
 def _osq_bin():
@@ -2195,6 +2224,9 @@ def osquery_status():
         "export_path": _OSQ["path"],
         "export_exists": os.path.exists(_OSQ["path"]),
         "rows": _OSQ["rows"],
+        "alarms": _OSQ["alarms"],
+        "history": _OSQ["history"],
+        "tables": ["oso_tags", "oso_alarms", "oso_history"],
         "last_export": _OSQ["last"],
         "interval_ms": OSQ_MS,
         "atc_path": OSQ_ATC,
