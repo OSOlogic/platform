@@ -2,9 +2,18 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.3.2).
+releases keep the current bear (this is Teddy 1.3.3).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.3.3] — "Teddy" — 2026-09-02
+
+- **osquery now exposes three tables, not one.** Alongside `oso_tags`, the read-only snapshot
+  and its ATC config now also expose **`oso_alarms`** (currently active alarms — rule, tag,
+  severity, threshold, value, since, acked) and **`oso_history`** (the historian trend buffer —
+  tag, t, value). Alarms and trends become queryable with plain SQL and joinable with the host
+  tables, exactly like tags. `oso_history` is capped per tag by `OSO_OSQUERY_HIST_CAP`
+  (default 300). The osquery admin page and packaging docs cover all three.
 
 ## [v1.3.2] — "Teddy" — 2026-08-06
 
