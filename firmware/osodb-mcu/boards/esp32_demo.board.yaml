@@ -1,0 +1,22 @@
+# OSOlogic board profile — ESP32 DevKitC (Zephyr). WiFi -> MQTT federation.
+# Closed-loop demo (PID temp -> heater), same as the RP2040 profile.
+# (C) 2026 Roig Borrell S.L. and Ibercomp S.L. — AGPL-3.0-or-later
+
+board: esp32_demo
+soc:   ESP32
+rtos:  zephyr
+
+federation:
+  transport: mqtt
+  host: hub.local
+  port: 1883
+  topic: osologic/mcu/esp32
+
+io:
+  - { tag: machine.run, dir: out, kind: gpio, pin: 2,  type: bool }            # onboard LED
+  - { tag: estop,       dir: in,  kind: gpio, pin: 4,  type: bool, active_low: true }
+  - { tag: temp,        dir: in,  kind: adc,  channel: 0, type: real, raw_max: 4095, out_min: -40.0, out_max: 125.0 }
+  - { tag: heater,      dir: out, kind: pwm,  pin: 16, type: real, out_min: 0.0, out_max: 100.0 }
+
+control:
+  - { loop: temp_ctrl, pv: temp, sp: temp.sp, cv: heater, kp: 2.0, ki: 0.8, kd: 0.05, out_min: 0.0, out_max: 100.0 }

@@ -1,0 +1,23 @@
+# OSOlogic board profile — Raspberry Pi (Linux SBC, libgpiod via hal_linux).
+# Shows the SAME board profile working on a Linux board, not just an MCU. Digital demo
+# (the Pi has no on-board ADC — add an external I2C ADC, e.g. ADS1115, for analog).
+# pin = BCM/gpio line number on gpiochip0.
+# (C) 2026 Roig Borrell S.L. and Ibercomp S.L. — AGPL-3.0-or-later
+
+board: raspberry_pi
+soc:   BCM2711
+rtos:  linux                   # built with hal_linux (libgpiod); runs as a Linux service
+
+federation:
+  transport: mqtt
+  host: hub.local
+  port: 1883
+  topic: osologic/node/rpi
+
+io:
+  - { tag: machine.run, dir: out, kind: gpio, pin: 17, type: bool }
+  - { tag: conveyor,    dir: out, kind: gpio, pin: 22, type: bool }
+  - { tag: estop,       dir: in,  kind: gpio, pin: 27, type: bool, active_low: true }
+  - { tag: part_present,dir: in,  kind: gpio, pin: 23, type: bool }
+
+control: []

@@ -2,9 +2,36 @@
 
 OSOLogic **major versions** are named after bears — **Teddy (1.x) → Misha (2.0) → Grizzly → Kodiak
 → Polar → Ursa** — starting friendly and growing fiercer as the platform matures. Minor/patch
-releases keep the current bear (this is Teddy 1.3.3).
+releases keep the current bear (this is Teddy 1.4.0).
 
 This project adheres to [Semantic Versioning](https://semver.org). Dates are ISO-8601.
+
+## [v1.4.0] — "Teddy" — 2026-09-03
+
+### Hard-real-time MCU tier (Tier 0)
+
+- **`firmware/osodb-mcu/` — the microcontroller face of OSOlogic.** A portable,
+  allocation-free **`osodb-embedded`** tag store runs the control loop cycle-exact on an MCU
+  (or a Linux SBC) and **federates** its tags with the network hub. This is the hard-real-time
+  tier below the Linux firm-real-time CE. Includes a PID primitive (anti-windup), a
+  deterministic scan step, and a portable `PUB`/`SET` federation protocol.
+- **Board profiles — adapt to any board fast.** Describe a board once in a small
+  `boards/<name>.board.yaml` (pins, peripherals, the tag each maps to, control loops) and
+  `tools/boardgen.py` generates `board_map.c` (bindings + PID loops) calling only `hal.h`.
+  Porting to new hardware is a profile plus one `hal_*.c` — the control core never changes.
+  The assistant can generate the profile from a datasheet.
+- **Included templates** (like the Arduino IDE's examples): `TEMPLATE`, `rp2040_demo`,
+  `esp32_demo`, `arduino_giga`, `raspberry_pi`, `orange_pi`. The same profile mechanism runs on
+  MCUs (Zephyr primary, FreeRTOS port) and Linux SBCs (libgpiod).
+- **Desktop simulator** (`make host`) runs the exact MCU code with a mock HAL and a toy plant —
+  the PID closed loop converges to set-point with no hardware — plus a unit test (`make test`).
+- **Docs:** [`docs/mcu-board-profiles.md`](docs/mcu-board-profiles.md).
+
+> Reference platform: a single RK3576-class board covers all tiers — Linux (A72/A53,
+> PREEMPT_RT), an on-chip Cortex-M0 for hard-RT via the RTOS, a 6-TOPS NPU for edge AI, and
+> CAN-FD + PCIe (for a Hailo vision accelerator). The AI suite (LLM code generation for
+> ST/Ladder and any language via MCP, AI-improved PID, signal filtering, predictive
+> maintenance, YOLO/Hailo vision) is on the roadmap.
 
 ## [v1.3.3] — "Teddy" — 2026-09-02
 

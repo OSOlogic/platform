@@ -1,0 +1,20 @@
+# OSOlogic board profile — Arduino GIGA R1 (modern Arduino, STM32H7, Zephyr board
+# arduino_giga_r1). Analog in + PWM out, closed-loop PID demo. UART federation.
+# (C) 2026 Roig Borrell S.L. and Ibercomp S.L. — AGPL-3.0-or-later
+
+board: arduino_giga
+soc:   STM32H747
+rtos:  zephyr
+
+federation:
+  transport: uart
+  baud: 115200
+
+io:
+  - { tag: machine.run, dir: out, kind: gpio, pin: 13, type: bool }            # D13 built-in LED
+  - { tag: estop,       dir: in,  kind: gpio, pin: 2,  type: bool, active_low: true }
+  - { tag: temp,        dir: in,  kind: adc,  channel: 0, type: real, raw_max: 65535, out_min: -40.0, out_max: 125.0 }  # A0 (16-bit)
+  - { tag: heater,      dir: out, kind: pwm,  pin: 3,  type: real, out_min: 0.0, out_max: 100.0 }
+
+control:
+  - { loop: temp_ctrl, pv: temp, sp: temp.sp, cv: heater, kp: 2.0, ki: 0.8, kd: 0.05, out_min: 0.0, out_max: 100.0 }

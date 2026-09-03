@@ -1,0 +1,37 @@
+# ============================================================================
+# OSOlogic board profile — TEMPLATE (copy me to boards/<yourboard>.board.yaml)
+# ----------------------------------------------------------------------------
+# Describe the hardware once; boardgen turns it into board_map.c (tag<->pin
+# bindings + control loops) that calls only hal.h. Then implement hal.h for your
+# platform (or reuse hal_zephyr / hal_freertos / hal_linux / hal_host) and build.
+#
+#   make gen BOARD=<yourboard>      # -> generated/board_map.{c,h}
+#
+# Tip: hand a datasheet/pinout to the OSOlogic assistant and let the LLM fill this in.
+# (C) 2026 Roig Borrell S.L. and Ibercomp S.L. — AGPL-3.0-or-later
+# ============================================================================
+
+board: myboard                 # short id (also the C BOARD_NAME)
+soc:   MySoC                   # informational
+rtos:  zephyr                  # zephyr | freertos | linux | host
+
+federation:                    # how this node talks to the network hub
+  transport: uart              # uart | mqtt | can
+  baud: 115200                 # (uart)  — or: host/port/topic for mqtt, iface/id for can
+
+# ---- Physical I/O -> osodb tags --------------------------------------------
+# dir: in | out      kind: gpio | adc | pwm
+#   gpio:  pin: <n>   [active_low: true]                     type: bool
+#   adc:   channel: <n>  raw_max: <n>  out_min: <f>  out_max: <f>   type: real   (linear scale)
+#   pwm:   pin: <n>   out_min: <f>  out_max: <f>            type: real   (value -> duty)
+io:
+  - { tag: machine.run, dir: out, kind: gpio, pin: 0, type: bool }
+  - { tag: estop,       dir: in,  kind: gpio, pin: 1, type: bool, active_low: true }
+  # - { tag: temp,   dir: in,  kind: adc, channel: 0, type: real, raw_max: 4095, out_min: -40, out_max: 125 }
+  # - { tag: heater, dir: out, kind: pwm, pin: 2, type: real, out_min: 0, out_max: 100 }
+
+# ---- Hard-real-time control loops (optional) -------------------------------
+# pv/cv must be io tags; sp is an internal set-point tag the hub writes (SET <sp> <v>).
+# Gains are tunable at runtime (seed for AI-improved PID).
+control: []
+  # - { loop: temp_ctrl, pv: temp, sp: temp.sp, cv: heater, kp: 2.0, ki: 0.8, kd: 0.05, out_min: 0, out_max: 100 }

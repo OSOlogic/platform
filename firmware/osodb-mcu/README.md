@@ -26,6 +26,21 @@ board.yaml ──boardgen──▶ board_map.c/.h   (generated bindings + contro
 osodb_embedded · scan · pid · federation ──▶ hal.h ──▶ hal_zephyr / hal_freertos / hal_host(mock)
 ```
 
+## Included board profiles (templates)
+
+Like the Arduino IDE's examples, ready profiles ship under `boards/` — copy one and tweak:
+
+| Profile | Target |
+|---------|--------|
+| `TEMPLATE.board.yaml` | commented blank — start here |
+| `rp2040_demo` | Raspberry Pi Pico (RP2040) — Zephyr, closed-loop PID demo |
+| `esp32_demo` | ESP32 DevKitC — Zephyr, WiFi → MQTT |
+| `arduino_giga` | Arduino GIGA R1 (STM32H7) — Zephyr, analog + PWM |
+| `raspberry_pi` | Raspberry Pi (Linux) — `hal_linux` / libgpiod |
+| `orange_pi` | Orange Pi (Linux) — `hal_linux` |
+
+Full reference + how-to: [`docs/mcu-board-profiles.md`](../../docs/mcu-board-profiles.md).
+
 ## Layout
 
 | Path | What |
@@ -72,7 +87,9 @@ Regenerate for another board: `make gen BOARD=<name>` (add `boards/<name>.board.
 
 ## Roadmap
 
-- Board profiles for real targets (RP2040, ESP32, STM32; RK3576 Cortex-M0 via AMP).
+- More board profiles + completed `hal_zephyr`/`hal_linux` per target (RK3576 Cortex-M0 via AMP).
 - Federation over MQTT/CAN-FD; time-sync; store-and-forward on reconnect.
+- **Vendored, version-pinned Zephyr and FreeRTOS forks** in our own Git, so builds are
+  reproducible and self-hosted — `west.yml` points at the fork; we track curated stable releases.
 - Control beyond PID: feed-forward, signal filtering, and the **AI** hooks (adaptive PID,
-  anomaly/predictive-maintenance scoring on the tag stream) — see the platform AI roadmap.
+  anomaly/predictive-maintenance scoring on the tag stream, vision) — see the platform AI roadmap.

@@ -4,7 +4,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 [![SDK: Apache-2.0](https://img.shields.io/badge/SDK-Apache--2.0-green.svg)](./LICENSE-APACHE)
-[![Release: 1.3.3 Teddy](https://img.shields.io/badge/release-1.3.3%20Teddy-f48c06.svg)](#current-status)
+[![Release: 1.4.0 Teddy](https://img.shields.io/badge/release-1.4.0%20Teddy-f48c06.svg)](#current-status)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 [![Website](https://img.shields.io/badge/web-osologic.com-f48c06.svg)](https://osologic.com)
 
@@ -221,14 +221,16 @@ repository; the build systems that produce them live in [`os-dist/`](os-dist/).
 
 ## Current Status
 
-**OSOlogic 1.3 (codename _Teddy_) is out.** A functional base — the real-time PLC core, `osodb`
+**OSOlogic 1.4 (codename _Teddy_) is out.** A functional base — the real-time PLC core, `osodb`
 with pluggable database backends (down to a bare-metal MCU store), the IEC 61131-3 toolchain,
 gateways, APIs, web + TUI admin and a global search — already runs on our BorrellPLC devices. The
 1.x line adds a **Runtime mode** that turns the same install into a real soft-PLC bound to physical
-I/O (its binding now actually opens the port), a **loadable driver catalog** stripped from
-real-world integrations, an **osquery** module that exposes tags as the `oso_tags` SQL table, an
-**`oso-deploy`** helper (MariaDB in Docker or on local bare-metal; dockerize ↔ bare-metal), and a
-clearer install story. We are actively building out the scaffold and hardening the codebase through
+I/O, a **loadable driver catalog** stripped from real-world integrations, an **osquery** module
+that exposes tags/alarms/history as SQL tables, an **`oso-deploy`** helper, and — new in 1.4 — the
+**hard-real-time MCU tier** (`firmware/osodb-mcu/`): a portable, allocation-free `osodb-embedded`
+store with a **board-profile** system that adapts to any board (Arduino, RP2040, ESP32, Raspberry
+Pi, Orange Pi, …) from a small YAML file, Zephyr + FreeRTOS targets, and included templates. We are
+actively building out the scaffold and hardening the codebase through
 the Teddy (1.x) line.
 
 ### Release codenames

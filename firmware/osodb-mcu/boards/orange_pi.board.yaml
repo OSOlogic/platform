@@ -1,0 +1,22 @@
+# OSOlogic board profile — Orange Pi (Linux SBC, libgpiod via hal_linux).
+# Same mechanism as the Raspberry Pi profile; only the gpiochip/line numbers differ
+# (set the chip in hal_linux for your Orange Pi model). Digital demo.
+# (C) 2026 Roig Borrell S.L. and Ibercomp S.L. — AGPL-3.0-or-later
+
+board: orange_pi
+soc:   RK3566                  # e.g. Orange Pi 3B / 5 family — set your gpiochip in hal_linux
+rtos:  linux
+
+federation:
+  transport: mqtt
+  host: hub.local
+  port: 1883
+  topic: osologic/node/opi
+
+io:
+  - { tag: machine.run, dir: out, kind: gpio, pin: 3,  type: bool }
+  - { tag: pump,        dir: out, kind: gpio, pin: 5,  type: bool }
+  - { tag: estop,       dir: in,  kind: gpio, pin: 7,  type: bool, active_low: true }
+  - { tag: level_ok,    dir: in,  kind: gpio, pin: 11, type: bool }
+
+control: []
