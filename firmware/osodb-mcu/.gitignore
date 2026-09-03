@@ -1,0 +1,6 @@
+# host build artifacts
+build/
+# Zephyr/west workspace
+zephyr/build/
+.west/
+# generated/ is checked in as a reference example; regenerate with `make gen`
